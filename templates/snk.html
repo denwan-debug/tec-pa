@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC English - Syarat dan Ketentuan</title>
+    <style>
+        /* === Reset & Base Styles === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            color: #333;
+            overflow: hidden; /* Prevent page scroll, use pane scroll */
+            background-color: #fffbfa;
+        }
+
+        /* === Layout Split Screen === */
+        .split-screen {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === Left Column (Hero Section) === */
+        .left-pane {
+            flex: 1;
+            background-color: #43535c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .left-pane h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .left-pane p {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            line-height: 1.6;
+            max-width: 80%;
+        }
+
+        .illustration-container {
+            width: 100%;
+            max-width: 440px;
+            background-color: transparent;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .illustration-container img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+
+        /* === Right Column (Content Section) === */
+        .right-pane {
+            flex: 1.5; /* Slightly wider for reading comfort */
+            background-color: #fffbfa;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 60px;
+            overflow-y: auto; /* Memungkinkan scroll dokumen */
+            scroll-behavior: smooth;
+        }
+
+        /* Scrollbar Styling for Right Pane */
+        .right-pane::-webkit-scrollbar {
+            width: 8px;
+        }
+        .right-pane::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        .right-pane::-webkit-scrollbar-thumb {
+            background: #c5cbd3; 
+            border-radius: 4px;
+        }
+        .right-pane::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0; 
+        }
+
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f3e8ee;
+        }
+
+        .brand-logo-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #902b54;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .brand-logo {
+            background-color: #ed648f;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        .header-brand h2 {
+            font-size: 1.8rem;
+            color: #1a202c;
+            margin-top: 10px;
+        }
+
+        .header-brand p {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        /* === Document Content Styles === */
+        .document-content {
+            width: 100%;
+            max-width: 800px;
+            color: #4a5568;
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        .document-content p {
+            margin-bottom: 16px;
+        }
+
+        .document-content strong {
+            color: #1a202c;
+        }
+
+        .section-divider {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #b85c7e;
+            letter-spacing: 1px;
+            margin-top: 30px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #f3e8ee;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .document-content ol, 
+        .document-content ul {
+            margin-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .document-content li {
+            margin-bottom: 8px;
+            padding-left: 5px;
+        }
+
+        .btn-back {
+            display: inline-block;
+            background-color: #fff5f7;
+            color: #902b54;
+            border: 1px solid #f7d2db;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .btn-back:hover {
+            background-color: #902b54;
+            color: white;
+        }
+
+        .footer-copyright {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        /* === Responsive Design === */
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto;
+                height: auto;
+            }
+            .split-screen {
+                flex-direction: column;
+                height: auto;
+            }
+            .left-pane {
+                padding: 40px 20px;
+            }
+            .right-pane {
+                padding: 30px 20px;
+                overflow-y: visible; /* Biarkan scroll mengikuti body di mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="split-screen">
+        <div class="left-pane">
+            <div class="illustration-container">
+                <img src="https://cdni.iconscout.com/illustration/premium/thumb/privacy-policy-4488056-3722740.png" alt="TEC English Belajar">
+            </div>
+            <h3>Peluang Global Melalui Bahasa</h3>
+            <p>"Penguasaan bahasa Inggris adalah kunci untuk mengakses peluang global yang layak bagi setiap orang."</p>
+        </div>
+
+        <div class="right-pane">
+            <div class="header-brand">
+                <div class="brand-logo-title">
+                    <div class="brand-logo">🇬🇧</div>
+                    <span>TEC English</span>
+                </div>
+                <h2>Syarat dan Ketentuan</h2>
+                <p>Pembaruan Terakhir: Juni 2026</p>
+            </div>
+
+            <div class="document-content">
+                <p>Selamat datang di <strong>TEC English</strong>, layanan bimbingan belajar yang dikelola oleh PT TEC Edukasi Nusantara, beralamat di Jl. Jenderal Sudirman No. 10, Kel. Kutowinangun Kidul, Kec. Tingkir, Kota Salatiga, Prov. Jawa Tengah 50714, Indonesia.</p>
+
+                <div class="section-divider">📖 TENTANG TEC ENGLISH</div>
+                <p>TEC English merupakan platform dan lembaga bimbingan belajar bahasa Inggris terpadu yang didedikasikan untuk meningkatkan kemampuan literasi dan komunikasi pengguna. Ketentuan Layanan berikut adalah ketentuan dalam penggunaan situs, konten, layanan kelas, dan fitur yang ada di TEC English. Harap Kamu membaca ketentuan layanan ini dengan sebaik-baiknya. Dengan mengakses dan menggunakan situs web serta layanan kami, berarti Kamu telah memahami dan setuju untuk terikat dengan semua peraturan yang berlaku.</p>
+
+                <div class="section-divider">A. UMUM</div>
+                <ol>
+                    <li><strong>Ketentuan Layanan TEC English.</strong> Ketentuan layanan ini merupakan perjanjian antara pengguna TEC English ("Kamu") dan PT TEC Edukasi Nusantara ("TEC English" atau "Kami") sehubungan dengan penggunaan layanan Kami pada situs web dan platform belajar TEC English, serta setiap dan seluruh layanan kelas, fitur, dan konten yang tersedia di dalamnya. Dengan mengunjungi, mendaftar, maupun menggunakan layanan, maka Kamu dianggap telah membaca, memahami, dan menyetujui untuk tunduk pada Ketentuan Layanan ini.</li>
+                    <li><strong>Perubahan Ketentuan Layanan.</strong> TEC English dapat setiap saat mengganti, menambah, atau mengurangi Ketentuan Layanan ini dengan tetap mengikat Pengguna.</li>
+                    <li><strong>Pengunjung yang Terdaftar.</strong> Untuk dapat mengakses dan mengikuti program bimbingan belajar yang Kami tawarkan, pengunjung harus menjadi pengguna terdaftar dan melaksanakan pemesanan paket layanan. Kamu harus menggunakan email yang valid untuk melakukan pendaftaran.</li>
+                    <li><strong>Perubahan Fitur.</strong> Kami berhak untuk mengubah, menambahkan, memberikan pembaruan, dan/atau tidak meneruskan suatu layanan kelas maupun fitur pada TEC English sewaktu-waktu tanpa pemberitahuan terlebih dahulu.</li>
+                </ol>
+
+                <div class="section-divider">B. KEWAJIBAN PENGGUNA</div>
+                <ol>
+                    <li><strong>Larangan Penggunaan.</strong> Dalam menggunakan layanan TEC English, Kamu dilarang untuk:
+                        <ul>
+                            <li>Menggunakan TEC English dalam kondisi atau cara apapun yang dapat merusak, melumpuhkan, membebani, atau mengganggu server atau jaringan Kami.</li>
+                            <li>Mengunduh, menyimpan, membuat salinan, membagikan, atau menyebarluaskan isi dari materi belajar, modul, atau video baik tanpa atau dengan tujuan komersial.</li>
+                            <li>Menyebabkan Hak Akses (akun bimbingan belajar) digunakan oleh pihak lain selain Kamu.</li>
+                            <li>Melanggar hak kekayaan intelektual milik Kami atau tutor/pihak ketiga yang terdapat dalam platform.</li>
+                            <li>Membuat tiruan dari website maupun sebagian atau seluruh konten, modul, dan produk TEC English.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Kepatuhan Hukum.</strong> Kamu hanya boleh menggunakan fitur dan layanan kelas TEC English untuk tujuan yang tidak bertentangan dengan hukum dan perundang-undangan yang berlaku.</li>
+                </ol>
+
+                <div class="section-divider">C. PELANGGARAN PENGGUNAAN</div>
+                <p>Bila nantinya Kami menemukan bahwa Kamu melakukan pelanggaran atas Penggunaan Layanan ini, TEC English berhak mencabut Hak Akses yang Kamu miliki, baik sementara ataupun permanen. Pencabutan Hak Akses atas paket bimbel Kamu akibat pelanggaran tidak memberikan hak bagi Kamu untuk meminta pengembalian biaya pendaftaran maupun tuntutan apapun.</p>
+
+                <div class="section-divider">D. KETENTUAN LAYANAN</div>
+                <ol>
+                    <li><strong>Melakukan Pemesanan.</strong> Ketika Kamu mulai berlangganan paket bimbel Kami, Kamu dianggap ingin berlangganan sesuai syarat dan ketentuan yang berlaku.</li>
+                    <li><strong>Pembayaran.</strong> Kontrak layanan bimbingan belajar baru akan terbentuk setelah Kami mengirimkan konfirmasi melalui e-mail bahwa pembayaran Kamu telah diterima dan akses kelas atau modul telah diberikan.</li>
+                    <li><strong>Harga dan Pengembalian Dana (Refund).</strong> Pengembalian dana tidak akan diproses jika masalah disebabkan oleh kelalaian pelanggan (salah pilih paket kelas, salah ketik email, atau masalah jaringan pribadi pengguna). Jika terdapat kesalahan teknis di bawah kendali Kami, proses refund memakan waktu sekitar 30 hari kerja.</li>
+                    <li><strong>Hak Akses.</strong> Dengan membayar paket kelas, Kamu mendapatkan Hak Akses atas layanan, kelas, dan materi eksklusif TEC English selama Periode Berlangganan yang dipilih.</li>
+                </ol>
+
+                <div class="section-divider">E. HAK DAN LISENSI</div>
+                <ol>
+                    <li><strong>Hak Milik & Kekayaan Intelektual.</strong> Seluruh modul pembelajaran, desain, gambar, teks, audio, video materi adalah hak cipta dilindungi milik TEC English. Kamu dilarang membagikan informasi login (username dan password) kepada siapapun.</li>
+                    <li><strong>Lisensi Penggunaan.</strong> Kamu hanya diperkenankan menggunakan materi pembelajaran TEC English untuk keperluan belajar pribadi, bukan komersial.</li>
+                </ol>
+
+                <div class="section-divider">F. BATASAN TANGGUNG JAWAB</div>
+                <p>Dalam batas hukum yang berlaku, TEC English tidak bertanggung jawab atas kerugian tidak langsung, kehilangan data, atau kerusakan perangkat akibat penggunaan platform ini. Tanggung jawab total Kami atas klaim yang timbul dari pelanggaran Ketentuan Layanan ini akan dibatasi maksimal hingga jumlah biaya yang telah Kamu bayarkan kepada Kami untuk paket bimbingan belajar tersebut.</p>
+
+                <div class="section-divider">G. HUKUM YANG BERLAKU</div>
+                <p>Ketentuan Penggunaan ini diatur dan ditafsirkan sesuai dengan hukum yang berlaku di Republik Indonesia. Setiap sengketa atau konflik yang timbul akan diupayakan penyelesaiannya secara musyawarah dan damai dalam waktu 60 (enam puluh) hari sejak pemberitahuan tertulis diberikan.</p>
+
+                <button type="button" class="btn-back" onclick="window.history.back()">Kembali ke Halaman Pendaftaran</button>
+            </div>
+
+            <div class="footer-copyright">
+                &copy; 2026 TEC English. Hak Cipta Dilindungi.
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

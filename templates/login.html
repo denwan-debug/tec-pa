@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Parent Portal - Login</title>
+    <style>
+        /* === Reset & Base Styles === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* === Layout Split Screen === */
+        .split-screen {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === Left Column (Hero Section) === */
+        .left-pane {
+            flex: 1;
+            background: radial-gradient(circle at top left, #fff0f5, #fdf8fa, #f4f5fa);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .left-pane h1 {
+            font-size: 1.8rem;
+            color: #2d3748;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .left-pane p {
+            font-size: 0.95rem;
+            color: #718096;
+            margin-bottom: 40px;
+            line-height: 1.6;
+            max-width: 80%;
+        }
+
+        .illustration-container {
+            width: 100%;
+            max-width: 100px;
+            background-color: transparent;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .illustration-container img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+        /* === Right Column (Form Section) === */
+        .right-pane {
+            flex: 1;
+            background-color: #fafbfc;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .brand-logo {
+            background-color: #902b54;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .brand-text {
+            color: #902b54;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        /* === Login Card === */
+        .login-card {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        }
+
+        .login-card h2 {
+            font-size: 1.5rem;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }
+
+        .login-card p {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        /* === Form Styles === */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            color: #a0aec0;
+            font-style: normal;
+            font-size: 1.1rem;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 12px 15px 12px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: #e85d89;
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            font-size: 0.85rem;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4a5568;
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: #902b54;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background-color: #ed648f;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary:hover {
+            background-color: #d84b77;
+        }
+
+        .register-link {
+            text-align: left;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .register-link a {
+            color: #902b54;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* === Responsive Design === */
+        @media (max-width: 768px) {
+            .split-screen {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+            .left-pane, .right-pane {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="split-screen">
+        <div class="left-pane">
+            <h1>Partner Terbaik untuk Pendidikan<br>Anak Anda</h1>
+            <p>Menghubungkan orang tua dengan perkembangan akademik<br>harian di TEC English Club.</p>
+            
+            <div class="illustration">
+                <img src="{{ url_for('static', filename='images/parent-illustration.png') }}" alt="Mitra Akademik Terpercaya">
+            </div>
+        </div>
+
+        <div class="right-pane">
+            <div class="header-brand">
+                <div class="brand-logo">T</div>
+                <div class="brand-text">TEC Parent Portal</div>
+            </div>
+
+            <div class="login-card">
+                <h2>Selamat Datang Kembali</h2>
+                <p>Masuk ke portal untuk memantau aktivitas belajar anak Anda.</p>
+
+        
+            <form id="loginForm">
+                    
+                    <div id="alertMessage" style="display: none; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; font-weight: 600; text-align: center;"></div>
+
+                    <div class="input-group">
+                        <label for="emailInput">Alamat Email</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="emailInput" required>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="passwordInput">Kata Sandi</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="passwordInput" required>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="remember-me">
+                            <input type="checkbox"> Ingat Saya
+                        </label>
+                        <a href="#" class="forgot-password">Lupa Password?</a>
+                    </div>
+
+                    <button type="submit" id="loginBtn" class="btn-primary">
+                        Masuk ➔
+                    </button>
+            </form>
+
+                <div class="register-link">
+                    Belum punya akun? <a href="register">Daftar Sekarang</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            // 1. Mencegah halaman reload saat tombol ditekan
+            event.preventDefault(); 
+
+            // 2. Mengambil nilai dari inputan
+            const emailValue = document.getElementById('emailInput').value;
+            const passwordValue = document.getElementById('passwordInput').value;
+            const alertBox = document.getElementById('alertMessage');
+            const btn = document.getElementById('loginBtn');
+
+            // Ubah teks tombol saat loading
+            btn.innerHTML = "Memproses...";
+            btn.disabled = true;
+
+            try {
+                // 3. Mengirim data ke backend Flask menggunakan Fetch API
+                const response = await fetch('/login', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // Catatan: frontend mengirim 'email' sebagai 'username' ke backend
+                    body: JSON.stringify({ 
+                        email: emailValue, 
+                        password: passwordValue 
+                    })
+                });
+
+                const data = await response.json();
+
+                // 4. Menampilkan hasil balasan dari server
+                alertBox.style.display = 'block';
+                
+                if (response.ok) {
+                    alertBox.style.backgroundColor = '#d4edda';
+                    alertBox.style.color = '#155724';
+                    alertBox.innerText = data.message;
+                    
+                    // Arahkan ke halaman utama berdasarkan URL redirect dari Flask (yaitu halaman index '/')
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1000);
+                } else {
+                    // Jika gagal (Status 401, 403, dll)
+                    alertBox.style.backgroundColor = '#f8d7da';
+                    alertBox.style.color = '#721c24';
+                    alertBox.innerText = data.message;
+                    
+                    // Kembalikan tombol ke semula
+                    btn.innerHTML = "Masuk ➔";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                alertBox.style.display = 'block';
+                alertBox.style.backgroundColor = '#f8d7da';
+                alertBox.style.color = '#721c24';
+                alertBox.innerText = "Terjadi kesalahan pada server.";
+                btn.innerHTML = "Masuk ➔";
+                btn.disabled = false;
+            }
+        });
+            // Jika user menekan tombol Back dan sampai di halaman login,
+            // skrip ini akan memeriksa apakah sesi masih aktif di sisi client (opsional)
+            // atau memaksa browser melakukan refresh agar server mengecek ulang sesi.
+            window.onload = function() {
+                if (typeof history.replaceState === "function") {
+                    history.replaceState(null, null, window.location.href);
+                }
+            };
+
+    </script>
+</body>
+</html>
