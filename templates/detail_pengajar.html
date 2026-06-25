@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Profil Pengajar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#FDF8F6] text-slate-800 font-sans min-h-screen flex">
+
+    <aside class="w-64 bg-white border-r border-gray-100 flex flex-col justify-between p-6 shrink-0">
+        <div>
+            <div class="flex items-center gap-3 mb-8">
+                <div class="bg-[#9B2C47] text-white p-2.5 rounded-xl flex items-center justify-center">
+                    <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-[#9B2C47] leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-1.5">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Beranda
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl transition">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> Manajemen Kelas
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl transition">
+                    <i data-lucide="users" class="w-4 h-4"></i> Orang tua & Siswa
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-[#2B6CB0] bg-[#EBF8FF] rounded-xl transition">
+                    <i data-lucide="user-check" class="w-4 h-4"></i> Manajemen Pengajar
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl transition">
+                    <i data-lucide="credit-card" class="w-4 h-4"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-gray-100 mb-4">
+            <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition">
+                <i data-lucide="log-out" class="w-4 h-4"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        
+        <header class="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+            <div class="relative w-96">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input type="text" placeholder="Search Pengajar, Kelas, Siswa..." class="w-full pl-11 pr-4 py-2.5 bg-[#FFF5F5] rounded-full text-sm border-none focus:outline-none focus:ring-2 focus:ring-[#9B2C47]/20">
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button class="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-[#9B2C47] rounded-full"></span>
+                </button>
+                <button class="p-2 text-gray-500 hover:bg-gray-50 rounded-full mr-2">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </button>
+                <div class="flex items-center gap-3 border-l pl-4 border-gray-200">
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-800">Alex Rivera</p>
+                        <p class="text-xs text-gray-400">Admin Level 4</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-slate-300 overflow-hidden">
+                        <img src="
