@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, make_response
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, make_response, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from datetime import timedelta
@@ -22,30 +22,6 @@ app.config['MAIL_DEFAULT_SENDER'] = ('TEC Parent Portal', 'dennisdg273@gmail.com
 mail = Mail(app)
 # -------------------------------------------------------
 
-@app.after_request
-def add_header(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
-
-def nocache(view):
-    @wraps(view)
-    def no_cache(*args, **kwargs):
-        response = make_response(view(*args, **kwargs))
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
-    return no_cache
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'id_users' not in session:
-            return redirect(url_for('halaman_portal_orangtua'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 # --- FUNGSI KONEKSI DATABASE MURNI ---
 def get_db_connection():
@@ -66,7 +42,6 @@ def index():
     return redirect(url_for('halaman_portal_orangtua'))
 
 @app.route('/portal_orangtua', methods=['GET'])
-@nocache
 def halaman_portal_orangtua():
     if 'id_users' in session and session.get('role') == 'murid':
         return redirect(url_for('index'))
@@ -133,68 +108,45 @@ def send_otp():
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # 1. CEK TABEL USERS: Pastikan email/username belum terdaftar secara resmi
         cursor.execute("SELECT id_users FROM users WHERE username=%s OR email=%s", (username, email))
         if cursor.fetchone():
             return jsonify({"message": "Username atau email sudah digunakan!"}), 400
 
-        hashed_password = generate_password_hash(password)
+        # 2. Siapkan data untuk ditampung di tabel OTP
         user_id = str(uuid.uuid4().hex[:10]).upper()
-
-        cursor.execute("""
-            INSERT INTO users (id_users, username, email, password, role_id_role, status_akun)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (user_id, username, email, hashed_password, 'R01', 'unverified'))
-
+        hashed_password = generate_password_hash(password)
         otp = str(random.randint(100000, 999999))
-        cursor.execute("""
-            INSERT INTO user_otps (user_id_users, otp_code, expired_at, is_used)
-            VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
-        """, (user_id, otp))
 
+        # 3. MASUKKAN KE TABEL user_otps DULU (Pending Registration)
+        cursor.execute("""
+            INSERT INTO user_otps (user_id_users, email, username, password, otp_code, expired_at, is_used)
+            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
+        """, (user_id, email, username, hashed_password, otp))
         conn.commit()
         
-        cursor.execute("""
-            INSERT INTO user_otps (user_id_users, otp_code, expired_at, is_used)
-            VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
-        """, (user_id, otp))
-
-        conn.commit()
-        
-        # --- TAMBAHAN BARU: Ambil waktu expired dari database ---
-        # UNIX_TIMESTAMP mengubah waktu MySQL menjadi detik, dikali 1000 menjadi milidetik untuk JS
+        # Ambil waktu kedaluwarsa untuk timer Javascript
         cursor.execute("""
             SELECT UNIX_TIMESTAMP(expired_at) * 1000 AS expired_ms 
             FROM user_otps WHERE user_id_users = %s ORDER BY id DESC LIMIT 1
         """, (user_id,))
-        otp_info = cursor.fetchone()
-        expired_ms = otp_info['expired_ms']
+        expired_ms = cursor.fetchone()['expired_ms']
 
-        # --- 3. PROSES PENGIRIMAN EMAIL ---
+        # 4. PROSES PENGIRIMAN EMAIL
         try:
-            msg = Message('Kode Verifikasi TEC Parent Portal', recipients=[email])
-            msg.body = f'''Halo {username},
-
-Terima kasih telah mendaftar di TEC Parent Portal.
-Kode OTP Anda adalah: {otp}
-
-Kode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun.
-
-Salam,
-Tim TEC Parent Portal'''
+            msg = Message('Kode Verifikasi TEC Portal', recipients=[email])
+            msg.body = f"Halo {username},\n\nKode OTP Anda adalah: {otp}\nBerlaku selama 5 menit."
             mail.send(msg)
-            print(f"[DEBUG] OTP {otp} berhasil dikirim ke email {email}") # Tampil di terminal
+            print(f"[DEBUG] OTP {otp} dikirim ke {email}")
         except Exception as email_err:
-            print(f"[ERROR] Gagal kirim email: {email_err}")
-            # Opsional: Jika gagal kirim email, batalkan pendaftaran agar user bisa coba lagi
-            # conn.rollback() 
-            return jsonify({"message": "Gagal mengirim email OTP. Pastikan email Anda aktif."}), 500
-        # ----------------------------------
+            print(f"[ERROR] Email gagal: {email_err}")
+            return jsonify({"message": "Gagal mengirim email OTP."}), 500
 
         return jsonify({
-            "message": "OTP berhasil dikirim ke email Anda!",
+            "message": "OTP berhasil dikirim!",
             "redirect": "/verify_otp_page",
             "user_id": user_id,
-            "expired_ms": expired_ms # KIRIM KE JAVASCRIPT
+            "expired_ms": expired_ms 
         }), 200
 
     except Exception as e:
@@ -203,6 +155,7 @@ Tim TEC Parent Portal'''
     finally:
         cursor.close()
         conn.close()
+
 
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp():
@@ -217,36 +170,45 @@ def verify_otp():
     cursor = conn.cursor(dictionary=True)
     
     try:
-        # 1. Jalankan SELECT
+        # 1. Cek apakah OTP valid dan ambil data pendaftarannya
         cursor.execute("""
-            SELECT id FROM user_otps 
+            SELECT * FROM user_otps 
             WHERE user_id_users = %s AND otp_code = %s AND is_used = 0 AND expired_at > NOW()
         """, (user_id, otp_input))
-        
         otp_data = cursor.fetchone()
         
-        # 2. PENTING: Bersihkan sisa hasil query agar cursor tidak "Unread"
-        # Ini mencegah error "Unread result found" saat melakukan UPDATE nanti
-        if cursor.with_rows:
-            cursor.fetchall()
+        if cursor.with_rows: cursor.fetchall()
         
         if otp_data:
-            # 3. Jalankan UPDATE sekarang karena cursor sudah bersih
-            cursor.execute("UPDATE users SET status_akun = 'verified' WHERE id_users = %s", (user_id,))
-            cursor.execute("UPDATE user_otps SET is_used = 1 WHERE id = %s", (otp_data['id'],))
-            conn.commit()
+            try:
+                # 2. OTP BENAR! Sekarang pindahkan datanya ke tabel users
+                cursor.execute("""
+                    INSERT INTO users (id_users, username, email, password, role_id_role, status_akun)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (otp_data['user_id_users'], otp_data['username'], otp_data['email'], otp_data['password'], 'R01', 'verified'))
+                
+                # Tandai OTP sudah terpakai
+                cursor.execute("UPDATE user_otps SET is_used = 1 WHERE id = %s", (otp_data['id'],))
+                conn.commit()
+                
+                return jsonify({"message": "Verifikasi berhasil!", "redirect": "/index"}), 200
             
-            return jsonify({"message": "Verifikasi berhasil!", "redirect": "/portal_orangtua"}), 200
+            except Exception as insert_err:
+                conn.rollback()
+                # Jika ada orang lain yang kebetulan mendaftar & verifikasi dengan email yg sama di saat yg bersamaan
+                if "Duplicate entry" in str(insert_err):
+                    return jsonify({"message": "Maaf, username atau email tersebut baru saja diverifikasi oleh orang lain."}), 400
+                raise insert_err
         
         return jsonify({"message": "OTP salah atau kadaluarsa!"}), 400
 
     except Exception as e:
         conn.rollback()
-        print(f"Error saat verifikasi: {e}")
         return jsonify({"message": "Terjadi kesalahan pada server."}), 500
     finally:
         cursor.close()
         conn.close()
+
 
 @app.route('/resend_otp', methods=['POST'])
 def resend_otp():
@@ -258,46 +220,44 @@ def resend_otp():
         return jsonify({"message": "Data tidak lengkap, silakan daftar ulang!"}), 400
 
     conn = get_db_connection()
-    # PASTIKAN ADA (dictionary=True) DI SINI
     cursor = conn.cursor(dictionary=True)
     
     try:
+        # Ambil data pendaftaran sebelumnya (username & password) dari tabel OTP
+        cursor.execute("SELECT username, password FROM user_otps WHERE user_id_users = %s ORDER BY id DESC LIMIT 1", (user_id,))
+        pending_data = cursor.fetchone()
+        
+        if not pending_data:
+            return jsonify({"message": "Sesi pendaftaran tidak ditemukan."}), 400
+
         otp = str(random.randint(100000, 999999))
         
+        # Tandai OTP lama menjadi is_used = 1 (hangus)
+        cursor.execute("UPDATE user_otps SET is_used = 1 WHERE user_id_users = %s", (user_id,))
+        
+        # Buat OTP baru dengan membawa data pendaftaran yang sama
         cursor.execute("""
-            INSERT INTO user_otps (user_id_users, otp_code, expired_at, is_used) 
-            VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
-        """, (user_id, otp))
+            INSERT INTO user_otps (user_id_users, email, username, password, otp_code, expired_at, is_used) 
+            VALUES (%s, %s, %s, %s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
+        """, (user_id, email, pending_data['username'], pending_data['password'], otp))
         conn.commit()
 
-        cursor.execute("""
-            INSERT INTO user_otps (user_id_users, otp_code, expired_at, is_used) 
-            VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
-        """, (user_id, otp))
-        conn.commit()
-
-        # --- TAMBAHAN BARU ---
         cursor.execute("""
             SELECT UNIX_TIMESTAMP(expired_at) * 1000 AS expired_ms 
             FROM user_otps WHERE user_id_users = %s ORDER BY id DESC LIMIT 1
         """, (user_id,))
-        otp_info = cursor.fetchone()
-        expired_ms = otp_info['expired_ms']
+        expired_ms = cursor.fetchone()['expired_ms']
 
-        # Kirim Email OTP yang baru 
-        msg = Message('Kode Verifikasi TEC Parent Portal (Baru)', recipients=[email])
-        msg.body = f"Halo,\n\nIni adalah kode verifikasi OTP baru Anda: {otp}\nKode berlaku 5 menit."
+        # Kirim Ulang Email
+        msg = Message('Kode Verifikasi TEC Portal (Baru)', recipients=[email])
+        msg.body = f"Halo,\n\nIni kode verifikasi OTP baru Anda: {otp}\nBerlaku 5 menit."
         mail.send(msg)
 
-        return jsonify({
-            "message": "OTP baru berhasil dikirim!",
-            "expired_ms": expired_ms # KIRIM KE JAVASCRIPT
-        }), 200
+        return jsonify({"message": "OTP baru berhasil dikirim!", "expired_ms": expired_ms}), 200
 
     except Exception as e:
         conn.rollback()
-        print(f"Error Resend OTP: {e}")
-        return jsonify({"message": "Gagal mengirim OTP. Server Error."}), 500
+        return jsonify({"message": "Gagal mengirim OTP."}), 500
     finally:
         cursor.close()
         conn.close()
@@ -318,6 +278,90 @@ def halaman_kebijakan_privasi():
 def logout():
     session.clear()
     return redirect(url_for('halaman_portal_orangtua'))
+
+@app.route('/manajemen_anak')
+def manajemen_anak():
+
+    if 'id_users' not in session:
+        return redirect('/login')
+        
+    user_id = session['id_users']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Ambil data anak berdasarkan ID orang tua yang sedang login
+        cursor.execute("""
+            SELECT * FROM anak 
+            WHERE id_orangtua = %s 
+            ORDER BY created_at DESC
+        """, (user_id,))
+        daftar_anak = cursor.fetchall()
+        
+        return render_template('child_management.html', daftar_anak=daftar_anak)
+        
+    except Exception as e:
+        print(f"Error mengambil data anak: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/tambah_anak', methods=['POST'])
+def tambah_anak():
+    if 'id_users' not in session:
+        return redirect('/login')
+        
+    user_id = session['id_users']
+    nama_lengkap = request.form.get('nama_lengkap')
+    nama_panggilan = request.form.get('nama_panggilan')
+    
+    if not nama_lengkap:
+        flash('Nama lengkap wajib diisi!', 'error')
+        return redirect('/manajemen_anak')
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Insert data anak baru ke database
+        cursor.execute("""
+            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, status_anak)
+            VALUES (%s, %s, %s, 'Active')
+        """, (user_id, nama_lengkap, nama_panggilan))
+        
+        conn.commit()
+        flash('Data anak berhasil ditambahkan!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error menambah anak: {e}")
+        flash('Gagal menambahkan data anak.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect('/manajemen_anak')
+
+@app.route('/kelas')
+def kelas():
+    return render_template('kelas.html')
+
+@app.route('/riwayat_pembayaran')
+def riwayat_pembayaran():
+    return render_template('riwayat_transaksi.html')
+
+@app.route('/jadwal_belajar')
+def jadwal_belajar():
+    return render_template('jadwal_belajar.html')
+
+@app.route('/presensi')
+def presensi():
+    return render_template('presensi.html')
+
+@app.route('/reports')
+def reports():
+    return render_template('reports.html')
 
 @app.route('/dashboard_admin')
 def dashboard_admin():
