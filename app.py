@@ -4,6 +4,7 @@ from functools import wraps
 from datetime import timedelta
 from dotenv import load_dotenv
 from flask_mail import Mail, Message 
+from datetime import datetime
 import mysql.connector, uuid, random, os
 
 load_dotenv()
@@ -316,6 +317,31 @@ def tambah_anak():
     nama_lengkap = request.form.get('nama_lengkap')
     nama_panggilan = request.form.get('nama_panggilan')
     
+    tanggal_lahir_raw = request.form.get('tanggal_lahir')
+    if tanggal_lahir_raw and tanggal_lahir_raw.strip() != "":
+        try:
+            # Mengubah string 'YYYY-MM-DD' menjadi objek date Python
+            tanggal_lahir = datetime.strptime(tanggal_lahir_raw, '%Y-%m-%d').date()
+        except ValueError:
+            # Jika formatnya rusak/tidak valid, set jadi None (NULL)
+            tanggal_lahir = None
+    else:
+        # Jika user mengosongkan tanggal, set jadi None agar di DB terbaca NULL
+        tanggal_lahir = None    
+    
+    jenis_kelamin_raw = request.form.get('jenis_kelamin')
+    if jenis_kelamin_raw and jenis_kelamin_raw.strip() != "":
+        # Memastikan nilai yang dikirim ke DB hanya 'L' atau 'P'
+        if jenis_kelamin_raw in ['L', 'Laki-laki']:
+            jenis_kelamin = 'L'
+        elif jenis_kelamin_raw in ['P', 'Perempuan']:
+            jenis_kelamin = 'P'
+        else:
+            jenis_kelamin = None  # Jika ada nilai aneh yang masuk
+    else:
+        # Jika user tidak memilih radio button, set jadi None (NULL di DB)
+        jenis_kelamin = None
+    
     if not nama_lengkap:
         flash('Nama lengkap wajib diisi!', 'error')
         return redirect('/manajemen_anak')
@@ -326,9 +352,9 @@ def tambah_anak():
     try:
         # Insert data anak baru ke database
         cursor.execute("""
-            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, status_anak)
-            VALUES (%s, %s, %s, 'Active')
-        """, (user_id, nama_lengkap, nama_panggilan))
+            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak)
+            VALUES (%s, %s, %s, %s, %s, 'Active')
+        """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin))
         
         conn.commit()
         flash('Data anak berhasil ditambahkan!', 'success')

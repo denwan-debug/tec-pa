@@ -471,6 +471,17 @@
         .icon-container { background: #e2e8f0; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
         .btn-logout { flex: 1; padding: 12px; border-radius: 8px; background: #4a5568; color: white; text-decoration: none; font-weight: bold; }
+        .btn-tambahin { 
+            flex: 1; 
+            padding: 12px; 
+            border-radius: 8px; 
+            background: var(--primary-accent); 
+            color: white; 
+            text-decoration: none; 
+            font-weight: bold;
+            border: none; 
+            cursor: pointer; 
+        }        
         .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
@@ -506,9 +517,35 @@
                     <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Nama Panggilan</label>
                     <input type="text" name="nama_panggilan" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
                 </div>
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">
+                        Tanggal Lahir
+                    </label>
+                    <input
+                        type="date"
+                        name="tanggal_lahir"
+                        style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;"
+                        required
+                    >
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 0.9rem;">
+                        Jenis Kelamin
+                    </label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <input type="radio" name="jenis_kelamin" value="Laki-laki" style="accent-color: var(--primary-accent);" required>
+                            Laki-laki
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <input type="radio" name="jenis_kelamin" value="Perempuan" style="accent-color: var(--primary-accent);">
+                            Perempuan
+                        </label>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" id="cancelAddBaby" class="btn-cancel">Batal</button>
-                    <button type="submit" class="btn-logout" style="background-color: var(--primary-accent);">Simpan</button>
+                    <button type="submit" class="btn-tambahin" style="background-color: #b42b51; outline: none;">Simpan</button>
                 </div>
             </form>
         </div>
@@ -583,6 +620,18 @@
             </div>
 
             <div class="dashboard-container">
+                
+                <!-- === NOTIFIKASI SUKSES/ERROR DITEMPATKAN DI SINI === -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div style="padding: 12px 15px; margin-bottom: 20px; border-radius: 8px; font-weight: 600; background-color: {% if category == 'error' %}#fee2e2{% else %}#dcfce7{% endif %}; color: {% if category == 'error' %}#991b1b{% else %}#166534{% endif %}; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
                 <div class="management-grid">
                     
                     <div class="left-col">
@@ -591,25 +640,11 @@
                             Daftar Anak
                         </div>
 
-                        <!-- Tampilkan notifikasi jika ada (Flash Messages) -->
-                        {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                            {% if category == 'error' %}
-                                <div class="alert-error">
-                                {% else %}
-                                <div class="alert-success">
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-                        {% endwith %}
-
                         <!-- Loop untuk menampilkan data anak dari database -->
                         {% if daftar_anak %}
                             {% for anak in daftar_anak %}
                             <div class="child-card">
                                 <div class="avatar-container">
-                                    <!-- Jika belum punya fitur upload, gunakan foto default -->
                                     <img src="{{ url_for('static', filename='img/' + anak.foto_profil) if anak.foto_profil else 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=150&auto=format&fit=crop&q=80' }}" class="avatar-img" alt="{{ anak.nama_panggilan }}">
                                     <span class="status-dot"></span>
                                 </div>
@@ -645,7 +680,7 @@
                                         <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2.67c0-2.67-5.33-4-8-4z"/></svg>
                                     </div>
                                     <div class="panel-title-text">
-                                        <h2>Detail Anak: Ariel Chen</h2>
+                                        <h2>Detail Anak: Pilih Anak</h2>
                                         <p>Kursus yang diikuti & Performa Terkini</p>
                                     </div>
                                 </div>
@@ -692,10 +727,8 @@
                                             <span class="attendance-text">100% Kehadiran.</span>
                                         </div>
                                     </div>
-
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
@@ -720,7 +753,6 @@
             modal.style.display = 'none';
         });
 
-        // Tambahkan di dalam tag <script> yang sudah ada di paling bawah file Anda
         const modalAdd = document.getElementById('addBabyModal');
         const btnAdd = document.querySelector('.btn-add-child');
         const btnCancelAdd = document.getElementById('cancelAddBaby');
