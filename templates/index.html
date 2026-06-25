@@ -142,13 +142,31 @@
         .child-selector {
             background-color: #fce7f3;
             color: var(--primary-accent);
-            padding: 8px 15px;
+            padding: 8px 35px 8px 15px; /* Tambahan padding di kanan untuk ikon panah */
             border-radius: 20px;
             font-size: 0.9rem;
             font-weight: 600;
-            display: flex;
-            align-items: center;
+            border: none;
+            outline: none;
             cursor: pointer;
+            font-family: inherit;
+            
+            /* Menyembunyikan panah default bawaan browser */
+            appearance: none; 
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            
+            /* Menambahkan ikon panah kustom yang warnanya senada */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b42b51' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        /* Efek saat dropdown di-hover atau diklik */
+        .child-selector:hover, .child-selector:focus {
+            background-color: #fad1e6;
         }
 
         .user-profile {
@@ -408,11 +426,18 @@
 
         <main class="main-content">
             <header class="topbar">
-                <div class="child-selector">
-                    👧 Ariel (Kelas 5) ⌄
-                </div>
+                <select class="child-selector" id="pilihAnak" onchange="gantiAnak(this.value)">
+                    {% if daftar_anak %}
+                        {% for anak in daftar_anak %}
+                            <option value="{{ anak.id_anak }}">{{ anak.nama_panggilan or anak.nama_lengkap }} ({{ anak.kelas or 'Belum ada kelas' }})</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled selected>Belum ada data anak</option>
+                    {% endif %}
+                </select>
+
                 <div class="user-profile">
-                    Selamat Datang, {{username}}
+                    Selamat Datang, {{ username }}
                 </div>
             </header>
 

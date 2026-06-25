@@ -5,7 +5,11 @@ from datetime import timedelta
 from dotenv import load_dotenv
 from flask_mail import Mail, Message 
 from datetime import datetime
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 import mysql.connector, uuid, random, os
+
 
 load_dotenv()
 
@@ -39,7 +43,36 @@ def get_db_connection():
 @app.route('/index')
 def index():
     if 'id_users' in session and session.get('role') == 'murid':
-        return render_template('index.html', username=session.get('username'))
+        user_id = session['id_users']
+        
+        # Buka koneksi DB untuk mengambil data anak
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Ambil data anak milik user yang sedang login
+            cursor.execute("""
+                SELECT id_anak, nama_lengkap, nama_panggilan, kelas 
+                FROM anak 
+                WHERE id_orangtua = %s 
+                ORDER BY created_at DESC
+            """, (user_id,))
+            
+            daftar_anak = cursor.fetchall()
+            
+            # Kirim 'daftar_anak' ke index.html bersama dengan 'username'
+            return render_template('index.html', 
+                                   username=session.get('username'),
+                                   daftar_anak=daftar_anak)
+                                   
+        except Exception as e:
+            print(f"Error mengambil data anak untuk dashboard: {e}")
+            # Jika error, tetap render halaman tapi daftar_anak kosong
+            return render_template('index.html', username=session.get('username'), daftar_anak=[])
+        finally:
+            cursor.close()
+            conn.close()
+            
     return redirect(url_for('halaman_portal_orangtua'))
 
 @app.route('/portal_orangtua', methods=['GET'])
@@ -316,7 +349,8 @@ def tambah_anak():
     user_id = session['id_users']
     nama_lengkap = request.form.get('nama_lengkap')
     nama_panggilan = request.form.get('nama_panggilan')
-    
+    sekolah_asal = request.form.get('sekolah_asal')
+    kelas = request.form.get('kelas')
     tanggal_lahir_raw = request.form.get('tanggal_lahir')
     if tanggal_lahir_raw and tanggal_lahir_raw.strip() != "":
         try:
@@ -352,9 +386,9 @@ def tambah_anak():
     try:
         # Insert data anak baru ke database
         cursor.execute("""
-            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak)
-            VALUES (%s, %s, %s, %s, %s, 'Active')
-        """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin))
+            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas)
+            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
+        """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas))
         
         conn.commit()
         flash('Data anak berhasil ditambahkan!', 'success')
