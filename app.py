@@ -423,6 +423,13 @@ def presensi():
 def reports():
     return render_template('reports.html')
 
+
+##BAGIAN ADMIN
+##BAGIAN ADMIN
+##BAGIAN ADMIN
+
+
+
 @app.route('/dashboard_admin')
 def dashboard_admin():
     if 'user_id' not in session:
@@ -491,6 +498,255 @@ def login_admin_action():
 def logout_admin():
     session.clear()
     return redirect(url_for('login_admin'))
+
+@app.route('/manajemen_kelas_admin')
+def manajemen_kelas_admin():
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('login_admin'))
+    return render_template('manajemen_kelas.html')
+
+import math # Tambahkan ini di bagian paling atas file (bersama import lainnya)
+
+@app.route('/manajemen_pengajar_admin')
+def manajemen_pengajar_admin():
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('login_admin'))
+    
+    # 1. Menangkap Parameter dari URL
+    search = request.args.get('search', '')
+    subject = request.args.get('subject', 'All')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10 # Batas data per halaman
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) as total_semua 
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            WHERE r.nama_role = 'Pengajar'
+        """)
+        total_semua = cursor.fetchone()['total_semua']
+        # 2. Query Dasar
+        base_query = """
+            SELECT u.id_users, u.username, u.email, u.status_akun 
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            WHERE r.nama_role = 'Pengajar'
+        """
+        params = []
+        
+        # 3. Filter Pencarian (Nama / ID)
+        if search:
+            base_query += " AND (u.username LIKE %s OR u.id_users LIKE %s)"
+            params.extend([f"%{search}%", f"%{search}%"])
+            
+        # (Opsional) Filter Subjek jika Anda sudah membuat kolom 'keahlian' di DB
+        # if subject != 'All':
+        #     base_query += " AND u.keahlian = %s"
+        #     params.append(subject)
+            
+        # 4. Hitung Total Data untuk Pagination
+        cursor.execute(base_query, params)
+        total_data = len(cursor.fetchall())
+        total_pages = math.ceil(total_data / per_page)
+        if total_pages == 0: 
+            total_pages = 1
+            
+        # 5. Eksekusi Query dengan Limit & Offset
+        offset = (page - 1) * per_page
+        final_query = base_query + " ORDER BY u.username ASC LIMIT %s OFFSET %s"
+        params.extend([per_page, offset])
+        
+        cursor.execute(final_query, params)
+        daftar_pengajar = cursor.fetchall()
+        
+        # 6. Kirim data ke HTML
+        return render_template('manajemen_pengajar.html', 
+                               daftar_pengajar=daftar_pengajar,
+                               search=search,
+                               subject=subject,
+                               page=page,
+                               total_pages=total_pages,
+                               total_data=total_data,
+                               total_semua=total_semua)
+                               
+    except Exception as e:
+        print(f"Error memuat data pengajar: {e}")
+        flash('Terjadi kesalahan saat memuat data.', 'error')
+        return render_template('manajemen_pengajar.html', daftar_pengajar=[], total_pages=1, page=1)
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/manajemen_orangtua_admin')
+def manajemen_orangtua_admin():
+    # Proteksi Sesi Admin (Kepala)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('login_admin'))
+    
+    # 1. Tangkap Parameter Query String dari URL
+    search = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Batas data per halaman table
+    offset = (page - 1) * per_page
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # --- KELOMPOK STATISTIK DASHBOARD ---
+        # A. Hitung Jumlah Keluarga (User dengan role 'murid'/orangtua)
+        cursor.execute("""
+            SELECT COUNT(*) as total_keluarga 
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            WHERE r.nama_role = 'murid'
+        """)
+        total_keluarga = cursor.fetchone()['total_keluarga'] or 0
+        
+        # B. Hitung Siswa Aktif dari tabel anak
+        cursor.execute("SELECT COUNT(*) as total_siswa_aktif FROM anak WHERE status_anak = 'Active'")
+        total_siswa_aktif = cursor.fetchone()['total_siswa_aktif'] or 0
+        
+        # C. Hitung Pendaftaran Tertunda (Orang tua yang akunnya masih 'unverified')
+        cursor.execute("""
+            SELECT COUNT(*) as total_pending 
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            WHERE r.nama_role = 'murid' AND u.status_akun = 'unverified'
+        """)
+        total_pending = cursor.fetchone()['total_pending'] or 0
+
+
+        # --- QUERY DAFTAR ORANG TUA & JUMLAH ANAK ---
+        # Menggunakan LEFT JOIN agar orang tua yang belum mendaftarkan anaknya tetap muncul di list admin
+        base_query = """
+            SELECT 
+                u.id_users, 
+                u.username, 
+                u.email, 
+                u.status_akun,
+                COUNT(a.id_anak) as total_anak
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            LEFT JOIN anak a ON u.id_users = a.id_orangtua
+            WHERE r.nama_role = 'murid'
+        """
+        params = []
+        
+        # Filter Pencarian Berdasarkan Nama Pengguna atau Email
+        if search:
+            base_query += " AND (u.username LIKE %s OR u.email LIKE %s)"
+            params.extend([f"%{search}%", f"%{search}%"])
+            
+        base_query += " GROUP BY u.id_users"
+        
+        # Hitung total baris data yang cocok (untuk kalkulasi halaman)
+        cursor.execute(base_query, params)
+        total_data = len(cursor.fetchall())
+        total_pages = math.ceil(total_data / per_page)
+        if total_pages == 0: 
+            total_pages = 1
+            
+        # Eksekusi limitasi halaman data (Pagination)
+        final_query = base_query + " ORDER BY u.username ASC LIMIT %s OFFSET %s"
+        params.extend([per_page, offset])
+        
+        cursor.execute(final_query, params)
+        daftar_orangtua = cursor.fetchall()
+        
+        # Kirim variabel data menuju context template Jinja2
+        return render_template('manajemen_orangtua_anak.html', 
+                               daftar_orangtua=daftar_orangtua,
+                               search=search,
+                               page=page,
+                               total_pages=total_pages,
+                               total_data=total_data,
+                               total_keluarga=total_keluarga,
+                               total_siswa_aktif=total_siswa_aktif,
+                               total_pending=total_pending)
+                               
+    except Exception as e:
+        print(f"[ERROR] Gagal memuat manajemen orang tua & anak: {e}")
+        flash('Terjadi kegagalan sistem saat mengambil data komunitas.', 'error')
+        return render_template('manajemen_orangtua_anak.html', 
+                               daftar_orangtua=[], 
+                               total_pages=1, 
+                               page=1, 
+                               total_data=0,
+                               total_keluarga=0,
+                               total_siswa_aktif=0,
+                               total_pending=0)
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/tambah_pengajar', methods=['POST'])
+def tambah_pengajar():
+    # Pastikan yang mengakses adalah Admin (Kepala)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('login_admin'))
+    
+    username = request.form.get('username')
+    email = request.form.get('email')
+    password = request.form.get('password')
+    
+    # Validasi input kosong
+    if not username or not email or not password:
+        flash('Semua data wajib diisi!', 'error')
+        return redirect(url_for('manajemen_pengajar_admin'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # 1. Cek apakah email sudah terdaftar sebelumnya
+        cursor.execute("SELECT id_users FROM users WHERE email = %s", (email,))
+        if cursor.fetchone():
+            flash('Email sudah terdaftar!', 'error')
+            return redirect(url_for('manajemen_pengajar_admin'))
+        
+        # 2. Ambil id_role untuk 'Pengajar' dari tabel role secara dinamis
+        cursor.execute("SELECT id_role FROM role WHERE nama_role = 'Pengajar'")
+        role_data = cursor.fetchone()
+        if not role_data:
+            flash('Role Pengajar tidak ditemukan di database!', 'error')
+            return redirect(url_for('manajemen_pengajar_admin'))
+            
+        role_id = role_data['id_role']
+        
+        # 3. Generate ID unik untuk pengajar baru (Format UUID 10 karakter seperti sistem OTP Anda)
+        new_user_id = str(uuid.uuid4().hex[:10]).upper()
+        
+        # 4. Insert data ke tabel users
+        # Catatan: Password disimpan dalam bentuk plain text agar sesuai dengan fungsi 
+        # `login_pengajar_action` Anda yang menggunakan perbandingan langsung (`== password`)
+        cursor.execute("""
+            INSERT INTO users (id_users, username, email, password, role_id_role, status_akun)
+            VALUES (%s, %s, %s, %s, %s, 'verified')
+        """, (new_user_id, username, email, password, role_id))
+        
+        conn.commit()
+        flash('Pengajar baru berhasil ditambahkan!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saat menambah pengajar: {e}")
+        flash('Terjadi kesalahan pada server saat menambahkan pengajar.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('manajemen_pengajar_admin'))
+
+
+##BAGIAN PENGAJAR
+##BAGIAN PENGAJAR
+##BAGIAN PENGAJAR
+
 
 @app.route('/login_pengajar_action', methods=['POST'])
 def login_pengajar_action():

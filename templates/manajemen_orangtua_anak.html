@@ -16,7 +16,19 @@
     </style>
 </head>
 <body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
-
+    <div id="logoutModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-2xl w-[90%] max-w-md text-center shadow-xl">
+            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-arrow-right-from-bracket text-2xl text-[#A22754]"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Logout</h2>
+            <p class="text-gray-500 text-sm mb-6">Apakah Anda yakin ingin keluar dari halaman Admin? Sesi Anda akan diakhiri.</p>
+            <div class="flex gap-3">
+                <button id="cancelLogout" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors">Batal</button>
+                <a href="/logout" class="flex-1 py-3 bg-[#A22754] hover:bg-[#8E1F47] text-white font-bold rounded-xl transition-colors block">Logout</a>
+            </div>
+        </div>
+    </div>
     <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0">
         <div>
             <div class="flex items-center gap-3 mb-10">
@@ -30,39 +42,39 @@
             </div>
 
             <nav class="space-y-2">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="dashboard_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-border-all w-5"></i> Beranda
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="manajemen_kelas_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-[#DCEEFF] text-slate-700 rounded-xl font-semibold text-sm">
+                <a href="manajemen_orangtua_admin" class="flex items-center gap-3 px-4 py-3 bg-[#DCEEFF] text-slate-700 rounded-xl font-semibold text-sm">
                     <i class="fa-solid fa-users w-5 text-slate-600"></i> Orang tua & Siswa
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="manajemen_pengajar_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="validasi_pembayaran_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-wallet w-5"></i> Validasi Pembayaran
                 </a>
             </nav>
         </div>
 
-        <div>
-            <hr class="border-rose-100 mb-4">
-            <a href="#" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
-                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
-            </a>
+            <div class="mt-auto pt-8 border-t border-rose-50">
+            <button id="btnTriggerLogout" class="w-full flex items-center gap-4 text-gray-500 hover:text-[#A22754] transition-colors duration-200 py-2 font-semibold text-sm">
+                <i class="fa-solid fa-arrow-right-from-bracket text-lg"></i>
+                <span>LOGOUT</span>
+            </button>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
         <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0">
-            <div class="relative w-96">
+            <form action="{{ url_for('manajemen_orangtua_admin') }}" method="GET" class="relative w-96">
                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                <input type="text" placeholder="Search..." class="w-full bg-[#FFF5F5] border-0 rounded-full pl-11 pr-4 py-2 text-sm focus:outline-none text-gray-700 placeholder-gray-400">
-            </div> 
+                <input type="text" name="search" value="{{ search }}" placeholder="Cari nama orang tua atau email..." class="w-full bg-[#FFF5F5] border-0 rounded-full pl-11 pr-4 py-2 text-sm focus:outline-none text-gray-700 placeholder-gray-400">
+            </form> 
             
             <div class="flex items-center gap-6">
                 <button class="text-gray-600 relative hover:text-gray-900 transition">
@@ -99,25 +111,19 @@
                     <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
                         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jumlah Keluarga</p>
                         <div class="flex items-baseline gap-2 mt-2">
-                            <span class="text-3xl font-bold text-gray-900">1,284</span>
-                            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm flex items-center gap-0.5">
-                            </span>
+                            <span class="text-3xl font-bold text-gray-900">{{ total_keluarga }}</span>
                         </div>
                     </div>
                     <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
                         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Siswa Aktif</p>
                         <div class="flex items-baseline gap-2 mt-2">
-                            <span class="text-3xl font-bold text-gray-900">3,120</span>
-                            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm flex items-center gap-0.5">
-                            </span>
+                            <span class="text-3xl font-bold text-gray-900">{{ total_siswa_aktif }}</span>
                         </div>
                     </div>
                     <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
                         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pendaftaran Tertunda</p>
                         <div class="flex items-baseline gap-2 mt-2">
-                            <span class="text-3xl font-bold text-gray-900">42</span>
-                            <span class="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm font-sans">
-                            </span>
+                            <span class="text-3xl font-bold text-gray-900">{{ total_pending }}</span>
                         </div>
                     </div>
                     <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
@@ -159,120 +165,98 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 text-sm">
+                                {% for ot in daftar_orangtua %}
                                 <tr class="hover:bg-rose-50/10 transition">
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-4">
                                             <div class="w-10 h-10 bg-[#3B7A7A] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                                <i class="fa-solid fa-address-book"></i>
+                                                <i class="fa-solid fa-user-large"></i>
                                             </div>
                                             <div>
-                                                <h4 class="font-bold text-gray-900">Sarah Mitchell</h4>
-                                                <p class="text-xs text-gray-400 mt-0.5">Anggota sejak Jan 2023</p>
+                                                <h4 class="font-bold text-gray-900">{{ ot.username }}</h4>
+                                                <p class="text-xs text-gray-400 mt-0.5">ID: {{ ot.id_users }}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
                                         <div class="space-y-0.5">
-                                            <p class="text-gray-700 font-medium">+1 (555) 012-3456</p>
-                                            <p class="text-xs text-gray-400">sarah.m@example.com</p>
+                                            <p class="text-gray-700 font-medium">{{ ot.email }}</p>
+                                            <p class="text-xs {% if ot.status_akun == 'verified' %}text-emerald-600{% else %}text-amber-500{% endif %} font-semibold">
+                                                 {{ ot.status_akun | upper }}
+                                            </p>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-2">
-                                            <span class="w-6 h-6 bg-[#DCEEFF] text-[#2B6CB0] font-bold text-xs rounded-full flex items-center justify-center">2</span>
-                                            <span class="text-xs font-medium text-gray-500">Pendaftaran</span>
+                                            <span class="w-6 h-6 bg-[#DCEEFF] text-[#2B6CB0] font-bold text-xs rounded-full flex items-center justify-center">
+                                                {{ ot.total_anak }}
+                                            </span>
+                                            <span class="text-xs font-medium text-gray-500">Anak terdaftar</span>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 text-xs font-medium text-gray-500">2 Jam Yang Lalu</td>
+                                    <td class="px-6 py-4 text-xs font-medium text-gray-500">
+                                        Aktivitas Terjaga
+                                    </td>
                                     <td class="px-6 py-4 text-right">
                                         <button class="px-4 py-1.5 border border-rose-100 text-xs font-semibold rounded-lg text-rose-800 hover:bg-rose-50 transition">
                                             Lihat Details
                                         </button>
                                     </td>
                                 </tr>
-
-                                <tr class="hover:bg-rose-50/10 transition">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-10 h-10 bg-[#2C5282] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                                <i class="fa-solid fa-address-book"></i>
-                                            </div>
-                                            <div>
-                                                <h4 class="font-bold text-gray-900">James D'Angelo</h4>
-                                                <p class="text-xs text-gray-400 mt-0.5">Anggota sejak Nov 2022</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="space-y-0.5">
-                                            <p class="text-gray-700 font-medium">+1 (555) 987-6543</p>
-                                            <p class="text-xs text-gray-400">j.dangelo@mail.com</p>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-6 h-6 bg-[#DCEEFF] text-[#2B6CB0] font-bold text-xs rounded-full flex items-center justify-center">3</span>
-                                            <span class="text-xs font-medium text-gray-500">Pendaftaran</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs font-medium text-gray-500">Kemarin</td>
-                                    <td class="px-6 py-4 text-right">
-                                        <button class="px-4 py-1.5 border border-rose-100 text-xs font-semibold rounded-lg text-rose-800 hover:bg-rose-50 transition">
-                                            Lihat Details
-                                        </button>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-10 text-center text-gray-400 font-medium">
+                                        <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
+                                        Tidak ada data wali murid / anak yang sesuai dengan kriteria.
                                     </td>
                                 </tr>
-
-                                <tr class="hover:bg-rose-50/10 transition">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-10 h-10 bg-[#4A5568] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                                <i class="fa-solid fa-address-book"></i>
-                                            </div>
-                                            <div>
-                                                <h4 class="font-bold text-gray-900">Elena Wu</h4>
-                                                <p class="text-xs text-gray-400 mt-0.5">Anggota sejak Mar 2024</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="space-y-0.5">
-                                            <p class="text-gray-700 font-medium">+1 (555) 246-8135</p>
-                                            <p class="text-xs text-gray-400">e.wu@techsoft.io</p>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-6 h-6 bg-[#DCEEFF] text-[#2B6CB0] font-bold text-xs rounded-full flex items-center justify-center">1</span>
-                                            <span class="text-xs font-medium text-gray-500">Pendaftaran</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 text-xs font-medium text-gray-500">Sekarang</td>
-                                    <td class="px-6 py-4 text-right">
-                                        <button class="px-4 py-1.5 border border-rose-100 text-xs font-semibold rounded-lg text-rose-800 hover:bg-rose-50 transition">
-                                            Lihat Details
-                                        </button>
-                                    </td>
-                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
 
                     <div class="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between text-xs font-medium text-gray-400">
-                        <span>Menampilkan 1 hingga 10 dari 1.284 entri</span>
+                        <span>
+                            Menampilkan {{ daftar_orangtua | length }} dari {{ total_data }} total entri keluarga
+                        </span>
                         
                         <div class="flex items-center gap-1">
-                            <button class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 opacity-50 cursor-not-allowed">
-                                <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                            </button>
-                            <button class="w-7 h-7 bg-[#A22754] text-white font-bold rounded-lg flex items-center justify-center">1</button>
-                            <button class="w-7 h-7 text-gray-600 hover:bg-gray-50 rounded-lg flex items-center justify-center">2</button>
-                            <button class="w-7 h-7 text-gray-600 hover:bg-gray-50 rounded-lg flex items-center justify-center">3</button>
-                            <span class="px-1 text-gray-300">...</span>
-                            <button class="w-7 h-7 text-gray-600 hover:bg-gray-50 rounded-lg flex items-center justify-center">129</button>
-                            <button class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50">
-                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                            </button>
+                            
+                            {% if page > 1 %}
+                                <a href="{{ url_for('manajemen_orangtua_admin', page=page-1, search=search) }}" 
+                                class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                                </a>
+                            {% else %}
+                                <span class="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 bg-gray-50 cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                                </span>
+                            {% endif %}
+                            
+                            {% for p in range(1, total_pages + 1) %}
+                                {% if p == page %}
+                                    <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-[#A22754] text-white font-bold text-xs">
+                                        {{ p }}
+                                    </span>
+                                {% else %}
+                                    <a href="{{ url_for('manajemen_orangtua_admin', page=p, search=search) }}" 
+                                    class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-xs transition">
+                                        {{ p }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                                <a href="{{ url_for('manajemen_orangtua_admin', page=page+1, search=search) }}" 
+                                class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </a>
+                            {% else %}
+                                <span class="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 bg-gray-50 cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </span>
+                            {% endif %}
+
                         </div>
                     </div>
 
@@ -283,4 +267,30 @@
     </main>
 
 </body>
+<script>
+    const modalLogout = document.getElementById('logoutModal');
+    const btnTriggerLogout = document.getElementById('btnTriggerLogout');
+    const cancelLogout = document.getElementById('cancelLogout');
+
+    // Buka modal
+    btnTriggerLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        modalLogout.classList.remove('hidden');
+        modalLogout.classList.add('flex');
+    });
+
+    // Tutup modal
+    cancelLogout.addEventListener('click', () => {
+        modalLogout.classList.add('hidden');
+        modalLogout.classList.remove('flex');
+    });
+
+    // Tutup modal jika klik di luar area kotak putih
+    window.addEventListener('click', (e) => {
+        if (e.target === modalLogout) {
+            modalLogout.classList.add('hidden');
+            modalLogout.classList.remove('flex');
+        }
+    });
+</script>
 </html>

@@ -22,7 +22,19 @@
     </style>
 </head>
 <body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
-
+    <div id="logoutModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-2xl w-[90%] max-w-md text-center shadow-xl">
+            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-arrow-right-from-bracket text-2xl text-[#A22754]"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Logout</h2>
+            <p class="text-gray-500 text-sm mb-6">Apakah Anda yakin ingin keluar dari halaman Admin? Sesi Anda akan diakhiri.</p>
+            <div class="flex gap-3">
+                <button id="cancelLogout" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors">Batal</button>
+                <a href="/logout" class="flex-1 py-3 bg-[#A22754] hover:bg-[#8E1F47] text-white font-bold rounded-xl transition-colors block">Logout</a>
+            </div>
+        </div>
+    </div>
     <!-- SIDEBAR -->
     <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0">
         <div>
@@ -39,30 +51,30 @@
 
             <!-- Navigation Links -->
             <nav class="space-y-2">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="dashboard_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-border-all w-5"></i> Beranda
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-[#DCEEFF] text-slate-700 rounded-xl font-semibold text-sm">
+                <a href="manajemen_kelas_admin" class="flex items-center gap-3 px-4 py-3 bg-[#DCEEFF] text-slate-700 rounded-xl font-semibold text-sm">
                     <i class="fa-solid fa-graduation-cap w-5 text-slate-600"></i> Manajemen Kelas
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="manajemen_orangtua_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="manajemen_pengajar_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="validasi_pembayaran_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-wallet w-5"></i> Validasi Pembayaran
                 </a>
             </nav>
         </div>
 
         <!-- Logout Section -->
-        <div>
-            <hr class="border-rose-100 mb-4">
-            <a href="#" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
-                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
-            </a>
+            <div class="mt-auto pt-8 border-t border-rose-50">
+            <button id="btnTriggerLogout" class="w-full flex items-center gap-4 text-gray-500 hover:text-[#A22754] transition-colors duration-200 py-2 font-semibold text-sm">
+                <i class="fa-solid fa-arrow-right-from-bracket text-lg"></i>
+                <span>LOGOUT</span>
+            </button>
         </div>
     </aside>
 
@@ -226,4 +238,30 @@
     </main>
 
 </body>
+<script>
+    const modalLogout = document.getElementById('logoutModal');
+    const btnTriggerLogout = document.getElementById('btnTriggerLogout');
+    const cancelLogout = document.getElementById('cancelLogout');
+
+    // Buka modal
+    btnTriggerLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        modalLogout.classList.remove('hidden');
+        modalLogout.classList.add('flex');
+    });
+
+    // Tutup modal
+    cancelLogout.addEventListener('click', () => {
+        modalLogout.classList.add('hidden');
+        modalLogout.classList.remove('flex');
+    });
+
+    // Tutup modal jika klik di luar area kotak putih
+    window.addEventListener('click', (e) => {
+        if (e.target === modalLogout) {
+            modalLogout.classList.add('hidden');
+            modalLogout.classList.remove('flex');
+        }
+    });
+</script>
 </html>
