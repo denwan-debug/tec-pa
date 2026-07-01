@@ -71,7 +71,7 @@
     <main class="flex-1 flex flex-col overflow-hidden">
         
         <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0">
-            <form action="{{ url_for('manajemen_orangtua_admin') }}" method="GET" class="relative w-96">
+            <form action="{{ url_for('admin.manajemen_orangtua_admin') }}" method="GET" class="relative w-96">
                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                 <input type="text" name="search" value="{{ search }}" placeholder="Cari nama orang tua atau email..." class="w-full bg-[#FFF5F5] border-0 rounded-full pl-11 pr-4 py-2 text-sm focus:outline-none text-gray-700 placeholder-gray-400">
             </form> 
@@ -223,7 +223,7 @@
                         <div class="flex items-center gap-1">
                             
                             {% if page > 1 %}
-                                <a href="{{ url_for('manajemen_orangtua_admin', page=page-1, search=search) }}" 
+                                <a href="{{ url_for('admin.manajemen_orangtua_admin', page=page-1, search=search) }}" 
                                 class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
                                     <i class="fa-solid fa-chevron-left text-[10px]"></i>
                                 </a>
@@ -239,7 +239,7 @@
                                         {{ p }}
                                     </span>
                                 {% else %}
-                                    <a href="{{ url_for('manajemen_orangtua_admin', page=p, search=search) }}" 
+                                    <a href="{{ url_for('admin.manajemen_orangtua_admin', page=p, search=search) }}" 
                                     class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-xs transition">
                                         {{ p }}
                                     </a>
@@ -247,7 +247,7 @@
                             {% endfor %}
                             
                             {% if page < total_pages %}
-                                <a href="{{ url_for('manajemen_orangtua_admin', page=page+1, search=search) }}" 
+                                <a href="{{ url_for('admin.manajemen_orangtua_admin', page=page+1, search=search) }}" 
                                 class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
                                     <i class="fa-solid fa-chevron-right text-[10px]"></i>
                                 </a>

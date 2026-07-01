@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Pengajar Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-pink: #d84b7a;
+            --primary-light: #fcecf1;
+            --bg-color: #faf7f8;
+            --sidebar-bg: #fffefe;
+            --text-dark: #202020;
+            --text-gray: #6b6b6b;
+            --text-light-gray: #a0a0a0;
+            --border-color: #f0e6e8;
+            
+            /* Tag Colors */
+            --sd-bg: #e2eff6;
+            --sd-text: #60869a;
+            --smp-bg: #fae6d8;
+            --smp-text: #966b53;
+            --sma-bg: #fae1e7;
+            --sma-text: #a8546b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+        }
+
+        .logo-area {
+            padding: 0 24px 32px 24px;
+        }
+
+        .logo-title {
+            color: var(--primary-pink);
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .logo-subtitle {
+            color: var(--text-gray);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 16px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: var(--bg-color);
+        }
+
+        .nav-item.active {
+            background-color: var(--primary-pink);
+            color: white;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .logout-area {
+            padding: 0 16px;
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content {
+            margin-left: 250px;
+            flex-grow: 1;
+            padding: 24px 40px;
+        }
+
+        /* Topbar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .search-container {
+            position: relative;
+            width: 400px;
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-gray);
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 12px 16px 12px 48px;
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            background-color: var(--sidebar-bg);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .notification {
+            color: var(--text-gray);
+            font-size: 20px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary-pink);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .profile-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-text .name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .profile-text .role {
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--text-gray);
+            font-size: 14px;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-gray);
+            letter-spacing: 0.5px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            background-color: transparent;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-pink);
+            color: white;
+            border-color: var(--primary-pink);
+        }
+
+        /* Card Grid */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        /* Class Card */
+        .class-card {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px -4px rgba(0,0,0,0.02);
+        }
+
+        .card-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .level-tag {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tag-sd { background-color: var(--sd-bg); color: var(--sd-text); }
+        .tag-smp { background-color: var(--smp-bg); color: var(--smp-text); }
+        .tag-sma { background-color: var(--sma-bg); color: var(--sma-text); }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .icon-pink { background-color: var(--primary-light); color: var(--primary-pink); }
+        .icon-blue { background-color: #e6f3f8; color: #497b95; }
+        .icon-orange { background-color: #fde8dd; color: #b86b44; }
+
+        .class-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .class-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-gray);
+            font-size: 13px;
+        }
+
+        .detail-item i {
+            color: var(--text-light-gray);
+            width: 16px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 24px;
+            margin-top: auto;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .progress-label { color: var(--text-gray); }
+        .progress-percent { font-weight: 600; color: var(--primary-pink); }
+
+        .progress-track {
+            height: 6px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary-pink);
+            border-radius: 3px;
+        }
+
+        /* Card Button */
+        .btn-detail {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-light);
+            color: var(--text-dark);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-detail:hover {
+            background-color: #f5dce4;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-title">TEC Pengajar</div>
+                <div class="logo-subtitle">PENGAJAR</div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="dashboard_pengajar" class="nav-item"><i class="fa-solid fa-border-all"></i> BERANDA</a>
+                <a href="jadwal_pengajar" class="nav-item"><i class="fa-regular fa-calendar"></i> JADWAL</a>
+                <a href="kelas_pengajar" class="nav-item active"><i class="fa-solid fa-graduation-cap"></i> KELAS</a>
+                <a href="laporan_pengajar" class="nav-item"><i class="fa-solid fa-chart-simple"></i> LAPORAN</a>
+                <a href="profil_pengajar" class="nav-item"><i class="fa-regular fa-user"></i> PROFIL</a>
+            </nav>
+
+            <div class="logout-area">
+                <a href="logout_pengajar" class="nav-item"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-container">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search Kelas...">
+                </div>
+                
+                <div class="user-area">
+                    <div class="notification">
+                        <i class="fa-regular fa-bell"></i>
+                    </div>
+                    <div class="profile-info">
+                        <img src="https://ui-avatars.com/api/?name=Jane+Cooper&background=random" alt="Jane Cooper">
+                        <div class="profile-text">
+                            <div class="name">Jane Cooper</div>
+                            <div class="role">Pengajar Senior</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="page-header">
+                <h1>Kelas Saya</h1>
+                <p>Kelola daftar akademik Anda saat ini dan pantau kemajuan siswa.</p>
+            </div>
+
+            <div class="filters">
+                <span class="filter-label">FILTER KELAS:</span>
+                <button class="filter-btn active">Semua Kelas</button>
+                <button class="filter-btn">SD (Sekolah Dasar)</button>
+                <button class="filter-btn">SMP (Sekolah Menengah Pertama)</button>
+                <button class="filter-btn">SMA (Sekolah Menengah Atas)</button>
+            </div>
+
+            <div class="card-grid">
+                
+                <div class="class-card">
+                    <div class="card-header-top">
+                        <span class="level-tag tag-sd">SD (Sekolah Dasar)</span>
+                        <div class="card-icon icon-pink"><i class="fa-solid fa-book-open"></i></div>
+                    </div>
+                    <h3 class="class-title">Penguasaan Tata Bahasa A1</h3>
+                    <div class="class-details">
+                        <div class="detail-item">
+                            <i class="fa-solid fa-user-group"></i> 15 / 20 Siswa
+                        </div>
+                        <div class="detail-item">
+                            <i class="fa-regular fa-calendar"></i> Senin & Rabu, 16:00 - 17:30
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-percent">75%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: 75%;"></div>
+                        </div>
+                    </div>
+                    <button class="btn-detail">Lihat Detail Kelas</button>
+                </div>
+
+                <div class="class-card">
+                    <div class="card-header-top">
+                        <span class="level-tag tag-smp">SMP (Sekolah Menengah Pertama)</span>
+                        <div class="card-icon icon-blue"><i class="fa-solid fa-comments"></i></div>
+                    </div>
+                    <h3 class="class-title">Conversation Lab II</h3>
+                    <div class="class-details">
+                        <div class="detail-item">
+                            <i class="fa-solid fa-user-group"></i> 12 / 12 Siswa (Penuh)
+                        </div>
+                        <div class="detail-item">
+                            <i class="fa-regular fa-calendar"></i> Selasa & Rabu, 15:30 - 17:00
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-percent">30%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: 30%;"></div>
+                        </div>
+                    </div>
+                    <button class="btn-detail">Lihat Detail Kelas</button>
+                </div>
+
+                <div class="class-card">
+                    <div class="card-header-top">
+                        <span class="level-tag tag-sma">SMA (Sekolah Menengah Atas)</span>
+                        <div class="card-icon icon-orange"><i class="fa-solid fa-file-lines"></i></div>
+                    </div>
+                    <h3 class="class-title">Persiapan IELTS</h3>
+                    <div class="class-details">
+                        <div class="detail-item">
+                            <i class="fa-solid fa-user-group"></i> 8 / 10 Siswa
+                        </div>
+                        <div class="detail-item">
+                            <i class="fa-regular fa-calendar"></i> Jumat, 18:00 - 20:30
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-percent">90%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: 90%;"></div>
+                        </div>
+                    </div>
+                    <button class="btn-detail">Lihat Detail Kelas</button>
+                </div>
+
+                <div class="class-card">
+                    <div class="card-header-top">
+                        <span class="level-tag tag-sd">SD (Sekolah Dasar)</span>
+                        <div class="card-icon icon-pink"><i class="fa-solid fa-headset"></i></div>
+                    </div>
+                    <h3 class="class-title">Phonics for Kids</h3>
+                    <div class="class-details">
+                        <div class="detail-item">
+                            <i class="fa-solid fa-user-group"></i> 18 / 20 Siswa
+                        </div>
+                        <div class="detail-item">
+                            <i class="fa-regular fa-calendar"></i> Senin & Rabu, 14:00 - 15:30
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-percent">55%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: 55%;"></div>
+                        </div>
+                    </div>
+                    <button class="btn-detail">Lihat Detail Kelas</button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #FFF5F5; }
+        .sidebar-active { background-color: #DCEEFF; color: #2D3748; font-weight: 600; }
+        .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body class="font-sans antialiased flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-gradient-to-br from-[#A22754] to-[#8E1F47] rounded-xl flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-[10px] text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="/dashboard_admin" class="flex items-center gap-3 px-4 py-3 sidebar-active rounded-xl text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="/manajemen_kelas_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
+                </a>
+                <a href="/manajemen_orangtua_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang Tua & Siswa
+                </a>
+                <a href="/manajemen_pengajar_admin" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-wallet w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div class="mt-auto pt-8 border-t border-rose-50">
+            <a href="/logout_admin" class="flex items-center gap-3 text-gray-500 hover:text-[#A22754] font-semibold text-sm">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Ringkasan Analitik</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Selamat datang kembali. Berikut adalah perkembangan TEC Anda.</p>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
+                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
+                    <div class="text-right">
+                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ username }}</h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+                </div>
+            </div>
+        </header>
+
+        <section class="flex-1 p-10 overflow-y-auto">
+            <div class="max-w-7xl mx-auto space-y-8">
+                
+                <div class="grid grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-[#A22754]">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <i class="fa-solid fa-arrow-trend-up text-emerald-500 text-sm"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Murid</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ murid if murid else '1,240' }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 mb-4">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Pengajar</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ pengajar }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-500 mb-4">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Kelas Aktif</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ kelas_aktif if kelas_aktif else '86' }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-400 mb-4">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Pembayaran Tertunda</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ pending if pending else '12' }}</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6">
+                    
+                    <div class="col-span-2 bg-white rounded-3xl p-8 border border-rose-50 card-shadow">
+                        <h3 class="text-lg font-bold text-gray-800 mb-8">Kelas Favorit</h3>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] text-gray-400 uppercase tracking-[0.2em]">
+                                <tr class="border-b border-gray-50">
+                                    <th class="pb-4 font-bold text-center w-12">No</th>
+                                    <th class="pb-4 font-bold">Nama Kelas</th>
+                                    <th class="pb-4 font-bold">Kapasitas Kelas</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm font-semibold text-gray-700">
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">1</span></td>
+                                    <td>Kelas Grammar (SMA)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">28 / 30</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-emerald-500" style="width: 93%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">2</span></td>
+                                    <td>Kelas Speaking (SMP)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">24 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-emerald-500" style="width: 96%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">3</span></td>
+                                    <td>Kelas Reading (SD)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">20 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-rose-400" style="width: 80%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">4</span></td>
+                                    <td>Kelas Listening (SMA)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">18 / 30</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#8E1F47]" style="width: 60%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">5</span></td>
+                                    <td>Kelas Writing (SMP)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">15 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-blue-300" style="width: 60%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-8 border border-rose-50 card-shadow flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-8">Total Murid</h3>
+                        <div class="space-y-8 my-auto">
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SD (Sekolah Dasar)</span>
+                                    <span class="text-gray-400">420 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-rose-50 rounded-full">
+                                    <div class="h-full bg-[#A22754] rounded-full" style="width: 70%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SMP (M. Pertama)</span>
+                                    <span class="text-gray-400">380 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-blue-50 rounded-full">
+                                    <div class="h-full bg-blue-200 rounded-full" style="width: 60%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SMA (M. Atas)</span>
+                                    <span class="text-gray-400">440 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-emerald-50 rounded-full">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>

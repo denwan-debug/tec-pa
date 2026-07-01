@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Portal Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
+    <style>
+        /* === Reset & Base Styles === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* === Colors === */
+        :root {
+            --sidebar-bg: #3d515c;
+            --sidebar-hover: #2e3e47;
+            --primary-accent: #b42b51;
+            --text-muted: #7a8b94;
+            --bg-light: #ffffff;
+            --green-badge: #c6f6d5;
+            --green-text: #22c55e;
+            --blue-badge-bg: #e0f2fe;
+            --blue-badge-text: #0369a1;
+            --pink-badge-bg: #ffe4e6;
+            --pink-badge-text: #b91c1c;
+            --card-border: #f0f7ed;
+        }
+
+        /* === Utility Classes === */
+        .hidden { display: none !important; }
+        .text-capitalize { text-transform: capitalize; }
+        .text-right { text-align: right; }
+
+        /* === Layout === */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === Sidebar === */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.8rem;
+            color: #b0c4de;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            flex-grow: 1;
+        }
+
+        .sidebar-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 25px;
+            color: white;
+            text-decoration: none;
+            font-family: 'ABeeZee', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 300;
+            transition: 0.3s;
+        }
+
+        .sidebar-menu li a svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .sidebar-menu li.active a, 
+        .sidebar-menu li a:hover {
+            background-color: var(--sidebar-hover);
+            border-left: 4px solid var(--primary-accent);
+        }
+
+        .nav-logout {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 25px 30px 25px; /* Disesuaikan agar sejajar */
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-logout:hover {
+            opacity: 0.8;
+        }
+
+        /* === Main Content === */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .topbar {
+            background-color: #FCF9F9; /* Warna latar sedikit pink pucat/off-white sesuai gambar */
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .child-selector {
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            padding: 8px 35px 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            appearance: none; 
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b42b51' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .child-selector:hover, 
+        .child-selector:focus {
+            background-color: #fad1e6;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        /* === Dashboard Content === */
+        .dashboard-container {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Cards Base */
+        .card {
+            background-color: var(--bg-light);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+
+        /* Welcome Banner */
+        .welcome-banner {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-banner h1 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #1a202c;
+        }
+
+        .welcome-banner p {
+            font-size: 0.95rem;
+            color: #4a5568;
+            max-width: 70%;
+            line-height: 1.5;
+        }
+
+        /* Grid Layout */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .left-col, .right-col { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        }
+
+        /* Profil Anak Card */
+        .profile-card { text-align: center; }
+        .profile-card .avatar-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 15px auto;
+            border: 3px solid #fce7f3;
+            background-color: #eee;
+        }
+        .profile-card h3 { font-size: 1.1rem; margin-bottom: 5px; }
+        .profile-card p { font-size: 0.85rem; color: var(--text-muted); }
+        .profile-card .school-info { font-size: 0.8rem; margin-top: 5px; color: var(--text-muted); }
+
+        /* Presensi Card */
+        .attendance-card { text-align: center; }
+        .attendance-title { font-size: 0.9rem; font-weight: normal; margin-bottom: 10px; }
+        .attendance-chart {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary-accent) 0% 95%, #f1f5f9 95% 100%);
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .attendance-chart::before {
+            content: "";
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            background-color: white;
+            border-radius: 50%;
+        }
+        .chart-text {
+            position: relative;
+            z-index: 1;
+        }
+        .chart-text h2 { font-size: 1.5rem; color: var(--primary-accent); }
+        .chart-text span { font-size: 0.7rem; color: var(--text-muted); }
+        
+        .attendance-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #edf2f7;
+        }
+        .attendance-stats.borderless {
+            border: none;
+            padding-top: 10px;
+            margin-top: 0;
+        }
+        .stat-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.attended { background-color: var(--primary-accent); }
+        .dot.missed { background-color: #fce7f3; }
+
+        /* Kelas Card */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .card-header h3 { font-size: 1rem; color: #2d3748; }
+        .card-header a { font-size: 0.85rem; color: var(--primary-accent); text-decoration: none; }
+        
+        .class-list { display: flex; flex-direction: column; gap: 15px; }
+        .class-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            border: 1px solid #edf2f7;
+            border-radius: 10px;
+        }
+        .class-info { display: flex; align-items: center; gap: 15px; }
+        .class-icon {
+            width: 40px; height: 40px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .bg-pink { background-color: #fce7f3; color: var(--primary-accent); }
+        .bg-blue { background-color: #e0f2fe; color: #0284c7; }
+        .bg-green { background-color: #dcfce3; color: #16a34a; }
+        
+        .class-details h4 { font-size: 0.95rem; margin-bottom: 3px; }
+        .class-details p { font-size: 0.8rem; color: var(--text-muted); }
+        
+        .tutor-info { display: flex; align-items: center; gap: 10px; font-size: 0.85rem;}
+        .tutor-info .avatar { 
+            width: 30px; 
+            height: 30px; 
+            border-radius: 50%;
+            background-color: #ccc;
+            object-fit: cover;
+        }
+        .badge-online { font-size: 0.7rem; color: var(--green-text); font-weight: bold; }
+        .badge-inclass { font-size: 0.7rem; color: #64748b; font-weight: bold; }
+
+        /* Transactions Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px 0; border-bottom: 1px solid #edf2f7; font-size: 0.9rem;}
+        th { color: var(--text-muted); font-weight: 500; font-size: 0.85rem; }
+        td { color: #2d3748; }
+        .badge-paid {
+            background-color: var(--green-badge);
+            color: #15803d;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        /* Modal Settings */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 16px;
+            width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .icon-container { background: #e2e8f0; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
+        .modal-content h2 { margin-bottom: 10px; }
+        .modal-content p { font-size: 0.9rem; color: #4a5568; line-height: 1.5; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-logout { flex: 1; padding: 12px; border-radius: 8px; background: #4a5568; color: white; text-decoration: none; font-weight: bold; }
+        .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="logoutModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="icon-container">
+                <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.5 22.5C1.8125 22.5 1.22396 22.2552 0.734375 21.7656C0.244792 21.276 0 20.6875 0 20V2.5C0 1.8125 0.244792 1.22396 0.734375 0.734375C1.22396 0.244792 1.8125 0 2.5 0H11.25V2.5H2.5V20H11.25V22.5H2.5ZM16.25 17.5L14.5312 15.6875L17.7188 12.5H7.5V10H17.7188L14.5312 6.8125L16.25 5L22.5 11.25L16.25 17.5Z" fill="#24181B"/>
+                </svg>
+            </div>
+            <h2>Konfirmasi Logout</h2>
+            <p>Apakah Anda yakin ingin keluar dari akun TEC English Anda? Perubahan yang belum disimpan mungkin akan hilang.</p>
+            <div class="modal-actions">
+                <button id="cancelLogout" class="btn-cancel">Batal</button>
+                <a href="/logout" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div>
+                <div class="sidebar-header">
+                    <h2>TEC Portal</h2>
+                    <p>Supportive Academic Partner</p>
+                </div>
+                <ul class="sidebar-menu">
+                    <li class="active"><a href="/index">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 6V0H18V6H10ZM0 10V0H8V10H0ZM10 18V8H18V18H10ZM0 18V12H8V18H0ZM2 8H6V2H2V8ZM12 16H16V10H12V16ZM12 4H16V2H12V4ZM2 16H6V14H2V16Z" fill="#CFE6F2"/></svg>
+                        Dashboard / Beranda</a>
+                    </li>
+                    <li><a href="/manajemen_anak">
+                        <svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 4C15.45 4 14.9792 3.80417 14.5875 3.4125C14.1958 3.02083 14 2.55 14 2C14 1.45 14.1958 0.979167 14.5875 0.5875C14.9792 0.195833 15.45 0 16 0C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2C18 2.55 17.8042 3.02083 17.4125 3.4125C17.0208 3.80417 16.55 4 16 4ZM15 20V12C15 11.3333 14.8292 10.7333 14.4875 10.2C14.1458 9.66667 13.7083 9.25 13.175 8.95L14.05 6.375C14.1833 5.95833 14.4292 5.625 14.7875 5.375C15.1458 5.125 15.55 5 16 5C16.45 5 16.8542 5.125 17.2125 5.375C17.5708 5.625 17.8167 5.95833 17.95 6.375L20.5 14H18V20H15ZM10.5 9.5C10.0833 9.5 9.72917 9.35417 9.4375 9.0625C9.14583 8.77083 9 8.41667 9 8C9 7.58333 9.14583 7.22917 9.4375 6.9375C9.72917 6.64583 10.0833 6.5 10.5 6.5C10.9167 6.5 11.2708 6.64583 11.5625 6.9375C11.8542 7.22917 12 7.58333 12 8C12 8.41667 11.8542 8.77083 11.5625 9.0625C11.2708 9.35417 10.9167 9.5 10.5 9.5ZM3.5 4C2.95 4 2.47917 3.80417 2.0875 3.4125C1.69583 3.02083 1.5 2.55 1.5 2C1.5 1.45 1.69583 0.979167 2.0875 0.5875C2.47917 0.195833 2.95 0 3.5 0C4.05 0 4.52083 0.195833 4.9125 0.5875C5.30417 0.979167 5.5 1.45 5.5 2C5.5 2.55 5.30417 3.02083 4.9125 3.4125C4.52083 3.80417 4.05 4 3.5 4ZM1.5 20V13H0V7C0 6.45 0.195833 5.97917 0.5875 5.5875C0.979167 5.19583 1.45 5 2 5H5C5.55 5 6.02083 5.19583 6.4125 5.5875C6.80417 5.97917 7 6.45 7 7V13H5.5V20H1.5ZM9 20V16H8V12C8 11.5833 8.14583 11.2292 8.4375 10.9375C8.72917 10.6458 9.08333 10.5 9.5 10.5H11.5C11.9167 10.5 12.2708 10.6458 12.5625 10.9375C12.8542 11.2292 13 11.5833 13 12V16H12V20H9Z" fill="#CFE6F2"/></svg>
+                        Manajemen Anak</a>
+                    </li>
+                    <li><a href="/kelas">
+                        <svg width="22" height="18" viewBox="0 0 22 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 18L4 14.2V8.2L0 6L11 0L22 6V14H20V7.1L18 8.2V14.2L11 18ZM11 9.7L17.85 6L11 2.3L4.15 6L11 9.7ZM11 15.725L16 13.025V9.25L11 12L6 9.25V13.025L11 15.725Z" fill="#CFE6F2"/></svg>
+                        Kelas</a>
+                    </li>
+                    <li><a href="/riwayat_pembayaran">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 20C2.16667 20 1.45833 19.7083 0.875 19.125C0.291667 18.5417 0 17.8333 0 17V14H3V0L4.5 1.5L6 0L7.5 1.5L9 0L10.5 1.5L12 0L13.5 1.5L15 0L16.5 1.5L18 0V17C18 17.8333 17.7083 18.5417 17.125 19.125C16.5417 19.7083 15.8333 20 15 20H3ZM15 18C15.2833 18 15.5208 17.9042 15.7125 17.7125C15.9042 17.5208 16 17.2833 16 17V3H5V14H14V17C14 17.2833 14.0958 17.5208 14.2875 17.7125C14.4792 17.9042 14.7167 18 15 18ZM6 7V5H12V7H6ZM6 10V8H12V10H6ZM14 7C13.7167 7 13.4792 6.90417 13.2875 6.7125C13.0958 6.52083 13 6.28333 13 6C13 5.71667 13.0958 5.47917 13.2875 5.2875C13.4792 5.09583 13.7167 5 14 5C14.2833 5 14.5208 5.09583 14.7125 5.2875C14.9042 5.47917 15 5.71667 15 6C15 6.28333 14.9042 6.52083 14.7125 6.7125C14.5208 6.90417 14.2833 7 14 7ZM14 10C13.7167 10 13.4792 9.90417 13.2875 9.7125C13.0958 9.52083 13 9.28333 13 9C13 8.71667 13.0958 8.47917 13.2875 8.2875C13.4792 8.09583 13.7167 8 14 8C14.2833 8 14.5208 8.09583 14.7125 8.2875C14.9042 8.47917 15 8.71667 15 9C15 9.28333 14.9042 9.52083 14.7125 9.7125C14.5208 9.90417 14.2833 10 14 10ZM3 18H12V16H2V17C2 17.2833 2.09583 17.5208 2.2875 17.7125C2.47917 17.9042 2.71667 18 3 18ZM2 18C2 18 2 17.9042 2 17.7125C2 17.5208 2 17.2833 2 17V16V18Z" fill="#CFE6F2"/></svg>
+                        Riwayat Pembayaran</a>
+                    </li>
+                    <li><a href="jadwal_belajar">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6ZM9 12C8.71667 12 8.47917 11.9042 8.2875 11.7125C8.09583 11.5208 8 11.2833 8 11C8 10.7167 8.09583 10.4792 8.2875 10.2875C8.47917 10.0958 8.71667 10 9 10C9.28333 10 9.52083 10.0958 9.7125 10.2875C9.90417 10.4792 10 10.7167 10 11C10 11.2833 9.90417 11.5208 9.7125 11.7125C9.52083 11.9042 9.28333 12 9 12ZM5 12C4.71667 12 4.47917 11.9042 4.2875 11.7125C4.09583 11.5208 4 11.2833 4 11C4 10.7167 4.09583 10.4792 4.2875 10.2875C4.47917 10.0958 4.71667 10 5 10C5.28333 10 5.52083 10.0958 5.7125 10.2875C5.90417 10.4792 6 10.7167 6 11C6 11.2833 5.90417 11.5208 5.7125 11.7125C5.52083 11.9042 5.28333 12 5 12ZM13 12C12.7167 12 12.4792 11.9042 12.2875 11.7125C12.0958 11.5208 12 11.2833 12 11C12 10.7167 12.0958 10.4792 12.2875 10.2875C12.4792 10.0958 12.7167 10 13 10C13.2833 10 13.5208 10.0958 13.7125 10.2875C13.9042 10.4792 14 10.7167 14 11C14 11.2833 13.9042 11.5208 13.7125 11.7125C13.5208 11.9042 13.2833 12 13 12ZM9 16C8.71667 16 8.47917 15.9042 8.2875 15.7125C8.09583 15.5208 8 15.2833 8 15C8 14.7167 8.09583 14.4792 8.2875 14.2875C8.47917 14.0958 8.71667 14 9 14C9.28333 14 9.52083 14.0958 9.7125 14.2875C9.90417 14.4792 10 14.7167 10 15C10 15.2833 9.90417 15.5208 9.7125 15.7125C9.52083 15.9042 9.28333 16 9 16ZM5 16C4.71667 16 4.47917 15.9042 4.2875 15.7125C4.09583 15.5208 4 15.2833 4 15C4 14.7167 4.09583 14.4792 4.2875 14.2875C4.47917 14.0958 4.71667 14 5 14C5.28333 14 5.52083 14.0958 5.7125 14.2875C5.90417 14.4792 6 14.7167 6 15C6 15.2833 5.90417 15.5208 5.7125 15.7125C5.52083 15.9042 5.28333 16 5 16ZM13 16C12.7167 16 12.4792 15.9042 12.2875 15.7125C12.0958 15.5208 12 15.2833 12 15C12 14.7167 12.0958 14.4792 12.2875 14.2875C12.4792 14.0958 12.7167 14 13 14C13.2833 14 13.5208 14.0958 13.7125 14.2875C13.9042 14.4792 14 14.7167 14 15C14 15.2833 13.9042 15.5208 13.7125 15.7125C13.5208 15.9042 13.2833 16 13 16Z" fill="#CFE6F2"/></svg>
+                        Jadwal Belajar</a>
+                    </li>
+                    <li><a href="/presensi">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.95 16.35L4.4 12.8L5.85 11.35L7.95 13.45L12.15 9.25L13.6 10.7L7.95 16.35ZM2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#CFE6F2"/></svg>
+                        Presensi</a>
+                    </li>
+                    <li><a href="/reports">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/></svg>
+                        Reports</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="logout">
+                <button id="btnTriggerLogout" class="nav-logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    LOGOUT
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="user-profile">
+                    <form id="childSelectForm" action="/index" method="GET">
+                        <select name="anak_id" class="child-selector" onchange="document.getElementById('childSelectForm').submit();">
+                            {% if daftar_anak %}
+                                {% for anak in daftar_anak %}
+                                    <option value="{{ anak.id_anak }}" {% if anak_aktif and anak.id_anak == anak_aktif.id_anak %}selected{% endif %}>
+                                        {{ anak.nama_panggilan or anak.nama_lengkap }} 
+                                        {% if anak.kelas %}({{ anak.kelas }}){% endif %}
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option disabled selected>Belum ada data anak</option>
+                            {% endif %}
+                        </select>
+                    </form>
+                </div>
+
+                <div class="user-profile text-capitalize">
+                    {{ username }}
+                </div>
+            </header>
+
+            <div class="dashboard-container">
+                <section class="card welcome-banner">
+                    <h1 class="text-capitalize">Selamat Datang, {{ username }}!</h1>
+                    <p>Ini adalah halaman utama untuk orang tua. Di sini Anda dapat melihat informasi terkini tentang anak Anda.</p>
+                </section>
+
+                <div class="grid-layout">
+                    <div class="left-col">
+                        <div class="profile-card card">
+                            <img src="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=150&auto=format&fit=crop&q=80" alt="Profile" class="avatar-large">
+                            
+                            {% if anak_aktif %}
+                                <h3>{{ anak_aktif.nama_lengkap }}</h3>
+                                <p>Kelas: {{ anak_aktif.kelas or '-' }}</p>
+                                <p class="school-info">Sekolah: {{ anak_aktif.sekolah_asal or '-' }}</p>
+                            {% else %}
+                                <h3>Belum Ada Data Anak</h3>
+                                <p>Silakan tambah anak di menu Manajemen Anak.</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="card attendance-card">
+                            <h3 class="attendance-title">Presensi</h3>
+                            <div class="attendance-chart">
+                                <div class="chart-text">
+                                    <h2>95%</h2>
+                                    <span>Presensi</span>
+                                </div>
+                            </div>
+                            <div class="attendance-stats">
+                                <div class="stat-item">
+                                    <span class="dot attended"></span> Attended
+                                </div>
+                                <strong>19 Sessions</strong>
+                            </div>
+                            <div class="attendance-stats borderless">
+                                <div class="stat-item">
+                                    <span class="dot missed"></span> Missed
+                                </div>
+                                <strong>1 Session</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="right-col">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Kelas</h3>
+                                <a href="#">Lihat Jadwal →</a>
+                            </div>
+                            <div class="class-list">
+                                <div class="class-item">
+                                    <div class="class-info">
+                                        <div class="class-icon bg-pink">📖</div>
+                                        <div class="class-details">
+                                            <h4>Kelas Grammar: Tenses</h4>
+                                            <p>Today • 4:30 PM - 5:30 PM</p>
+                                        </div>
+                                    </div>
+                                    <div class="tutor-info">
+                                        <div class="text-right">
+                                            <div>Tutor Sarah J.</div>
+                                            <div class="badge-online">Online</div>
+                                        </div>
+                                        <div class="avatar"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="class-item">
+                                    <div class="class-info">
+                                        <div class="class-icon bg-blue">🗣️</div>
+                                        <div class="class-details">
+                                            <h4>Kelas Speaking: Travel</h4>
+                                            <p>Wednesday, Oct 25 • 5:00 PM</p>
+                                        </div>
+                                    </div>
+                                    <div class="tutor-info">
+                                        <div class="text-right">
+                                            <div>Tutor Mike R.</div>
+                                            <div class="badge-inclass">In-Class</div>
+                                        </div>
+                                        <div class="avatar"></div>
+                                    </div>
+                                </div>
+
+                                <div class="class-item">
+                                    <div class="class-info">
+                                        <div class="class-icon bg-green">📝</div>
+                                        <div class="class-details">
+                                            <h4>Kelas Writing</h4>
+                                            <p>Saturday, Oct 28 • 10:00 AM</p>
+                                        </div>
+                                    </div>
+                                    <div class="tutor-info">
+                                        <div class="text-right">
+                                            <div>Tutor Elena P.</div>
+                                            <div class="badge-online">Online</div>
+                                        </div>
+                                        <div class="avatar"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Recent Transactions</h3>
+                                <i>📄</i>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Deskripsi</th>
+                                        <th>Tanggal</th>
+                                        <th>Jumlah</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Kelas Grammar (Sekolah Dasar)</td>
+                                        <td>Oct 15, 2023</td>
+                                        <td><strong>$240.00</strong></td>
+                                        <td><span class="badge-paid">Paid</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Kelas Speaking (Sekolah Dasar)</td>
+                                        <td>Oct 02, 2023</td>
+                                        <td><strong>$35.00</strong></td>
+                                        <td><span class="badge-paid">Paid</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Kelas Writing (Sekolah Dasar)</td>
+                                        <td>Sep 15, 2023</td>
+                                        <td><strong>$240.00</strong></td>
+                                        <td><span class="badge-paid">Paid</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const modal = document.getElementById('logoutModal');
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        // Buka modal (Menggunakan manipulasi Class bukan inline style)
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.remove('hidden');
+        });
+
+        // Tutup modal
+        cancelBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
