@@ -247,6 +247,43 @@
         
         /* Responsive Grid */
         @media (max-width: 1100px) { .schedule-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        /* Tambahkan kode ini di dalam tag <style> reports.html */
+        .switch-account-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #e0f2fe;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #bae6fd;
+        }
+
+        .switch-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #0369a1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .select-switch-child {
+            background: transparent;
+            color: #0369a1;
+            border: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            padding-right: 5px;
+        }
+
+        /* Opsional: gaya untuk elemen option di dalam dropdown */
+        .select-switch-child option {
+            background-color: #ffffff;
+            color: #1e293b;
+            font-weight: 500;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
 </head>
@@ -334,12 +371,20 @@
                 </div>
                 
                 <div class="top-nav-right">
-                    <button class="btn-switch-account">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
-                        Ganti Akun Anak
-                    </button>
+                    <div class="switch-account-wrapper">
+                        <span class="switch-label">Anak:</span>
+                        <select class="select-switch-child" onchange="switchChildAccount(this.value)">
+                            {% if daftar_anak %}
+                                {% for anak in daftar_anak %}
+                                    <option value="{{ anak.id_anak }}" {% if anak.id_anak == anak_terpilih.id_anak %}selected{% endif %}>
+                                        {{ anak.nama_panggilan or anak.nama_lengkap }}
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="">Tidak ada data anak</option>
+                            {% endif %}
+                        </select>
+                    </div>
                     <div class="notification-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -506,6 +551,14 @@
                 modal.style.display = 'none';
             }
         });
+
+        // Tambahkan kode ini di dalam tag <script> di bagian bawah reports.html
+        function switchChildAccount(childId) {
+            if (childId) {
+                // Alihkan halaman ke /reports dengan membawa parameter ID anak yang dipilih
+                window.location.href = "/reports?child_id=" + childId;
+            }
+        }
     </script>
 </body>
 </html>

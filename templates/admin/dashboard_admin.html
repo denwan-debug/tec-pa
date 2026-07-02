@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #FFF5F5; }
+        .sidebar-active { background-color: #DCEEFF; color: #2D3748; font-weight: 600; }
+        .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body class="font-sans antialiased flex h-screen overflow-hidden">
+
+   <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-[#A22754] rounded-xl flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-graduation-cap     w-5"></i> Manajemen Kelas
+                </a>
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
+                </a>
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-rose-100 mb-4">
+            <a href="#" id="btnTriggerLogout" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Ringkasan Analitik</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Selamat datang kembali. Berikut adalah perkembangan TEC Anda.</p>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
+                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
+                    <div class="text-right">
+                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ username }}</h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+                </div>
+            </div>
+        </header>
+
+        <section class="flex-1 p-10 overflow-y-auto">
+            <div class="max-w-7xl mx-auto space-y-8">
+                
+                <div class="grid grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-[#A22754]">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <i class="fa-solid fa-arrow-trend-up text-emerald-500 text-sm"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Murid</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ murid if murid else '1,240' }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 mb-4">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Pengajar</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ pengajar }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-500 mb-4">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Kelas Aktif</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ kelas_aktif if kelas_aktif is not none else '0' }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-400 mb-4">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Pembayaran Tertunda</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ pending if pending is not none else '0' }}</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6">
+                    
+                    <div class="col-span-2 bg-white rounded-3xl p-8 border border-rose-50 card-shadow">
+                        <h3 class="text-lg font-bold text-gray-800 mb-8">Kelas Favorit</h3>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] text-gray-400 uppercase tracking-[0.2em]">
+                                <tr class="border-b border-gray-50">
+                                    <th class="pb-4 font-bold text-center w-12">No</th>
+                                    <th class="pb-4 font-bold">Nama Kelas</th>
+                                    <th class="pb-4 font-bold">Kapasitas Kelas</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm font-semibold text-gray-700">
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">1</span></td>
+                                    <td>Kelas Grammar (SMA)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">28 / 30</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-emerald-500" style="width: 93%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">2</span></td>
+                                    <td>Kelas Speaking (SMP)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">24 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-emerald-500" style="width: 96%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">3</span></td>
+                                    <td>Kelas Reading (SD)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">20 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-rose-400" style="width: 80%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">4</span></td>
+                                    <td>Kelas Listening (SMA)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">18 / 30</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-[#8E1F47]" style="width: 60%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">5</span></td>
+                                    <td>Kelas Writing (SMP)</td>
+                                    <td>
+                                        <div class="flex items-center gap-4">
+                                            <span class="w-16">15 / 25</span>
+                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div class="h-full bg-blue-300" style="width: 60%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-8 border border-rose-50 card-shadow flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-8">Total Murid</h3>
+                        <div class="space-y-8 my-auto">
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SD (Sekolah Dasar)</span>
+                                    <span class="text-gray-400">420 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-rose-50 rounded-full">
+                                    <div class="h-full bg-[#A22754] rounded-full" style="width: 70%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SMP (M. Pertama)</span>
+                                    <span class="text-gray-400">380 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-blue-50 rounded-full">
+                                    <div class="h-full bg-blue-200 rounded-full" style="width: 60%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                                    <span>SMA (M. Atas)</span>
+                                    <span class="text-gray-400">440 Siswa</span>
+                                </div>
+                                <div class="w-full h-3 bg-emerald-50 rounded-full">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+    <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                </svg>
+            </div>
+            
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
+            
+            <div class="flex gap-4 w-full">
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
+                    Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const modal = document.getElementById('logoutModal');
+        const modalInner = document.getElementById('modalInner');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        // Buka Modal dengan transisi fade-in & scale-up
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.remove('hidden');
+            
+            // Jeda singkat agar transisi Tailwind terbaca
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalInner.classList.remove('scale-95');
+                modalInner.classList.add('scale-100');
+            }, 10);
+        });
+
+        // Tutup Modal dengan transisi fade-out & scale-down
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalInner.classList.remove('scale-100');
+            modalInner.classList.add('scale-95');
+            
+            // Tunggu transisi selesai (300ms) sebelum menyembunyikan div sepenuhnya
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        // Event listener klik tombol batal atau latar luar
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+
+</body>
+</html>

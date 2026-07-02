@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Data Wali Murid & Anak</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #FFF5F5;
+            --maroon-primary: #A22754;
+            --maroon-text: #8E1F47;
+            --border-custom: #E2E8F0;
+        }
+    </style>
+</head>
+<body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
+    <div id="logoutModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-2xl w-[90%] max-w-md text-center shadow-xl">
+            <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-arrow-right-from-bracket text-2xl text-[#A22754]"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Logout</h2>
+            <p class="text-gray-500 text-sm mb-6">Apakah Anda yakin ingin keluar dari halaman Admin? Sesi Anda akan diakhiri.</p>
+            <div class="flex gap-3">
+                <button id="cancelLogout" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors">Batal</button>
+                <a href="/logout" class="flex-1 py-3 bg-[#A22754] hover:bg-[#8E1F47] text-white font-bold rounded-xl transition-colors block">Logout</a>
+            </div>
+        </div>
+    </div>
+    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-[#A22754] rounded-xl flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
+                </a>
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
+                </a>
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-rose-100 mb-4">
+            <a href="#" id="btnTriggerLogout" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0">
+            <form action="{{ url_for('admin.manajemen_orangtua_admin') }}" method="GET" class="relative w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" name="search" value="{{ search }}" placeholder="Cari nama orang tua atau email..." class="w-full bg-[#FFF5F5] border-0 rounded-full pl-11 pr-4 py-2 text-sm focus:outline-none text-gray-700 placeholder-gray-400">
+            </form> 
+            
+            <div class="flex items-center gap-6">
+                <button class="text-gray-600 relative hover:text-gray-900 transition">
+                    <i class="fa-regular fa-bell text-xl"></i>
+                    <span class="absolute top-0.5 right-0.5 w-2 h-2 bg-[#A22754] rounded-full"></span>
+                </button>
+                <button class="text-gray-600 hover:text-gray-900 transition">
+                    <i class="fa-regular fa-circle-question text-xl"></i>
+                </button>
+                <div class="flex items-center gap-3 border-l border-gray-200 pl-4">
+                    <div class="text-right">
+                        <h4 class="text-sm font-bold text-gray-800 leading-tight">Alex Rivera</h4>
+                        <p class="text-xs text-gray-400 font-medium">Kepala Admin</p>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Admin Avatar" class="w-9 h-9 rounded-full object-cover border border-gray-200">
+                </div>
+            </div>
+        </header>
+
+        <section class="flex-1 p-8 overflow-y-auto">
+            <div class="max-w-7xl mx-auto space-y-6">
+                
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Data Wali Murid & Anak</h1>
+                        <p class="text-sm text-gray-500 mt-1">Kelola kontak utama komunitas pendidikan Anda dan kemajuan siswa.</p>
+                    </div>
+                    <button class="px-5 py-2.5 border border-rose-200 hover:bg-rose-50 text-[#A22754] font-semibold text-sm rounded-xl transition shadow-xs flex items-center gap-2">
+                        Orang Tua
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jumlah Keluarga</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-3xl font-bold text-gray-900">{{ total_keluarga }}</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Siswa Aktif</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-3xl font-bold text-gray-900">{{ total_siswa_aktif }}</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pendaftaran Tertunda</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-3xl font-bold text-gray-900">{{ total_pending }}</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-rose-100 p-5 shadow-xs flex flex-col justify-between min-h-[120px]">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg. Retention</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-3xl font-bold text-gray-900">94.2%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-rose-100 shadow-sm overflow-hidden">
+                    
+                    <div class="px-6 py-4 border-b border-gray-100 bg-white flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <button class="bg-rose-50/50 border border-rose-100 rounded-lg px-4 py-2 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                <i class="fa-solid fa-sliders text-gray-400"></i>
+                                <span>Status Pendaftaran:</span>
+                                <span class="text-[#A22754]">Semua Status</span>
+                            </button>
+                            <button class="border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                                <i class="fa-regular fa-calendar text-gray-400"></i>
+                                <span>Tanggal Bergabung</span>
+                            </button>
+                        </div>
+                        <button class="w-9 h-9 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-50 transition">
+                            <i class="fa-solid fa-download"></i>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/30">
+                                    <th class="px-6 py-4 w-1/4">Nama</th>
+                                    <th class="px-6 py-4 w-1/4">Info Kontak</th>
+                                    <th class="px-6 py-4 w-1/6">Total Anak</th>
+                                    <th class="px-6 py-4 w-1/6">Aktivitas Terakhir</th>
+                                    <th class="px-6 py-4 w-1/6 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm">
+                                {% for ot in daftar_orangtua %}
+                                <tr class="hover:bg-rose-50/10 transition">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-10 h-10 bg-[#3B7A7A] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                                <i class="fa-solid fa-user-large"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="font-bold text-gray-900">{{ ot.username }}</h4>
+                                                <p class="text-xs text-gray-400 mt-0.5">ID: {{ ot.id_users }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="space-y-0.5">
+                                            <p class="text-gray-700 font-medium">{{ ot.email }}</p>
+                                            <p class="text-xs {% if ot.status_akun == 'verified' %}text-emerald-600{% else %}text-amber-500{% endif %} font-semibold">
+                                                 {{ ot.status_akun | upper }}
+                                            </p>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-6 h-6 bg-[#DCEEFF] text-[#2B6CB0] font-bold text-xs rounded-full flex items-center justify-center">
+                                                {{ ot.total_anak }}
+                                            </span>
+                                            <span class="text-xs font-medium text-gray-500">Anak terdaftar</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs font-medium text-gray-500">
+                                        Aktivitas Terjaga
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button class="px-4 py-1.5 border border-rose-100 text-xs font-semibold rounded-lg text-rose-800 hover:bg-rose-50 transition">
+                                            Lihat Details
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-10 text-center text-gray-400 font-medium">
+                                        <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
+                                        Tidak ada data wali murid / anak yang sesuai dengan kriteria.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between text-xs font-medium text-gray-400">
+                        <span>
+                            Menampilkan {{ daftar_orangtua | length }} dari {{ total_data }} total entri keluarga
+                        </span>
+                        
+                        <div class="flex items-center gap-1">
+                            
+                            {% if page > 1 %}
+                                <a href="{{ url_for('admin.manajemen_orangtua_admin', page=page-1, search=search) }}" 
+                                class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                                </a>
+                            {% else %}
+                                <span class="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 bg-gray-50 cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                                </span>
+                            {% endif %}
+                            
+                            {% for p in range(1, total_pages + 1) %}
+                                {% if p == page %}
+                                    <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-[#A22754] text-white font-bold text-xs">
+                                        {{ p }}
+                                    </span>
+                                {% else %}
+                                    <a href="{{ url_for('admin.manajemen_orangtua_admin', page=p, search=search) }}" 
+                                    class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-xs transition">
+                                        {{ p }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                                <a href="{{ url_for('admin.manajemen_orangtua_admin', page=page+1, search=search) }}" 
+                                class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </a>
+                            {% else %}
+                                <span class="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-300 bg-gray-50 cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </span>
+                            {% endif %}
+
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+</body>
+<div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                </svg>
+            </div>
+            
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
+            
+            <div class="flex gap-4 w-full">
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
+                    Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const modal = document.getElementById('logoutModal');
+        const modalInner = document.getElementById('modalInner');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        // Buka Modal dengan transisi fade-in & scale-up
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.remove('hidden');
+            
+            // Jeda singkat agar transisi Tailwind terbaca
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalInner.classList.remove('scale-95');
+                modalInner.classList.add('scale-100');
+            }, 10);
+        });
+
+        // Tutup Modal dengan transisi fade-out & scale-down
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalInner.classList.remove('scale-100');
+            modalInner.classList.add('scale-95');
+            
+            // Tunggu transisi selesai (300ms) sebelum menyembunyikan div sepenuhnya
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        // Event listener klik tombol batal atau latar luar
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    
+    const modalLogout = document.getElementById('logoutModal');
+    const btnTriggerLogout = document.getElementById('btnTriggerLogout');
+    const cancelLogout = document.getElementById('cancelLogout');
+
+    // Buka modal
+    btnTriggerLogout.addEventListener('click', (e) => {
+        e.preventDefault();
+        modalLogout.classList.remove('hidden');
+        modalLogout.classList.add('flex');
+    });
+
+    // Tutup modal
+    cancelLogout.addEventListener('click', () => {
+        modalLogout.classList.add('hidden');
+        modalLogout.classList.remove('flex');
+    });
+
+    // Tutup modal jika klik di luar area kotak putih
+    window.addEventListener('click', (e) => {
+        if (e.target === modalLogout) {
+            modalLogout.classList.add('hidden');
+            modalLogout.classList.remove('flex');
+        }
+    });
+</script>
+</html>

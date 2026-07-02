@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Manajemen Kelas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
+
+    <div id="logoutModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white p-6 rounded-2xl w-[90%] max-w-sm shadow-xl border border-rose-50 text-center">
+            <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-sm text-gray-500 mb-6">Apakah Anda yakin ingin keluar dari sesi Admin portal ini?</p>
+            <div class="flex gap-3 justify-center">
+                <button id="cancelLogout" class="px-5 py-2 border border-gray-300 text-gray-700 font-semibold text-sm rounded-xl hover:bg-gray-50 transition">Batal</button>
+                <a href="{{ url_for('admin.logout_admin') }}" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition">Keluar</a>
+            </div>
+        </div>
+    </div>
+
+    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-[#A22754] rounded-xl flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
+                </a>
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
+                </a>
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-rose-100 mb-4">
+            <a href="#" id="btnTriggerLogout" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0 z-10 shadow-sm">
+            <div class="text-sm font-semibold text-gray-700">Manajemen Kelas Bimbel</div> 
+            <div class="flex items-center gap-3">
+                <div class="text-right hidden md:block">
+                    <p class="text-xs font-bold text-gray-800">Admin Utama</p>
+                    <p class="text-[10px] text-gray-400">Kepala Bimbel</p>
+                </div>
+                <img src="https://ui-avatars.com/api/?name=Admin&background=A22754&color=fff" alt="Admin Avatar" class="w-8 h-8 rounded-full border border-gray-200">
+            </div>
+        </header>
+
+        <section class="flex-1 p-8 overflow-y-auto pb-24">
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="p-4 mb-5 text-sm rounded-xl border flex items-center justify-between transition-all duration-300 {% if category == 'error' %}bg-red-100 text-red-700 border-red-200{% else %}bg-green-100 text-green-700 border-green-200{% endif %}">
+                            
+                            <div class="flex items-center gap-2">
+                                {% if category == 'error' %}
+                                    <i class="fa-solid fa-circle-exclamation text-red-500"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle-check text-green-500"></i>
+                                {% endif %}
+                                <span class="font-medium">{{ message }}</span>
+                            </div>
+
+                            <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 transition cursor-pointer flex items-center justify-center" title="Tutup">
+                                <i class="fa-solid fa-xmark text-base"></i>
+                            </button>
+                            
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %} 
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Semua Kelas</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-1">{{ total_kelas }}</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Kelas Aktif Berjalan</p>
+                        <h3 class="text-2xl font-bold text-[#A22754] mt-1">{{ kelas_aktif }}</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-rose-50 text-[#A22754] rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Alokasi Kuota</p>
+                        <h3 class="text-2xl font-bold text-amber-600 mt-1">{{ total_slot }} <span class="text-xs font-normal text-gray-400">Siswa</span></h3>
+                    </div>
+                    <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-users-rectangle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-t-2xl border-t border-x border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xs">
+                <div class="relative max-w-xs w-full">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" placeholder="Cari kode atau nama kelas..." class="w-full bg-slate-50 border border-gray-300 rounded-lg pl-10 pr-4 py-1.5 text-xs focus:outline-none focus:border-rose-400 transition">
+                </div>
+                <a href="{{ url_for('admin.buat_kelas_baru') }}" class="px-4 py-2 bg-[#A22754] hover:bg-[#8E1F47] text-white font-semibold text-xs rounded-lg shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Buat Kelas Baru
+                </a>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-b-2xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-gray-200 text-gray-400 font-bold text-[11px] uppercase tracking-wider">
+                                <th class="px-6 py-3.5">Kode Kelas</th>
+                                <th class="px-6 py-3.5">Nama Program Kelas</th>
+                                <th class="px-6 py-3.5">Tutor Pengajar</th>
+                                <th class="px-6 py-3.5">Jadwal & Jam</th>
+                                <th class="px-6 py-3.5">Biaya (Harga)</th>
+                                <th class="px-6 py-3.5 text-center">Kapasitas / Siswa</th>
+                                <th class="px-6 py-3.5 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-xs text-gray-700">
+                            
+                            {% if daftar_kelas %}
+                                {% for kelas in daftar_kelas %}
+                                {% set persentase = (kelas.jumlah_siswa / kelas.kapasitas_maksimal * 100) | int if kelas.kapasitas_maksimal > 0 else 0 %}
+                                <tr class="hover:bg-slate-50/70 transition">
+                                    <td class="px-6 py-4 font-bold text-gray-500 tracking-wide">{{ kelas.id_kelas }}</td>
+                                    
+                                    <td class="px-6 py-4 font-semibold text-gray-900 text-sm max-w-xs truncate">{{ kelas.nama_kelas }}</td>
+                                    
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 bg-rose-100 text-[#A22754] rounded-full flex items-center justify-center font-bold text-[10px]">
+                                                {{ kelas.nama_tutor[0] | upper if kelas.nama_tutor else 'T' }}
+                                            </div>
+                                            <span class="font-medium text-gray-800">{{ kelas.nama_tutor if kelas.nama_tutor else 'Belum Diatur' }}</span>
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-bold text-[10px]">{{ kelas.hari_jadwal }}</span>
+                                        <span class="text-gray-500 font-medium ml-1">{{ kelas.jam_mulai }} - {{ kelas.jam_selesai }}</span>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4 font-bold text-gray-800">
+                                        Rp {{ "{:,}".format(kelas.harga) }}
+                                    </td>
+                                    
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center justify-between text-[11px] font-bold text-gray-500 mb-1 px-0.5">
+                                            <span>{{ kelas.jumlah_siswa }} / {{ kelas.kapasitas_maksimal }} Siswa</span>
+                                            <span class="{% if persentase >= 90 %}text-red-500{% elif persentase >= 50 %}text-amber-500{% else %}text-green-600{% endif %}">{{ persentase }}%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                            <div class="{% if persentase >= 90 %}bg-red-500{% elif persentase >= 50 %}bg-amber-500{% else %}bg-green-500{% endif %} h-2 rounded-full transition-all duration-500" style="width: {{ persentase }}%"></div>
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="px-2.5 py-1 rounded-full font-bold text-[10px] tracking-wide inline-block
+                                            {% if kelas.status_kelas == 'Aktif' %} bg-green-100 text-green-700 {% elif kelas.status_kelas == 'Penuh' %} bg-amber-100 text-amber-700 {% else %} bg-gray-100 text-gray-500 {% endif %}">
+                                            {{ kelas.status_kelas | upper }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-12 text-gray-400 font-medium">
+                                        <i class="fa-solid fa-box-open text-3xl mb-2 block text-gray-300"></i>
+                                        Belum ada program kelas yang terdaftar di database.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                            
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+   
+    <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                </svg>
+            </div>
+            
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
+            
+            <div class="flex gap-4 w-full">
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
+                    Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const modal = document.getElementById('logoutModal');
+        const modalInner = document.getElementById('modalInner');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        // Buka Modal dengan transisi fade-in & scale-up
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.remove('hidden');
+            
+            // Jeda singkat agar transisi Tailwind terbaca
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalInner.classList.remove('scale-95');
+                modalInner.classList.add('scale-100');
+            }, 10);
+        });
+
+        // Tutup Modal dengan transisi fade-out & scale-down
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalInner.classList.remove('scale-100');
+            modalInner.classList.add('scale-95');
+            
+            // Tunggu transisi selesai (300ms) sebelum menyembunyikan div sepenuhnya
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        // Event listener klik tombol batal atau latar luar
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        const modalLogout = document.getElementById('logoutModal');
+        const btnTriggerLogout = document.getElementById('btnTriggerLogout');
+        const cancelLogout = document.getElementById('cancelLogout');
+
+        btnTriggerLogout.addEventListener('click', (e) => {
+            e.preventDefault();
+            modalLogout.classList.remove('hidden');
+            modalLogout.classList.add('flex');
+        });
+
+        cancelLogout.addEventListener('click', () => {
+            modalLogout.classList.add('hidden');
+            modalLogout.classList.remove('flex');
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modalLogout) {
+                modalLogout.classList.add('hidden');
+                modalLogout.classList.remove('flex');
+            }
+        });
+    </script>
+</body>
+</html>
