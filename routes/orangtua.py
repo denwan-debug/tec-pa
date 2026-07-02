@@ -412,6 +412,39 @@ def halaman_pendaftaran_kelas():
     
     return render_template('orangtua/kelas.html', daftar_kelas=daftar_kelas, username=session.get('username'))
 
+@orangtua_bp.route('/konfirmasi_kelas/<id_kelas>')
+def konfirmasi_kelas(id_kelas):
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # 1. Ambil detail kelas yang diklik
+        cursor.execute("SELECT * FROM kelas WHERE id_kelas = %s", (id_kelas,))
+        detail_kelas = cursor.fetchone()
+        
+        # 2. Ambil daftar anak milik orang tua yang sedang login ini
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s", (session['id_users'],))
+        daftar_anak = cursor.fetchall()
+        
+        if not detail_kelas:
+            flash('Kelas tidak ditemukan.', 'error')
+            return redirect(url_for('orangtua.kelas'))
+            
+        # Tampilkan halaman konfirmasi dengan membawa data kelas dan daftar anak
+        return render_template('orangtua/konfirmasi_kelas.html', 
+                               username=session.get('username'),
+                               kelas=detail_kelas,
+                               daftar_anak=daftar_anak)
+    except Exception as e:
+        print(f"Error halaman konfirmasi: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
 @orangtua_bp.route('/kelas/daftar/<string:id_kelas>', methods=['GET'])
 def konfirmasi_pendaftaran(id_kelas):
     if 'id_users' not in session or session.get('role') != 'murid':
@@ -476,6 +509,66 @@ def konfirmasi_pendaftaran(id_kelas):
         cursor.close()
         conn.close()
 
+@orangtua_bp.route('/pembayaran', methods=['GET', 'POST'])
+def pembayaran():
+    # 1. Pastikan user (orang tua) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+    
+    # 2. Jika ada pengiriman data dari form pendaftaran kelas (Metode POST)
+    if request.method == 'POST':
+        id_anak = request.form.get('id_anak')
+        id_kelas = request.form.get('id_kelas')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Ambil data detail kelas yang dipilih
+            cursor.execute("SELECT * FROM kelas WHERE id_kelas = %s", (id_kelas,))
+            detail_kelas = cursor.fetchone()
+            
+            # Ambil data profil anak untuk konfirmasi
+            cursor.execute("SELECT * FROM anak WHERE id_anak = %s AND id_orangtua = %s", (id_anak, session['id_users']))
+            detail_anak = cursor.fetchone()
+
+            query_kelas = """
+            SELECT k.*, u.username AS nama_tutor 
+            FROM kelas k
+            LEFT JOIN users u ON k.id_pengajar = u.id_users
+            WHERE k.id_kelas = %s
+            """
+            cursor.execute(query_kelas, (id_kelas,))
+            kelas_detail = cursor.fetchone()
+
+            if kelas_detail.get('jam_mulai') and hasattr(kelas_detail['jam_mulai'], 'total_seconds'):
+                total_sec = int(kelas_detail['jam_mulai'].total_seconds())
+                kelas_detail['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+
+            if kelas_detail.get('jam_selesai') and hasattr(kelas_detail['jam_selesai'], 'total_seconds'):
+                total_sec = int(kelas_detail['jam_selesai'].total_seconds())
+                kelas_detail['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+            # Jika datanya valid, tampilkan halaman pembayaran
+            if kelas_detail and detail_anak:
+                return render_template('orangtua/pembayaran.html', 
+                                       username=session.get('username'),
+                                       kelas=kelas_detail,
+                                       anak=detail_anak)
+            else:
+                flash('Data kelas atau anak tidak ditemukan.', 'error')
+                return redirect(url_for('orangtua.kelas'))
+
+            
+   
+        except Exception as e:
+            print(f"Error memuat halaman pembayaran: {e}")
+            return "Terjadi kesalahan pada server", 500
+        finally:
+            cursor.close()
+            conn.close()
+            
+    # 3. Jika halaman pembayaran diakses langsung (Metode GET) tanpa membawa ID kelas
+    return render_template('orangtua/pembayaran.html', username=session.get('username'))
 
 @orangtua_bp.route('/riwayat_pembayaran')
 def riwayat_pembayaran():

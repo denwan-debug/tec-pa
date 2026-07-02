@@ -641,28 +641,26 @@
                                     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                 </div>
                                 <div class="course-highlight-text">
-                                    <h3>Bahasa Inggris untuk Kelas 5</h3>
-                                    <p>Focus: Speech & Confidence</p>
+                                    <h3>{{ kelas.nama_kelas }}</h3>
                                 </div>
                             </div>
 
                             <div class="summary-list">
                                 <div class="summary-row">
                                     <span class="summary-label">Jadwal</span>
-                                    <span class="summary-val">Senin & Rabu, 16:00 - 17:30</span>
+                                    <span class="summary-val">{{ kelas.hari_jadwal }}</span>
                                 </div>
                                 <div class="summary-row">
                                     <span class="summary-label">Durasi</span>
-                                    <span class="summary-val">12 minggu (Mulai Sept 15)</span>
+                                    <span class="summary-val">{{ kelas.jam_mulai }} - {{ kelas.jam_selesai }}</span>
                                 </div>
                             </div>
 
                             <div class="total-section">
                                 <div>
                                     <span>Total</span><br>
-                                    <div class="total-price">250.000</div>
+                                    <div class="total-price">Rp {{ "{:,.0f}".format(kelas.harga | int).replace(',', '.') }}</div>
                                 </div>
-                                <div class="installment-text">Cicilan tersedia</div>
                             </div>
                         </div>
 
@@ -676,8 +674,7 @@
                                 </svg>
                                 
                                 <select name="anak" id="anak">
-                                    <option value="oliver">Oliver Mercer (4 tahun)</option>
-                                    <option value="lainnya">Anak Lainnya</option>
+                                    <option value="oliver">{{anak.nama_lengkap}}</option>
                                 </select>
                                 
                                 <svg class="icon-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -706,16 +703,6 @@
                                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                     <p>Bank Transfer</p>
                                 </div>
-                                
-                                <div class="pay-method">
-                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                                    <p>Credit Card</p>
-                                </div>
-                                
-                                <div class="pay-method">
-                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
-                                    <p>E-Wallet</p>
-                                </div>
                             </div>
 
                             <div class="transaction-details">
@@ -730,7 +717,7 @@
                                 </div>
                                 <div class="td-row">
                                     <span class="td-label">Bank</span>
-                                    <span class="td-val">Global Trust Bank</span>
+                                    <span class="td-val">Bank Central Asia (BCA)</span>
                                 </div>
                                 <div class="td-row" style="margin-top: 10px;">
                                     <span class="td-label">Nomor Akun</span>

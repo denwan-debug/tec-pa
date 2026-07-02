@@ -536,7 +536,7 @@
                             </div>
                         </div>
 
-                        <form action="/proses_pendaftaran" method="POST">
+                        <form action="/pembayaran" method="POST">
     <input type="hidden" name="id_kelas" value="{{ kelas.id_kelas }}">
     <input type="hidden" id="kriteria_kelas" value="{{ kriteria_kelas }}">
 
@@ -563,7 +563,7 @@
         {% endif %}
 
         <option value="{{ anak.id_anak }}" data-jenjang="{{ jenjang }}">
-            {{ anak.nama_anak }} - {{ anak.kelas }} - {{ jenjang }}
+            {{ anak.nama_panggilan }} - {{ anak.kelas }} - {{ jenjang }}
         </option>
     {% endfor %}
 </select>
