@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from db import get_db_connection
-import uuid
+import uuid, math
 
 # Membuat blueprint untuk admin
 admin_bp = Blueprint('admin', __name__)
@@ -14,27 +14,35 @@ def dashboard_admin():
     cursor = conn.cursor(dictionary=True)
     
     try:
-        # 1. Hitung Total Murid Sebenarnya (Dari tabel anak, total ada 8 di SQL Anda)
+        # 1. Hitung Total Murid Sebenarnya (Dari tabel anak)
         cursor.execute("SELECT COUNT(*) as total FROM anak")
         murid = cursor.fetchone()['total'] or 0
         
-        # 2. Hitung Total Pengajar Sebenarnya (Berdasarkan ID Role 'R02' sesuai SQL Anda)
+        # 2. Hitung Total Pengajar Sebenarnya (Berdasarkan ID Role 'R02')
         cursor.execute("SELECT COUNT(*) as total FROM users WHERE role_id_role = 'R02'")
         pengajar = cursor.fetchone()['total'] or 0 
 
-        # 3. Nilai Sementara (Karena tabel 'kelas' belum ada di database Anda)
-        kelas_aktif = 0 
-        pending = 0 
+        # 3. Nilai Riil Kelas Aktif (Tabel kelas sudah ada di database)
+        cursor.execute("SELECT COUNT(*) as total FROM kelas WHERE status_kelas = 'Aktif'")
+        kelas_aktif = cursor.fetchone()['total'] or 0 
+        
+        # 4. Hitung Total Orang Tua/Keluarga yang masih 'unverified' (Pending)
+        cursor.execute("""
+            SELECT COUNT(*) as total 
+            FROM users u
+            JOIN role r ON u.role_id_role = r.id_role
+            WHERE r.nama_role = 'Murid' AND u.status_akun = 'unverified'
+        """)
+        pending = cursor.fetchone()['total'] or 0 
 
         return render_template('admin/dashboard_admin.html', 
                                murid=murid, 
-                               pengajar=pengajar, # Sekarang akan muncul angka 2
+                               pengajar=pengajar,
                                kelas_aktif=kelas_aktif,
                                pending=pending,
                                username=session.get('username', 'Admin Dennis'))
                                
     except Exception as e:
-        # Menampilkan error asli ke terminal Flask Anda untuk pelacakan mudah
         print(f"\n[ERROR DASHBOARD]: {e}\n")
         return render_template('admin/dashboard_admin.html', murid=0, pengajar=0, kelas_aktif=0, pending=0, username="Admin")
     finally:
@@ -271,74 +279,86 @@ def simpan_kelas_baru():
 
 @admin_bp.route('/manajemen_pengajar_admin')
 def manajemen_pengajar_admin():
+    # 1. Verifikasi hak akses admin login
     if 'user_id' not in session or session.get('role') != 'Kepala':
         return redirect(url_for('admin.login_admin'))
     
-    # 1. Menangkap Parameter dari URL
+    # 2. Tangkap parameter filter, pencarian, dan halaman (Pagination)
     search = request.args.get('search', '')
-    subject = request.args.get('subject', 'All')
     page = request.args.get('page', 1, type=int)
-    per_page = 10 # Batas data per halaman
-    
+    per_page = 5  # Menampilkan 5 data per halaman
+    offset = (page - 1) * per_page
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
     try:
-        cursor.execute("""
-            SELECT COUNT(*) as total_semua 
-            FROM users u
-            JOIN role r ON u.role_id_role = r.id_role
-            WHERE r.nama_role = 'Pengajar'
-        """)
-        total_semua = cursor.fetchone()['total_semua']
-        # 2. Query Dasar
-        base_query = """
-            SELECT u.id_users, u.username, u.email, u.status_akun 
-            FROM users u
-            JOIN role r ON u.role_id_role = r.id_role
-            WHERE r.nama_role = 'Pengajar'
+        # 3. Statistik: Hitung total pengajar aktif riil (Role R02)
+        cursor.execute("SELECT COUNT(*) as total FROM users WHERE role_id_role = 'R02'")
+        total_semua = cursor.fetchone()['total'] or 0
+
+        # Sesi Kelas Aktif: Menghitung kelas riil yang statusnya 'Aktif'
+        cursor.execute("SELECT COUNT(*) as total FROM kelas WHERE status_kelas = 'Aktif'")
+        sesi_aktif = cursor.fetchone()['total'] or 0
+
+        # Nilai representatif statis untuk penilaian & validasi pendaftaran
+        rata_rating = "4.8"
+        pending_validasi = 0
+
+        # 4. Hitung total records pencarian untuk dasar pembuatan pagination halaman
+        query_count = """
+            SELECT COUNT(*) as total 
+            FROM users 
+            WHERE role_id_role = 'R02' AND (username LIKE %s OR email LIKE %s)
         """
-        params = []
+        search_param = f"%{search}%"
+        cursor.execute(query_count, (search_param, search_param))
+        total_data = cursor.fetchone()['total'] or 0
         
-        # 3. Filter Pencarian (Nama / ID)
-        if search:
-            base_query += " AND (u.username LIKE %s OR u.id_users LIKE %s)"
-            params.extend([f"%{search}%", f"%{search}%"])
-            
-        # (Opsional) Filter Subjek jika Anda sudah membuat kolom 'keahlian' di DB
-        # if subject != 'All':
-        #     base_query += " AND u.keahlian = %s"
-        #     params.append(subject)
-            
-        # 4. Hitung Total Data untuk Pagination
-        cursor.execute(base_query, params)
-        total_data = len(cursor.fetchall())
-        total_pages = math.ceil(total_data / per_page)
-        if total_pages == 0: 
-            total_pages = 1
-            
-        # 5. Eksekusi Query dengan Limit & Offset
-        offset = (page - 1) * per_page
-        final_query = base_query + " ORDER BY u.username ASC LIMIT %s OFFSET %s"
-        params.extend([per_page, offset])
-        
-        cursor.execute(final_query, params)
+        import math
+        total_pages = max(1, math.ceil(total_data / per_page))
+
+        # 5. AMBIL DATA RIIL: Diurutkan berdasarkan alfabet username (A-Z) karena tidak ada 'created_at'
+        query_pengajar = """
+            SELECT 
+                u.id_users, 
+                u.username, 
+                u.email, 
+                u.status_akun,
+                (SELECT COUNT(*) FROM kelas k WHERE k.id_pengajar = u.id_users) AS total_kelas,
+                (SELECT COUNT(DISTINCT p.id_anak) FROM pendaftaran p JOIN kelas k ON p.id_kelas = k.id_kelas WHERE k.id_pengajar = u.id_users) AS total_siswa
+            FROM users u
+            WHERE u.role_id_role = 'R02' AND (u.username LIKE %s OR u.email LIKE %s)
+            ORDER BY u.username ASC
+            LIMIT %s OFFSET %s
+        """
+        cursor.execute(query_pengajar, (search_param, search_param, per_page, offset))
         daftar_pengajar = cursor.fetchall()
-        
-        # 6. Kirim data ke HTML
-        return render_template('admin/manajemen_pengajar.html', 
-                               daftar_pengajar=daftar_pengajar,
-                               search=search,
-                               subject=subject,
-                               page=page,
-                               total_pages=total_pages,
-                               total_data=total_data,
-                               total_semua=total_semua)
-                               
+
+        # 6. Kirim semua variabel ke file HTML
+        return render_template(
+            'admin/manajemen_pengajar.html',
+            daftar_pengajar=daftar_pengajar,
+            total_semua=total_semua,
+            sesi_aktif=sesi_aktif,
+            rata_rating=rata_rating,
+            pending_validasi=pending_validasi,
+            search=search,
+            page=page,
+            total_data=total_data,
+            total_pages=total_pages
+        )
+
     except Exception as e:
-        print(f"Error memuat data pengajar: {e}")
-        flash('Terjadi kesalahan saat memuat data.', 'error')
-        return render_template('admin/manajemen_pengajar.html', daftar_pengajar=[], total_pages=1, page=1)
+        # Mencetak pesan error asli ke console log terminal terminal/CMD
+        print(f"\n[SISTEM EROR DATABASE PENGAJAR]: {e}\n")
+        flash('Gagal memuat data pengajar secara riil.', 'error')
+        
+        return render_template(
+            'admin/manajemen_pengajar.html',
+            daftar_pengajar=[], total_semua=0, sesi_aktif=0, rata_rating="0.0", pending_validasi=0,
+            search=search, page=1, total_data=0, total_pages=1
+        )
     finally:
         cursor.close()
         conn.close()

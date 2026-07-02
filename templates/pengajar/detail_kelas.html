@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEC Pengajar Dashboard</title>
+    <title>TEC Pengajar - Detail Kelas</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
+     <style>
         :root {
             --primary-pink: #d84b7a;
             --primary-light: #fcecf1;
@@ -425,162 +425,146 @@
             </div>
         </aside>
 
-        <main class="main-content">
-            <header class="topbar">
-                <div class="page-title">
-                    <h1>Daftar Program Kelas</h1>
-                    <p>Kelola kelas aktif dan pantau perkembangan siswa Anda</p>
-                </div>
-                
-                <div class="user-area">
-                    <div class="notification">
-                        <i class="fa-regular fa-bell"></i>
-                    </div>
-                    <div class="profile-info">
-                        <div class="profile-text">
-                            <div class="name">{{ session.get('username', 'Pengajar TEC') }}</div>
-                            <div class="role">{{ session.get('role', 'Pengajar') }}</div>
-                        </div>
-                        <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Pengajar') }}&background=d84b7a&color=fff" alt="Avatar">
+        <main class="flex-1 flex flex-col overflow-hidden relative ml-[250px]">
+            
+            <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-end shrink-0 z-10 shadow-sm gap-6">
+                <button class="text-gray-400 hover:text-[#A22754] transition relative">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#A22754] rounded-full border-2 border-white"></span>
+                </button>
+                <div class="flex items-center gap-3 border-l border-gray-200 pl-6">
+                    <img src="https://ui-avatars.com/api/?name={{ kelas.nama_pengajar }}&background=A22754&color=fff" alt="Profile" class="w-9 h-9 rounded-full border border-gray-200">
+                    <div class="hidden md:block">
+                        <p class="text-sm font-bold text-gray-800">{{ kelas.nama_pengajar }}</p>
+                        <p class="text-[11px] text-gray-400 font-medium">Pengajar</p>
                     </div>
                 </div>
             </header>
 
-            <div class="filter-bar">
-                <div class="filter-tabs">
-                    <button class="filter-btn active" onclick="filterKategori('all')">Semua Kelas</button>
-                    <button class="filter-btn" onclick="filterKategori('sd')">SD</button>
-                    <button class="filter-btn" onclick="filterKategori('smp')">SMP</button>
-                    <button class="filter-btn" onclick="filterKategori('sma')">SMA</button>
-                </div>
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchInput" onkeyup="cariKelas()" placeholder="Cari nama kelas...">
-                </div>
-            </div>
-
-            <div class="classes-grid" id="classesGrid">
-                {% if daftar_kelas %}
-                    {% for kelas in daftar_kelas %}
-                    
-                    {# Logika Pengelompokan Kategori Otomatis berdasarkan String Nama Kelas #}
-                    {% set nama_lower = kelas.nama_kelas | lower %}
-                    {% if 'sd' in nama_lower or 'kids' in nama_lower or 'primary' in nama_lower or 'phonics' in nama_lower %}
-                        {% set kategori = 'sd' %}
-                        {% set tag_class = 'tag-sd' %}
-                        {% set icon_theme = 'icon-blue' %}
-                        {% set label_tag = 'SD (Sekolah Dasar)' %}
-                    {% elif 'smp' in nama_lower or 'junior' in nama_lower %}
-                        {% set kategori = 'smp' %}
-                        {% set tag_class = 'tag-smp' %}
-                        {% set icon_theme = 'icon-orange' %}
-                        {% set label_tag = 'SMP (Junior High)' %}
-                    {% else %}
-                        {% set kategori = 'sma' %}
-                        {% set tag_class = 'tag-sma' %}
-                        {% set icon_theme = 'icon-pink' %}
-                        {% set label_tag = 'SMA' %}
-                    {% endif %}
-
-                    <div class="class-card" data-category="{{ kategori }}">
-                        <div class="card-header-top">
-                            <span class="level-tag {{ tag_class }}">{{ label_tag }}</span>
-                            <div class="card-icon {{ icon_theme }}">
-                                {% if kategori == 'sd' %}<i class="fa-solid fa-child"></i>{% elif kategori == 'smp' %}<i class="fa-solid fa-book-open"></i>{% else %}<i class="fa-solid fa-graduation-cap"></i>{% endif %}
-                            </div>
-                        </div>
-                        <h3 class="class-title">{{ kelas.nama_kelas }}</h3>
-                        <div class="class-details">
-                            <div class="detail-item">
-                                <i class="fa-solid fa-user-group"></i> <span>{{ kelas.jumlah_siswa }} / {{ kelas.kapasitas_maksimal }} Siswa</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fa-regular fa-calendar"></i> <span>{{ kelas.hari_jadwal }}, {{ kelas.jam_mulai }} - {{ kelas.jam_selesai }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fa-solid fa-circle-info"></i> <span>Status: <strong>{{ kelas.status_kelas }}</strong></span>
-                            </div>
-                        </div>
-                        
-                        {# Kalkulasi Persentase Kapasitas Kuota Kelas #}
-                        {% set persen = ((kelas.jumlah_siswa / kelas.kapasitas_maksimal) * 100) | int %}
-                        <div class="progress-container">
-                            <div class="progress-header">
-                                <span class="progress-label">Kapasitas</span>
-                                <span class="progress-percent">{{ persen }}%</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" style="width: {{ persen }}%;"></div>
-                            </div>
-                        </div>
-                            <a class="btn-detail" href="{{ url_for('pengajar.detail_kelas', id_kelas=kelas.id_kelas) }}" style="display: block; text-align: center; text-decoration: none; line-height: 40px;">
-                                Lihat Detail Kelas
-                            </a>                   
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="no-data-card">
-                        <i class="fa-solid fa-graduation-cap" style="font-size: 36px; color: #ccc; margin-bottom: 12px; display: block;"></i>
-                        Anda tidak memiliki program kelas aktif yang ditugaskan saat ini.
-                    </div>
-                {% endif %}
+            <section class="flex-1 p-8 overflow-y-auto pb-24">
                 
-                <div class="no-data-card" id="filterEmptyMessage" style="display: none;">
-                    <i class="fa-solid fa-magnifying-glass" style="font-size: 36px; color: #ccc; margin-bottom: 12px; display: block;"></i>
-                    Tidak ada kelas dengan kategori tersebut yang cocok.
+                <div class="mb-8">
+                    <p class="text-sm text-gray-500 font-medium mb-2">
+                        Kelas <i class="fa-solid fa-chevron-right text-[10px] mx-2 text-gray-400"></i> <span class="font-semibold text-gray-700">{{ kelas.nama_kelas }}</span>
+                    </p>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ kelas.nama_kelas }}</h1>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-sm font-medium">
+                        <span class="px-4 py-1.5 bg-rose-100 text-[#A22754] rounded-full font-bold uppercase">Status: {{ kelas.status_kelas }}</span>
+                        <span class="text-gray-500 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Setiap {{ kelas.hari_jadwal }} • {{ kelas.jam_mulai }} - {{ kelas.jam_selesai }} WIB</span>
+                        <span class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-hashtag"></i> ID: {{ kelas.id_kelas }}</span>
+                        <span class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-chalkboard-user"></i> Pengajar: {{ kelas.nama_pengajar }}</span>
+                    </div>
                 </div>
-            </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tingkat Kehadiran</p>
+                        <h3 class="text-4xl font-black text-gray-800 mb-4">92%</h3>
+                        <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                            <div class="bg-[#A22754] h-full rounded-full w-[92%]"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Siswa Aktif</p>
+                        <h3 class="text-4xl font-black text-gray-800 mb-4 flex items-end gap-2">
+                            {{ daftar_siswa|length }} <span class="text-xl font-medium text-gray-400 mb-1">/ {{ kelas.kapasitas_maksimal }}</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Total siswa terdaftar dan aktif di kelas ini.</p>
+                    </div>
+
+                    <div class="bg-[#DF5480] text-white border border-[#CE3D6B] rounded-2xl p-6 shadow-sm relative overflow-hidden bg-gradient-to-br from-[#DF5480] to-[#A22754]">
+                        <i class="fa-solid fa-book-open absolute right-4 top-4 text-white/20 text-5xl"></i>
+                        <div class="relative z-10">
+                            <p class="text-[11px] font-bold text-rose-100 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <i class="fa-regular fa-bookmark"></i> Topik Sesi Terdekat
+                            </p>
+                            {% if daftar_sesi %}
+                                <h3 class="text-xl font-bold mb-2">{{ daftar_sesi[0].topik_pembahasan }}</h3>
+                                <p class="text-sm text-rose-50 opacity-90 leading-relaxed">Jadwal: {{ daftar_sesi[0].tanggal }} (Sesi ke-{{ daftar_sesi[0].sesi_ke }})</p>
+                            {% else %}
+                                <h3 class="text-xl font-bold mb-2">Belum ada sesi</h3>
+                                <p class="text-sm text-rose-50 opacity-90 leading-relaxed">Silakan tambahkan sesi pembelajaran untuk kelas ini.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-8 border-b border-gray-200 mb-6">
+                    <button class="pb-3 border-b-2 border-[#A22754] text-[#A22754] font-bold text-sm">List Siswa</button>
+                    <button class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Rencana Pelajaran</button>
+                    <button class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Absensi</button>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-800">Daftar Pendaftaran</h2>
+                        <div class="relative max-w-xs w-full">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input type="text" placeholder="Cari Murid..." class="w-full bg-slate-50 border border-gray-200 rounded-full pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-rose-400 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-white text-gray-400 font-bold text-[10px] uppercase tracking-wider border-b border-gray-100">
+                                    <th class="px-6 py-4">No</th>
+                                    <th class="px-6 py-4">Nama Siswa</th>
+                                    <th class="px-6 py-4">ID Siswa</th>
+                                    <th class="px-6 py-4">Sekolah Asal</th>
+                                    <th class="px-6 py-4">Kelas</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50 text-sm">
+                                
+                                {% if daftar_siswa %}
+                                    {% for siswa in daftar_siswa %}
+                                    <tr class="hover:bg-slate-50/50 transition">
+                                        <td class="px-6 py-4 text-gray-500 font-medium">{{ loop.index }}</td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-rose-100 text-[#A22754] flex items-center justify-center font-bold text-lg">
+                                                    {{ siswa.nama_lengkap[0] | upper }}
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-gray-900">{{ siswa.nama_lengkap }}</p>
+                                                    <p class="text-[11px] text-gray-400">Panggilan: {{ siswa.nama_panggilan or '-' }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 font-medium text-gray-500">#{{ siswa.id_anak }}</td>
+                                        <td class="px-6 py-4 text-gray-700">{{ siswa.sekolah_asal or '-' }}</td>
+                                        <td class="px-6 py-4 text-gray-700">{{ siswa.kelas_sekolah or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-12 text-center">
+                                            <i class="fa-solid fa-users text-4xl text-gray-200 mb-3"></i>
+                                            <p class="text-gray-500 font-medium">Belum ada siswa yang mendaftar di kelas ini.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-xs">
+                        <p class="text-gray-500">Menampilkan <strong>{{ daftar_siswa|length }}</strong> siswa terdaftar</p>
+                        <div class="flex gap-1">
+                            <button class="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 transition"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                            <button class="w-7 h-7 flex items-center justify-center rounded bg-[#A22754] text-white font-bold">1</button>
+                            <button class="w-7 h-7 flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
         </main>
     </div>
 
-    <script>
-        let currentCategory = 'all';
-
-        function filterKategori(kategori) {
-            currentCategory = kategori;
-            
-            // Ubah tombol aktif secara visual
-            const buttons = document.querySelectorAll('.filter-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-
-            jalankanFilter();
-        }
-
-        function cariKelas() {
-            jalankanFilter();
-        }
-
-        function jalankanFilter() {
-            const input = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.class-card');
-            let adaYangTampil = false;
-
-            cards.forEach(card => {
-                const namaKelas = card.querySelector('.class-title').innerText.toLowerCase();
-                const kategoriCard = card.getAttribute('data-category');
-
-                const cocokKategori = (currentCategory === 'all' || kategoriCard === currentCategory);
-                const cocokPencarian = namaKelas.includes(input);
-
-                if (cocokKategori && cocokPencarian) {
-                    card.style.display = 'flex';
-                    adaYangTampil = true;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            // Handle pesan error kosong
-            const emptyMessage = document.getElementById('filterEmptyMessage');
-            if (emptyMessage) {
-                if (!adaYangTampil && cards.length > 0) {
-                    emptyMessage.style.display = 'block';
-                } else {
-                    emptyMessage.style.display = 'none';
-                }
-            }
-        }
-    </script>
 </body>
 </html>

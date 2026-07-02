@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Portal - Checkout Pendaftaran</title>
+    <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
+    <style>
+        /* === Reset & Base Styles === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* === Colors (Sesuai Konfirmasi Kelas) === */
+        :root {
+            --sidebar-bg: #3d515c;
+            --sidebar-hover: #2e3e47;
+            --primary-accent: #b42b51;
+            --primary-light: #fdf2f5;
+            --primary-border: #f3c6d3;
+            --text-muted: #7a8b94;
+            --bg-light: #ffffff;
+            --border-light: #edf2f7;
+            --text-dark: #1a202c;
+            --text-gray: #4a5568;
+        }
+
+        /* === Layout === */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === Sidebar === */
+         /* === Sidebar (Sama persis dengan kelas.html) === */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header { padding: 30px 20px; }
+        .sidebar-header h2 { font-size: 1.2rem; margin-bottom: 5px; }
+        .sidebar-header p { font-size: 0.8rem; color: #b0c4de; }
+        .sidebar-menu { list-style: none; flex-grow: 1; }
+        .sidebar-menu li a {
+            display: flex; align-items: center; gap: 15px; padding: 15px 25px;
+            color: white; text-decoration: none; font-family: 'ABeeZee', sans-serif;
+            font-size: 0.95rem; font-weight: 300; transition: 0.3s;
+        }
+        .sidebar-menu li a svg { width: 20px; height: 20px; }
+        .sidebar-menu li.active a, .sidebar-menu li a:hover {
+            background-color: var(--sidebar-hover);
+            border-left: 4px solid var(--primary-accent);
+        }
+
+        .nav-logout {
+            display: flex; align-items: center; gap: 10px; background: transparent;
+            border: none; color: #ffffff; font-size: 1rem; font-weight: 500;
+            cursor: pointer; padding: 8px 25px 30px 25px; transition: opacity 0.2s ease;
+        }
+        .nav-logout:hover { opacity: 0.8; }
+
+        /* === Main Content === */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: #fcfcfc;
+        }
+
+        /* === Topbar Custom untuk Checkout === */
+        .topbar {
+            background-color: #ffffff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            min-height: 70px;
+        }
+
+        .topbar-title {
+            color: var(--primary-accent);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .topbar-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: #f1f5f9;
+            padding: 10px 20px;
+            border-radius: 20px;
+            width: 350px;
+            gap: 10px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            color: var(--text-dark);
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: right;
+        }
+
+        .user-info h4 { margin: 0; font-size: 0.9rem; color: var(--text-dark); }
+        .user-info p { margin: 0; font-size: 0.75rem; color: var(--text-gray); }
+
+        .avatar-img {
+            width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+        }
+
+        /* === Checkout Content === */
+        .checkout-wrapper {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .checkout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .checkout-title h1 {
+            font-size: 1.8rem;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+
+        .checkout-meta {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .badge-status {
+            background-color: var(--primary-light);
+            color: var(--primary-accent);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .order-id {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+        }
+
+        .btn-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        .btn-back:hover { color: var(--text-dark); }
+
+        /* Grid Layout */
+        .checkout-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 25px;
+            align-items: start;
+        }
+
+        .card-box {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            border: 1px solid var(--border-light);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-header h2 {
+            font-size: 1.2rem;
+            color: var(--text-dark);
+        }
+
+        .icon-box {
+            width: 35px; height: 35px; background: #e0f2fe; color: #0369a1;
+            display: flex; align-items: center; justify-content: center; border-radius: 8px;
+        }
+
+        /* Left Side: Summary & Mendaftarkan Anak */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .course-highlight {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: var(--primary-light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .course-thumb {
+            width: 60px; height: 40px;
+            background: #fff;
+            border-radius: 6px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .course-highlight-text h3 {
+            font-size: 1rem; color: var(--text-dark); margin-bottom: 4px;
+        }
+        .course-highlight-text p {
+            font-size: 0.85rem; color: var(--text-gray);
+        }
+
+        .summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+        }
+
+        .summary-label { color: var(--text-gray); }
+        .summary-val { color: var(--text-dark); font-weight: 500; text-align: right; }
+
+        .total-section {
+            border-top: 1px solid var(--border-light);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .total-section span { color: var(--text-gray); font-size: 0.9rem;}
+        .total-price { font-size: 1.8rem; font-weight: 700; color: var(--primary-accent); }
+        .installment-text { font-size: 0.75rem; color: #10b981; font-weight: 600;}
+
+        /* Dropdown Anak */
+        .section-label {
+            font-size: 0.95rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 15px; display: block;
+        }
+
+        .select-child-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 12px 15px;
+            background: #ffffff;
+            cursor: pointer;
+            gap: 12px;
+            position: relative;
+        }
+
+        .select-child-wrapper svg.icon-user {
+            color: var(--text-gray);
+        }
+        
+        .select-child-wrapper select {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            appearance: none; /* Hide default arrow */
+            cursor: pointer;
+        }
+
+        .select-child-wrapper svg.icon-arrow {
+            color: var(--text-gray);
+            pointer-events: none;
+        }
+
+        .help-text-italic {
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            font-style: italic;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+
+        /* Right Side: Payment & Guarantee */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .pay-method {
+            position: relative;
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pay-method:hover { border-color: #cbd5e1; }
+        
+        .pay-method.active {
+            border-color: var(--primary-accent);
+            background-color: var(--primary-light);
+        }
+
+        .pay-method svg {
+            margin-bottom: 10px;
+            color: var(--text-gray);
+        }
+
+        .pay-method.active svg { color: var(--primary-accent); }
+        .pay-method p { font-size: 0.85rem; font-weight: 600; color: var(--text-dark); }
+
+        .check-badge {
+            position: absolute;
+            top: -8px; right: -8px;
+            background: var(--primary-accent);
+            color: white;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .transaction-details {
+            background-color: #f4f8fb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .td-header {
+            display: flex; align-items: center; gap: 8px;
+            color: #0369a1; font-size: 0.9rem; font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .td-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+        .td-row:last-child { margin-bottom: 0; }
+
+        .td-label { color: var(--text-gray); }
+        .td-val { color: var(--text-dark); font-weight: 600; display: flex; align-items: center; gap: 8px;}
+        .icon-copy { cursor: pointer; color: var(--text-gray); }
+        .icon-copy:hover { color: var(--text-dark); }
+
+        /* Upload Section */
+        .upload-box {
+            border: 2px dashed var(--primary-border);
+            background-color: var(--primary-light);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .upload-box:hover { background-color: #fce8ed; }
+
+        .upload-icon-circle {
+            background-color: #ffffff;
+            color: var(--primary-accent);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(180, 43, 81, 0.1);
+        }
+
+        .upload-box p {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+            margin: 0;
+        }
+
+        /* Submit Section */
+        .submit-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .btn-submit-final {
+            flex: 1;
+            background-color: var(--primary-accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-submit-final:hover { background-color: #931e3f; }
+
+        .secure-transaction {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Guarantee Card */
+        .guarantee-card {
+            background-color: var(--primary-light);
+            border-radius: 12px;
+            padding: 25px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .guarantee-icon {
+            background-color: var(--primary-border);
+            color: var(--text-dark);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .guarantee-content h3 {
+            color: var(--primary-accent);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .guarantee-content p {
+            color: var(--text-dark);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .checkout-grid { grid-template-columns: 1fr; }
+            .topbar-center { display: none; }
+            .submit-section { flex-direction: column; align-items: stretch; text-align: center; }
+            .secure-transaction { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div>
+                <div class="sidebar-header">
+                    <h2>TEC Portal</h2>
+                    <p>Supportive Academic Partner</p>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="/index">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 6V0H18V6H10ZM0 10V0H8V10H0ZM10 18V8H18V18H10ZM0 18V12H8V18H0ZM2 8H6V2H2V8ZM12 16H16V10H12V16ZM12 4H16V2H12V4ZM2 16H6V14H2V16Z" fill="#CFE6F2"/></svg>
+                        Beranda</a>
+                    </li>
+                    <li><a href="/manajemen_anak">
+                        <svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 4C15.45 4 14.9792 3.80417 14.5875 3.4125C14.1958 3.02083 14 2.55 14 2C14 1.45 14.1958 0.979167 14.5875 0.5875C14.9792 0.195833 15.45 0 16 0C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2C18 2.55 17.8042 3.02083 17.4125 3.4125C17.0208 3.80417 16.55 4 16 4ZM15 20V12C15 11.3333 14.8292 10.7333 14.4875 10.2C14.1458 9.66667 13.7083 9.25 13.175 8.95L14.05 6.375C14.1833 5.95833 14.4292 5.625 14.7875 5.375C15.1458 5.125 15.55 5 16 5C16.45 5 16.8542 5.125 17.2125 5.375C17.5708 5.625 17.8167 5.95833 17.95 6.375L20.5 14H18V20H15ZM10.5 9.5C10.0833 9.5 9.72917 9.35417 9.4375 9.0625C9.14583 8.77083 9 8.41667 9 8C9 7.58333 9.14583 7.22917 9.4375 6.9375C9.72917 6.64583 10.0833 6.5 10.5 6.5C10.9167 6.5 11.2708 6.64583 11.5625 6.9375C11.8542 7.22917 12 7.58333 12 8C12 8.41667 11.8542 8.77083 11.5625 9.0625C11.2708 9.35417 10.9167 9.5 10.5 9.5ZM3.5 4C2.95 4 2.47917 3.80417 2.0875 3.4125C1.69583 3.02083 1.5 2.55 1.5 2C1.5 1.45 1.69583 0.979167 2.0875 0.5875C2.47917 0.195833 2.95 0 3.5 0C4.05 0 4.52083 0.195833 4.9125 0.5875C5.30417 0.979167 5.5 1.45 5.5 2C5.5 2.55 5.30417 3.02083 4.9125 3.4125C4.52083 3.80417 4.05 4 3.5 4ZM1.5 20V13H0V7C0 6.45 0.195833 5.97917 0.5875 5.5875C0.979167 5.19583 1.45 5 2 5H5C5.55 5 6.02083 5.19583 6.4125 5.5875C6.80417 5.97917 7 6.45 7 7V13H5.5V20H1.5ZM9 20V16H8V12C8 11.5833 8.14583 11.2292 8.4375 10.9375C8.72917 10.6458 9.08333 10.5 9.5 10.5H11.5C11.9167 10.5 12.2708 10.6458 12.5625 10.9375C12.8542 11.2292 13 11.5833 13 12V16H12V20H9Z" fill="#CFE6F2"/></svg>
+                        Manajemen Anak</a>
+                    </li>
+                    <li class="active"><a href="/kelas">
+                        <svg width="22" height="18" viewBox="0 0 22 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 18L4 14.2V8.2L0 6L11 0L22 6V14H20V7.1L18 8.2V14.2L11 18ZM11 9.7L17.85 6L11 2.3L4.15 6L11 9.7ZM11 15.725L16 13.025V9.25L11 12L6 9.25V13.025L11 15.725Z" fill="#CFE6F2"/></svg>
+                        Kelas</a>
+                    </li>
+                    <li><a href="/riwayat_pembayaran">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 20C2.16667 20 1.45833 19.7083 0.875 19.125C0.291667 18.5417 0 17.8333 0 17V14H3V0L4.5 1.5L6 0L7.5 1.5L9 0L10.5 1.5L12 0L13.5 1.5L15 0L16.5 1.5L18 0V17C18 17.8333 17.7083 18.5417 17.125 19.125C16.5417 19.7083 15.8333 20 15 20H3ZM15 18C15.2833 18 15.5208 17.9042 15.7125 17.7125C15.9042 17.5208 16 17.2833 16 17V3H5V14H14V17C14 17.2833 14.0958 17.5208 14.2875 17.7125C14.4792 17.9042 14.7167 18 15 18ZM6 7V5H12V7H6ZM6 10V8H12V10H6ZM14 7C13.7167 7 13.4792 6.90417 13.2875 6.7125C13.0958 6.52083 13 6.28333 13 6C13 5.71667 13.0958 5.47917 13.2875 5.2875C13.4792 5.09583 13.7167 5 14 5C14.2833 5 14.5208 5.09583 14.7125 5.2875C14.9042 5.47917 15 5.71667 15 6C15 6.28333 14.9042 6.52083 14.7125 6.7125C14.5208 6.90417 14.2833 7 14 7ZM14 10C13.7167 10 13.4792 9.90417 13.2875 9.7125C13.0958 9.52083 13 9.28333 13 9C13 8.71667 13.0958 8.47917 13.2875 8.2875C13.4792 8.09583 13.7167 8 14 8C14.2833 8 14.5208 8.09583 14.7125 8.2875C14.9042 8.47917 15 8.71667 15 9C15 9.28333 14.9042 9.52083 14.7125 9.7125C14.5208 9.90417 14.2833 10 14 10ZM3 18H12V16H2V17C2 17.2833 2.09583 17.5208 2.2875 17.7125C2.47917 17.9042 2.71667 18 3 18ZM2 18C2 18 2 17.9042 2 17.7125C2 17.5208 2 17.2833 2 17V16V18Z" fill="#CFE6F2"/></svg>
+                        Riwayat Pembayaran</a>
+                    </li>
+                    <li><a href="/jadwal_belajar">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6ZM9 12C8.71667 12 8.47917 11.9042 8.2875 11.7125C8.09583 11.5208 8 11.2833 8 11C8 10.7167 8.09583 10.4792 8.2875 10.2875C8.47917 10.0958 8.71667 10 9 10C9.28333 10 9.52083 10.0958 9.7125 10.2875C9.90417 10.4792 10 10.7167 10 11C10 11.2833 9.90417 11.5208 9.7125 11.7125C9.52083 11.9042 9.28333 12 9 12ZM5 12C4.71667 12 4.47917 11.9042 4.2875 11.7125C4.09583 11.5208 4 11.2833 4 11C4 10.7167 4.09583 10.4792 4.2875 10.2875C4.47917 10.0958 4.71667 10 5 10C5.28333 10 5.52083 10.0958 5.7125 10.2875C5.90417 10.4792 6 10.7167 6 11C6 11.2833 5.90417 11.5208 5.7125 11.7125C5.52083 11.9042 5.28333 12 5 12ZM13 12C12.7167 12 12.4792 11.9042 12.2875 11.7125C12.0958 11.5208 12 11.2833 12 11C12 10.7167 12.0958 10.4792 12.2875 10.2875C12.4792 10.0958 12.7167 10 13 10C13.2833 10 13.5208 10.0958 13.7125 10.2875C13.9042 10.4792 14 10.7167 14 11C14 11.2833 13.9042 11.5208 13.7125 11.7125C13.5208 11.9042 13.2833 12 13 12ZM9 16C8.71667 16 8.47917 15.9042 8.2875 15.7125C8.09583 15.5208 8 15.2833 8 15C8 14.7167 8.09583 14.4792 8.2875 14.2875C8.47917 14.0958 8.71667 14 9 14C9.28333 14 9.52083 14.0958 9.7125 14.2875C9.90417 14.4792 10 14.7167 10 15C10 15.2833 9.90417 15.5208 9.7125 15.7125C9.52083 15.9042 9.28333 16 9 16ZM5 16C4.71667 16 4.47917 15.9042 4.2875 15.7125C4.09583 15.5208 4 15.2833 4 15C4 14.7167 4.09583 14.4792 4.2875 14.2875C4.47917 14.0958 4.71667 14 5 14C5.28333 14 5.52083 14.0958 5.7125 14.2875C5.90417 14.4792 6 14.7167 6 15C6 15.2833 5.90417 15.5208 5.7125 15.7125C5.52083 15.9042 5.28333 16 5 16ZM13 16C12.7167 16 12.4792 15.9042 12.2875 15.7125C12.0958 15.5208 12 15.2833 12 15C12 14.7167 12.0958 14.4792 12.2875 14.2875C12.4792 14.0958 12.7167 14 13 14C13.2833 14 13.5208 14.0958 13.7125 14.2875C13.9042 14.4792 14 14.7167 14 15C14 15.2833 13.9042 15.5208 13.7125 15.7125C13.5208 15.9042 13.2833 16 13 16Z" fill="#CFE6F2"/></svg>
+                        Jadwal Belajar</a>
+                    </li>
+                    <li><a href="/presensi">
+                        <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.95 16.35L4.4 12.8L5.85 11.35L7.95 13.45L12.15 9.25L13.6 10.7L7.95 16.35ZM2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#CFE6F2"/></svg>
+                        Presensi</a>
+                    </li>
+                    <li><a href="/reports">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/></svg>
+                        Reports</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="logout">
+                <button class="nav-logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    LOGOUT
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-title">Checkout</div>
+                
+                <div class="topbar-center">
+                    <div class="search-bar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-gray)" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" placeholder="Cari Tagihan...">
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-accent)" stroke-width="2" style="cursor: pointer;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    
+                    <div class="user-profile">
+                        <div class="user-info">
+                            <h4>Alex Mercer</h4>
+                            <p>Akun Orang Tua</p>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name=Alex+Mercer&background=5b9bd5&color=fff" alt="User" class="avatar-img">
+                    </div>
+                </div>
+            </header>
+
+            <div class="checkout-wrapper">
+                <div class="checkout-header">
+                    <div>
+                        <div class="checkout-title">
+                            <h1>Pendaftaran</h1>
+                        </div>
+                        <div class="checkout-meta">
+                            <span class="badge-status">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"></path></svg>
+                                Menunggu Pembayaran
+                            </span>
+                            <span class="order-id">Order ID: #TEC-2024-8891</span>
+                        </div>
+                    </div>
+                    
+                    <a href="/kelas" class="btn-back">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Kembali ke Kelas
+                    </a>
+                </div>
+
+                <div class="checkout-grid">
+                    <!-- Left Column -->
+                    <div class="left-column">
+                        <!-- Card 1: Ringkasan Kelas -->
+                        <div class="card-box">
+                            <div class="card-header">
+                                <h2>Ringkasan Kelas</h2>
+                                <div class="icon-box">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                </div>
+                            </div>
+
+                            <div class="course-highlight">
+                                <div class="course-thumb">
+                                    <!-- Placeholder illustration -->
+                                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                </div>
+                                <div class="course-highlight-text">
+                                    <h3>Bahasa Inggris untuk Kelas 5</h3>
+                                    <p>Focus: Speech & Confidence</p>
+                                </div>
+                            </div>
+
+                            <div class="summary-list">
+                                <div class="summary-row">
+                                    <span class="summary-label">Jadwal</span>
+                                    <span class="summary-val">Senin & Rabu, 16:00 - 17:30</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span class="summary-label">Durasi</span>
+                                    <span class="summary-val">12 minggu (Mulai Sept 15)</span>
+                                </div>
+                            </div>
+
+                            <div class="total-section">
+                                <div>
+                                    <span>Total</span><br>
+                                    <div class="total-price">250.000</div>
+                                </div>
+                                <div class="installment-text">Cicilan tersedia</div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Mendaftarkan Anak -->
+                        <div class="card-box">
+                            <label class="section-label">Mendaftarkan Anak</label>
+                            
+                            <div class="select-child-wrapper">
+                                <svg class="icon-user" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path>
+                                </svg>
+                                
+                                <select name="anak" id="anak">
+                                    <option value="oliver">Oliver Mercer (4 tahun)</option>
+                                    <option value="lainnya">Anak Lainnya</option>
+                                </select>
+                                
+                                <svg class="icon-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+
+                            <p class="help-text-italic">Student ID and academic records will be updated automatically.</p>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="right-column">
+                        <!-- Card 3: Pembayaran -->
+                        <div class="card-box">
+                            <div class="card-header">
+                                <h2>Pembayaran</h2>
+                            </div>
+
+                            <div class="payment-methods">
+                                <!-- Active Payment Method -->
+                                <div class="pay-method active">
+                                    <div class="check-badge">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                    </div>
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <p>Bank Transfer</p>
+                                </div>
+                                
+                                <div class="pay-method">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                                    <p>Credit Card</p>
+                                </div>
+                                
+                                <div class="pay-method">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                                    <p>E-Wallet</p>
+                                </div>
+                            </div>
+
+                            <div class="transaction-details">
+                                <div class="td-header">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                    Detail Transaksi
+                                </div>
+                                
+                                <div class="td-row">
+                                    <span class="td-label">Nama Akun</span>
+                                    <span class="td-val">T English Club Academy</span>
+                                </div>
+                                <div class="td-row">
+                                    <span class="td-label">Bank</span>
+                                    <span class="td-val">Global Trust Bank</span>
+                                </div>
+                                <div class="td-row" style="margin-top: 10px;">
+                                    <span class="td-label">Nomor Akun</span>
+                                    <span class="td-val">
+                                        9887 0021 5543
+                                        <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Upload Bukti Pembayaran -->
+                            <label class="section-label" style="margin-bottom: 10px;">Bukti Pembayaran</label>
+                            <div class="upload-box">
+                                <div class="upload-icon-circle">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                                        <path d="M12 12v9"></path>
+                                        <path d="m16 16-4-4-4 4"></path>
+                                    </svg>
+                                </div>
+                                <p>Format yang tersedia: JPG, PNG, PDF (Max 5MB)</p>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="submit-section">
+                                <button class="btn-submit-final">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                                    Selesaikan Pendaftaran
+                                </button>
+                                <div class="secure-transaction">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                    Transaksi Aman
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Kepuasan Terjamin -->
+                        <div class="guarantee-card">
+                            <div class="guarantee-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            </div>
+                            <div class="guarantee-content">
+                                <h3>Kepuasan Terjamin</h3>
+                                <p>Daftar dengan percaya diri.<br>
+                                Jika Anda tidak puas dalam 2 kelas pertama, kami menawarkan pengembalian dana penuh, tanpa pertanyaan. Pertumbuhan anak Anda adalah prioritas kami.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

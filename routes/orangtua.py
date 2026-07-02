@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
-import uuid, random
+import uuid, random, re
 from db import get_db_connection
 from extensions import mail
 from flask_mail import Message
@@ -386,8 +386,96 @@ def tambah_anak():
     return redirect('/manajemen_anak')
 
 @orangtua_bp.route('/kelas')
-def kelas():
-    return render_template('orangtua/kelas.html')
+def halaman_pendaftaran_kelas():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    query = """
+        SELECT k.*, u.username AS nama_tutor,
+        (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+        FROM kelas k
+        LEFT JOIN users u ON k.id_pengajar = u.id_users
+        WHERE k.status_kelas = 'Aktif'
+    """
+    cursor.execute(query)
+    daftar_kelas = cursor.fetchall()
+    
+    # Format waktu jam_mulai dan jam_selesai jadi string HH:MM
+    for k in daftar_kelas:
+        if k['jam_mulai']:
+            k['jam_mulai'] = str(k['jam_mulai'])[:5]
+        if k['jam_selesai']:
+            k['jam_selesai'] = str(k['jam_selesai'])[:5]
+
+    cursor.close()
+    conn.close()
+    
+    return render_template('orangtua/kelas.html', daftar_kelas=daftar_kelas, username=session.get('username'))
+
+@orangtua_bp.route('/kelas/daftar/<string:id_kelas>', methods=['GET'])
+def konfirmasi_pendaftaran(id_kelas):
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    user_id = session['id_users']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Inisialisasi default di awal, SEBELUM try, agar selalu terikat nilai
+    kelas_detail = None
+    daftar_anak = []
+    kriteria_kelas = ''
+    deskripsi_text = ''
+
+    try:
+        query_kelas = """
+            SELECT k.*, u.username AS nama_tutor 
+            FROM kelas k
+            LEFT JOIN users u ON k.id_pengajar = u.id_users
+            WHERE k.id_kelas = %s
+        """
+        cursor.execute(query_kelas, (id_kelas,))
+        kelas_detail = cursor.fetchone()
+
+        if not kelas_detail:
+            flash("Kelas tidak ditemukan.", "danger")
+            return redirect(url_for('orangtua.halaman_pendaftaran_kelas'))
+
+        # Ambil kriteria/tingkat langsung dari kelas_detail (sudah ada dari SELECT k.*)
+        kriteria_kelas = kelas_detail.get('tingkat') or ''
+        deskripsi_text = kelas_detail.get('deskripsi') or 'Belum ada deskripsi'
+
+        # Konversi jam_mulai jika berupa timedelta
+        if kelas_detail.get('jam_mulai') and hasattr(kelas_detail['jam_mulai'], 'total_seconds'):
+            total_sec = int(kelas_detail['jam_mulai'].total_seconds())
+            kelas_detail['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+
+        if kelas_detail.get('jam_selesai') and hasattr(kelas_detail['jam_selesai'], 'total_seconds'):
+            total_sec = int(kelas_detail['jam_selesai'].total_seconds())
+            kelas_detail['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+
+        # Ambil daftar anak aktif milik orang tua ini
+        cursor.execute(
+            "SELECT * FROM anak WHERE id_orangtua = %s AND status_anak = 'Active'",
+            (user_id,)
+        )
+        daftar_anak = cursor.fetchall()
+
+        return render_template('orangtua/konfirmasi_kelas.html',
+                               kelas=kelas_detail,
+                               daftar_anak=daftar_anak,
+                               username=session.get('username'),
+                               deskripsi=deskripsi_text,
+                               kriteria_kelas=kriteria_kelas)
+
+    except Exception as e:
+        print(f"Error pendaftaran kelas: {e}")
+        return f"Terjadi kesalahan internal: {str(e)}", 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @orangtua_bp.route('/riwayat_pembayaran')
 def riwayat_pembayaran():

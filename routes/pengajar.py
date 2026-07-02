@@ -139,7 +139,126 @@ def dashboard_pengajar():
 
 @pengajar_bp.route('/kelas_pengajar')
 def kelas_pengajar():
-    return render_template('pengajar/kelas_pengajar.html')
+    if 'user_id' not in session:
+        return redirect(url_for('pengajar.login_pengajar'))
+        
+    pengajar_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    daftar_kelas = [] # Inisialisasi list kosong di luar try
+    
+    try:
+        query_kelas = """
+            SELECT 
+                k.id_kelas,
+                k.nama_kelas,
+                k.hari_jadwal,
+                k.jam_mulai,
+                k.jam_selesai,
+                k.kapasitas_maksimal,
+                k.status_kelas,
+                (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+            FROM kelas k
+            WHERE k.id_pengajar = %s
+            ORDER BY k.created_at DESC
+        """
+        cursor.execute(query_kelas, (pengajar_id,))
+        daftar_kelas = cursor.fetchall()
+        
+        for kelas in daftar_kelas:
+            if kelas['jam_mulai'] and hasattr(kelas['jam_mulai'], 'total_seconds'):
+                total_sec = int(kelas['jam_mulai'].total_seconds())
+                kelas['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+            if kelas['jam_selesai'] and hasattr(kelas['jam_selesai'], 'total_seconds'):
+                total_sec = int(kelas['jam_selesai'].total_seconds())
+                kelas['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+                
+    except Exception as e:
+        print(f"Error pada database kelas pengajar: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    # SEKARANG DI LUAR TRY-EXCEPT: Memudahkan debugging template HTML
+    return render_template('pengajar/kelas_pengajar.html', daftar_kelas=daftar_kelas)
+
+
+# TAMBAHKAN ROUTE INI agar url_for di HTML tidak error
+@pengajar_bp.route('/detail_kelas/<id_kelas>')
+def detail_kelas(id_kelas):
+    if 'user_id' not in session:
+        return redirect(url_for('pengajar.login_pengajar'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. INISIALISASI VARIABEL DI AWAL (Solusi UnboundLocalError)
+    detail_kelas_data = None
+    daftar_siswa = []
+    
+    try:
+        # Query detail kelas
+        query_kelas = """
+            SELECT 
+                k.id_kelas,
+                k.nama_kelas,
+                k.hari_jadwal,
+                k.jam_mulai,
+                k.jam_selesai,
+                k.kapasitas_maksimal,
+                k.status_kelas,
+                u.nama_lengkap AS nama_pengajar
+            FROM kelas k
+            JOIN users u ON k.id_pengajar = u.id_users
+            WHERE k.id_kelas = %s
+        """
+        cursor.execute(query_kelas, (id_kelas,))
+        detail_kelas_data = cursor.fetchone()
+        
+        # Jika kelas tidak ditemukan, batalkan dan kembali ke daftar
+        if not detail_kelas_data:
+            return redirect(url_for('pengajar.kelas_pengajar'))
+            
+        # Konversi waktu
+        if detail_kelas_data['jam_mulai'] and hasattr(detail_kelas_data['jam_mulai'], 'total_seconds'):
+            total_sec = int(detail_kelas_data['jam_mulai'].total_seconds())
+            detail_kelas_data['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+            
+        if detail_kelas_data['jam_selesai'] and hasattr(detail_kelas_data['jam_selesai'], 'total_seconds'):
+            total_sec = int(detail_kelas_data['jam_selesai'].total_seconds())
+            detail_kelas_data['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+
+        # Query daftar siswa
+        query_siswa = """
+            SELECT 
+                a.id_anak,
+                a.nama_lengkap,
+                a.nama_panggilan,
+                a.jenis_kelamin,
+                p.status_pendaftaran,
+                p.tanggal_daftar
+            FROM pendaftaran p
+            JOIN anak a ON p.id_anak = a.id_anak
+            WHERE p.id_kelas = %s AND p.status_pendaftaran = 'Aktif'
+        """
+        cursor.execute(query_siswa, (id_kelas,))
+        daftar_siswa = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Error pada database detail kelas: {e}")
+        # 2. PASTIKAN ADA RETURN DI EXCEPT AGAR PROSES BERHENTI SAAT ERROR
+        
+    finally:
+        cursor.close()
+        conn.close()
+        
+    # 3. PENGECEKAN TERAKHIR SEBELUM RENDER
+    if not detail_kelas_data:
+        return redirect(url_for('pengajar.kelas_pengajar'))
+        
+    return render_template('pengajar/detail_kelas.html', kelas=detail_kelas_data, daftar_siswa=daftar_siswa)
+
+
 
 @pengajar_bp.route('/jadwal_pengajar')
 def manajemen_jadwal():
