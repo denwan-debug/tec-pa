@@ -613,7 +613,7 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"></path></svg>
                                 Menunggu Pembayaran
                             </span>
-                            <span class="order-id">Order ID: #TEC-2024-8891</span>
+                            <span class="order-id">Order ID: {{ invoice_id }}</span>
                         </div>
                     </div>
                     
@@ -664,25 +664,32 @@
                             </div>
                         </div>
 
-                        <!-- Card 2: Mendaftarkan Anak -->
+                        <!-- Card 2: Anak yang Didaftarkan -->
                         <div class="card-box">
                             <label class="section-label">Mendaftarkan Anak</label>
-                            
-                            <div class="select-child-wrapper">
+
+                            {% if anak %}
+                            <div class="select-child-wrapper" style="cursor: default;">
                                 <svg class="icon-user" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path>
                                 </svg>
-                                
-                                <select name="anak" id="anak">
-                                    <option value="oliver">{{anak.nama_lengkap}}</option>
-                                </select>
-                                
-                                <svg class="icon-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.95rem; color: var(--text-dark); font-weight: 600;">{{ anak.nama_lengkap }}</div>
+                                    {% if anak.kelas %}<div style="font-size: 0.8rem; color: var(--text-gray);">{{ anak.kelas }}</div>{% endif %}
+                                </div>
+
+                                <span style="font-size: 0.7rem; font-weight: 700; color: #16a34a; background: #dcfce7; padding: 4px 10px; border-radius: 12px; white-space: nowrap;">Terpilih</span>
                             </div>
 
-                            <p class="help-text-italic">Student ID and academic records will be updated automatically.</p>
+                            <input type="hidden" name="id_anak" value="{{ anak.id_anak }}">
+
+                            <p class="help-text-italic">Anak ini dipilih sebelumnya pada halaman konfirmasi kelas. Untuk mengganti, silakan kembali ke halaman sebelumnya.</p>
+                            {% else %}
+                            <div class="select-child-wrapper" style="cursor: default; color: var(--text-gray);">
+                                Belum ada anak yang dipilih.
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
 

@@ -452,6 +452,66 @@
             border-radius: 50%;
         }
 
+        .badge-status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-status-pending::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background-color: #f59e0b;
+            border-radius: 50%;
+        }
+
+        .badge-status-menunggu {
+            background-color: #e2e8f0;
+            color: #475569;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-status-menunggu::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+        }
+
+        .badge-status-failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-status-failed::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            background-color: #ef4444;
+            border-radius: 50%;
+        }
+
         .btn-action-view {
             color: var(--primary-accent);
             text-decoration: none;
@@ -611,10 +671,10 @@
                     
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>Alex Rivera</h4>
+                            <h4>{{ username if username else 'Orang Tua' }}</h4>
                             <p>Orang Tua</p>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Alex Rivera" class="profile-avatar">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="{{ username }}" class="profile-avatar">
                     </div>
                 </div>
             </div>
@@ -644,7 +704,7 @@
                         </div>
                         <div class="stat-card-content">
                             <div class="stat-card-label">Total Pengeluaran (Tahun)</div>
-                            <div class="stat-card-value">12.450.000</div>
+                            <div class="stat-card-value">{{ "{:,.0f}".format(total_tahun_ini).replace(',', '.') }}</div>
                         </div>
                     </div>
 
@@ -657,8 +717,12 @@
                         </div>
                         <div class="stat-card-content">
                             <div class="stat-card-label">Pembayaran Tertunda</div>
-                            <div class="stat-card-value">4.500.000</div>
-                            <div class="stat-card-subtext" style="color: #ea580c; font-weight: 500;">Jatuh tempo dalam 3 hari</div>
+                            <div class="stat-card-value">{{ "{:,.0f}".format(total_pending).replace(',', '.') }}</div>
+                            {% if pending_count > 0 %}
+                            <div class="stat-card-subtext" style="color: #ea580c; font-weight: 500;">{{ pending_count }} tagihan menunggu pembayaran</div>
+                            {% else %}
+                            <div class="stat-card-subtext" style="color: #16a34a; font-weight: 500;">Tidak ada tagihan tertunda</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -670,9 +734,9 @@
                         </div>
                         <div class="stat-card-content">
                             <div class="stat-card-label">Pembayaran Berhasil</div>
-                            <div class="stat-card-value">98.5%</div>
+                            <div class="stat-card-value">{{ success_rate }}%</div>
                             <div class="progress-bar-container">
-                                <div class="progress-bar-fill"></div>
+                                <div class="progress-bar-fill" style="width: {{ success_rate }}%;"></div>
                             </div>
                         </div>
                     </div>
@@ -682,15 +746,20 @@
                 <div class="table-section-container">
                     <div class="filter-row">
                         <div class="filter-controls">
-                            <select class="select-filter">
-                                <option>30 HARI TERAKHIR</option>
+                            <select class="select-filter" id="filterPeriode" onchange="terapkanFilter()">
+                                <option value="30hari">30 Hari Terakhir</option>
+                                <option value="semua">Semua</option>
                             </select>
-                            <select class="select-filter">
-                                <option>Semua Status</option>
+                            <select class="select-filter" id="filterStatus" onchange="terapkanFilter()">
+                                <option value="semua">Semua Status</option>
+                                <option value="menunggu">Menunggu Pembayaran</option>
+                                <option value="pending">Pending</option>
+                                <option value="sukses">Sukses</option>
+                                <option value="gagal">Gagal</option>
                             </select>
                         </div>
                         <div class="pagination-info">
-                            Menampilkan 1-10 dari 42 transaksi
+                            Menampilkan <span id="jumlahDitampilkan">{{ total_transaksi }}</span> dari {{ total_transaksi }} transaksi
                         </div>
                     </div>
 
@@ -698,33 +767,59 @@
                         <thead>
                             <tr>
                                 <th style="width: 15%;">ID Transaksi</th>
-                                <th style="width: 35%;">Nama Kelas</th>
+                                <th style="width: 30%;">Nama Kelas</th>
                                 <th style="width: 15%;">Jumlah</th>
                                 <th style="width: 15%;">Tanggal</th>
                                 <th style="width: 15%;">Status Pembayaran</th>
-                                <th style="width: 5%;">Aksi</th>
+                                <th style="width: 10%;">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td class="tx-id">#TX-902341</td>
-                                <td>
-                                    <div class="class-column">
-                                        <div class="class-icon-circle">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                                            </svg>
+                        <tbody id="transaksiBody">
+                            {% if daftar_transaksi %}
+                                {% for trx in daftar_transaksi %}
+                                <tr class="transaksi-row" data-status="{{ trx.status_kategori }}" data-tanggal="{{ trx.tanggal_iso }}">
+                                    <td class="tx-id">#{{ trx.kode_pembayaran }}</td>
+                                    <td>
+                                        <div class="class-column">
+                                            <div class="class-icon-circle">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                {{ trx.nama_kelas }}
+                                                {% if trx.nama_anak %}<div style="font-size: 0.75rem; color: #94a3b8; font-weight: 400;">{{ trx.nama_anak }}</div>{% endif %}
+                                            </div>
                                         </div>
-                                        Beginner English G12
-                                    </div>
-                                </td>
-                                <td style="font-weight: 600;">250.000</td>
-                                <td style="color: #64748b;">Oct 12, 2023</td>
-                                <td>
-                                    <span class="badge-status-success">Berhasil</span>
-                                </td>
-                                <td>
-                                    <a href="#" class="btn-action-view">Lihat Details</a>
+                                    </td>
+                                    <td style="font-weight: 600;">{{ "{:,.0f}".format(trx.jumlah_bayar).replace(',', '.') }}</td>
+                                    <td style="color: #64748b;">{{ trx.tanggal }}</td>
+                                    <td>
+                                        {% if trx.status_kategori == 'sukses' %}
+                                            <span class="badge-status-success">{{ trx.status_asli }}</span>
+                                        {% elif trx.status_kategori == 'pending' %}
+                                            <span class="badge-status-pending">{{ trx.status_asli }}</span>
+                                        {% elif trx.status_kategori == 'menunggu' %}
+                                            <span class="badge-status-menunggu">{{ trx.status_asli }}</span>
+                                        {% else %}
+                                            <span class="badge-status-failed">{{ trx.status_asli }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="#" class="btn-action-view">Lihat Details</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">
+                                        Belum ada riwayat transaksi.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                            <tr id="emptyFilterRow" style="display: none;">
+                                <td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">
+                                    Tidak ada transaksi yang cocok dengan filter ini.
                                 </td>
                             </tr>
                         </tbody>
@@ -751,6 +846,44 @@
         cancelBtn.addEventListener('click', () => {
             modal.style.display = 'none';
         });
+
+        // Terapkan filter periode & status tanpa reload halaman (client-side)
+        function terapkanFilter() {
+            const periode = document.getElementById('filterPeriode').value; // '30hari' | 'semua'
+            const status = document.getElementById('filterStatus').value;   // 'semua' | 'sukses' | 'pending' | 'gagal'
+
+            const batas30Hari = new Date();
+            batas30Hari.setDate(batas30Hari.getDate() - 30);
+
+            const baris = document.querySelectorAll('#transaksiBody .transaksi-row');
+            let jumlahTampil = 0;
+
+            baris.forEach(row => {
+                const statusRow = row.getAttribute('data-status');
+                const tanggalRow = row.getAttribute('data-tanggal'); // format YYYY-MM-DD
+
+                let cocokPeriode = true;
+                if (periode === '30hari' && tanggalRow) {
+                    cocokPeriode = new Date(tanggalRow) >= batas30Hari;
+                }
+
+                const cocokStatus = (status === 'semua') || (statusRow === status);
+
+                const tampil = cocokPeriode && cocokStatus;
+                row.style.display = tampil ? '' : 'none';
+                if (tampil) jumlahTampil++;
+            });
+
+            document.getElementById('jumlahDitampilkan').textContent = jumlahTampil;
+
+            const emptyRow = document.getElementById('emptyFilterRow');
+            if (emptyRow) {
+                emptyRow.style.display = (jumlahTampil === 0 && baris.length > 0) ? '' : 'none';
+            }
+        }
+
+        // Terapkan filter default (30 Hari Terakhir) begitu halaman selesai dimuat
+        document.addEventListener('DOMContentLoaded', terapkanFilter);
     </script>
 </body>
 </html>

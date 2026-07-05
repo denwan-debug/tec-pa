@@ -139,10 +139,39 @@
             background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
-            justify-content: flex-end; /* Diubah agar profile ke kanan */
+            justify-content: space-between; /* Search di kiri, profile di kanan */
             align-items: center;
             border-bottom: 1px solid var(--border-light);
             min-height: 70px;
+        }
+
+        .search-container {
+            position: relative;
+            width: 350px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            background-color: #ffffff;
+            font-size: 0.9rem;
+            outline: none;
+            color: #333;
+        }
+
+        .search-container input:focus {
+            border-color: var(--primary-accent);
+        }
+
+        .search-container svg {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
         }
 
         .user-profile {
@@ -237,6 +266,16 @@
         }
 
         .badge-kelas5 { background-color: var(--badge-kelas5); }
+
+        .badge-level {
+            left: auto;
+            right: 12px;
+        }
+
+        .badge-level.level-sd { background-color: var(--blue-badge-text); }
+        .badge-level.level-smp { background-color: var(--badge-smp); }
+        .badge-level.level-sma { background-color: var(--badge-kelas12); }
+        .badge-level.level-default { background-color: #64748b; }
 
         .card-body {
             padding: 20px;
@@ -417,6 +456,13 @@
 
         <main class="main-content">
             <header class="topbar">
+                <div class="search-container">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchKelasInput" placeholder="Cari mata pelajaran..." oninput="cariKelas()">
+                </div>
+
                 <div class="user-profile text-capitalize">
                     {{ username if username else 'Wali Murid' }}
                 </div>
@@ -430,10 +476,24 @@
 
                 <div class="class-grid">
                     {% for kelas in daftar_kelas %}
+
+                    {# Ambil jenjang langsung dari kolom `tingkat` di database #}
+                    {% set jenjang = kelas.tingkat or 'Umum' %}
+                    {% if jenjang|upper == 'SD' %}
+                        {% set level_class = 'level-sd' %}
+                    {% elif jenjang|upper == 'SMP' %}
+                        {% set level_class = 'level-smp' %}
+                    {% elif jenjang|upper in ['SMA', 'SMK'] %}
+                        {% set level_class = 'level-sma' %}
+                    {% else %}
+                        {% set level_class = 'level-default' %}
+                    {% endif %}
+
                     <div class="class-card">
                         <div class="card-image-container">
                             <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80" alt="{{ kelas.nama_kelas }}">
                             <span class="card-badge badge-kelas5">Aktif</span>
+                            <span class="card-badge badge-level {{ level_class }}">{{ jenjang }}</span>
                         </div>
                         <div class="card-body">
                             <h3>{{ kelas.nama_kelas }}</h3>
@@ -467,6 +527,9 @@
                         <p>Belum ada kelas yang tersedia untuk saat ini.</p>
                     </div>
                     {% endfor %}
+                    <div id="noResultKelas" style="display: none; grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                        <p>Tidak ada mata pelajaran yang cocok dengan pencarian "<span id="noResultKeyword"></span>".</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -492,6 +555,28 @@
         cancelBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
         });
+
+        // Pencarian mata pelajaran/kelas secara langsung (client-side, tanpa reload)
+        function cariKelas() {
+            const keyword = document.getElementById('searchKelasInput').value.trim().toLowerCase();
+            const cards = document.querySelectorAll('.class-grid .class-card');
+            let jumlahTampil = 0;
+
+            cards.forEach(card => {
+                const judul = card.querySelector('h3') ? card.querySelector('h3').textContent.toLowerCase() : '';
+                const cocok = judul.includes(keyword);
+                card.style.display = cocok ? '' : 'none';
+                if (cocok) jumlahTampil++;
+            });
+
+            const noResult = document.getElementById('noResultKelas');
+            const noResultKeyword = document.getElementById('noResultKeyword');
+            if (noResult) {
+                const tampilkanNoResult = jumlahTampil === 0 && cards.length > 0 && keyword !== '';
+                noResult.style.display = tampilkanNoResult ? 'block' : 'none';
+                if (noResultKeyword) noResultKeyword.textContent = keyword;
+            }
+        }
     </script>
 </body>
 </html>

@@ -206,6 +206,21 @@
             margin-bottom: 15px;
         }
 
+        .hero-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .hero-badges .badge-tag {
+            margin-bottom: 0;
+        }
+
+        .badge-jenjang {
+            background: #0369a1;
+        }
+
         .hero-content h1 {
             font-size: 2rem;
             margin-bottom: 15px;
@@ -476,7 +491,10 @@
                 <div class="main-details">
                     <div class="hero-banner">
                         <div class="hero-content">
-                            <span class="badge-tag">KELAS AKTIF</span>
+                            <div class="hero-badges">
+                                <span class="badge-tag">KELAS AKTIF</span>
+                                <span class="badge-tag badge-jenjang">{{ kriteria_kelas if kriteria_kelas else 'Semua Jenjang' }}</span>
+                            </div>
                             <h1>{{ kelas.nama_kelas }}</h1>
                             <div class="hero-meta">
                                 <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> {{ kelas.kapasitas_maksimal }} Maksimal Siswa</span>
@@ -563,7 +581,7 @@
         {% endif %}
 
         <option value="{{ anak.id_anak }}" data-jenjang="{{ jenjang }}">
-            {{ anak.nama_panggilan }} - {{ anak.kelas }} - {{ jenjang }}
+            {{ anak.nama_panggilan }} - {{ anak.kelas | default('Kelas Belum Diisi', true) }} - {{ jenjang }}
         </option>
     {% endfor %}
 </select>

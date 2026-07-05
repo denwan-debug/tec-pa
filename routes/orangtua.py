@@ -8,6 +8,19 @@ from flask_mail import Message
 
 orangtua_bp = Blueprint('orangtua', __name__,)
 
+
+def generate_kode_pembayaran(id_pembayaran, tanggal_bayar=None):
+    """
+    Program tambahan: generate kode unik untuk id_pembayaran secara otomatis.
+    Format: PAY-YYYYMMDD-XXXXXX (tanggal transaksi + id_pembayaran 6 digit).
+
+    Kode ini diturunkan langsung dari `id_pembayaran` (Primary Key yang sudah
+    unik) sehingga TIDAK memerlukan kolom baru di tabel `pembayaran` dan akan
+    selalu sama tiap kali dipanggil untuk id_pembayaran yang sama.
+    """
+    tanggal_bayar = tanggal_bayar or datetime.now()
+    return f"PAY-{tanggal_bayar.strftime('%Y%m%d')}-{id_pembayaran:06d}"
+
 @orangtua_bp.route('/')
 @orangtua_bp.route('/index')
 def index():
@@ -582,6 +595,8 @@ def konfirmasi_kelas(id_kelas):
         cursor.close()
         conn.close()
 
+
+
 @orangtua_bp.route('/kelas/daftar/<string:id_kelas>', methods=['GET'])
 def konfirmasi_pendaftaran(id_kelas):
     if 'id_users' not in session or session.get('role') != 'murid':
@@ -646,6 +661,8 @@ def konfirmasi_pendaftaran(id_kelas):
         cursor.close()
         conn.close()
 
+
+
 @orangtua_bp.route('/pembayaran', methods=['GET', 'POST'])
 def pembayaran():
     # 1. Pastikan user (orang tua) sudah login
@@ -661,23 +678,25 @@ def pembayaran():
         cursor = conn.cursor(dictionary=True)
         
         try:
-            # Ambil data detail kelas yang dipilih
-            cursor.execute("SELECT * FROM kelas WHERE id_kelas = %s", (id_kelas,))
-            detail_kelas = cursor.fetchone()
-            
-            # Ambil data profil anak untuk konfirmasi
+            # Ambil data anak
             cursor.execute("SELECT * FROM anak WHERE id_anak = %s AND id_orangtua = %s", (id_anak, session['id_users']))
             detail_anak = cursor.fetchone()
 
+            # Ambil data kelas
             query_kelas = """
-            SELECT k.*, u.username AS nama_tutor 
-            FROM kelas k
-            LEFT JOIN users u ON k.id_pengajar = u.id_users
-            WHERE k.id_kelas = %s
+                SELECT k.*, u.username AS nama_tutor 
+                FROM kelas k
+                LEFT JOIN users u ON k.id_pengajar = u.id_users
+                WHERE k.id_kelas = %s
             """
             cursor.execute(query_kelas, (id_kelas,))
             kelas_detail = cursor.fetchone()
 
+            if not kelas_detail or not detail_anak:
+                flash('Data kelas atau anak tidak ditemukan.', 'error')
+                return redirect(url_for('orangtua.kelas'))
+
+            # Format jam kelas
             if kelas_detail.get('jam_mulai') and hasattr(kelas_detail['jam_mulai'], 'total_seconds'):
                 total_sec = int(kelas_detail['jam_mulai'].total_seconds())
                 kelas_detail['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
@@ -685,31 +704,170 @@ def pembayaran():
             if kelas_detail.get('jam_selesai') and hasattr(kelas_detail['jam_selesai'], 'total_seconds'):
                 total_sec = int(kelas_detail['jam_selesai'].total_seconds())
                 kelas_detail['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
-            # Jika datanya valid, tampilkan halaman pembayaran
-            if kelas_detail and detail_anak:
-                return render_template('orangtua/pembayaran.html', 
-                                       username=session.get('username'),
-                                       kelas=kelas_detail,
-                                       anak=detail_anak)
-            else:
-                flash('Data kelas atau anak tidak ditemukan.', 'error')
-                return redirect(url_for('orangtua.kelas'))
 
+            # ========================================================
+            # LOGIKA PEMBUATAN ID PEMBAYARAN OTOMATIS (AUTO INCREMENT)
+            # ========================================================
             
-   
+            # Langkah A: Cek apakah pendaftaran kelas ini sudah ada
+            cursor.execute("SELECT id_pendaftaran FROM pendaftaran WHERE id_kelas = %s AND id_anak = %s", (id_kelas, id_anak))
+            pendaftaran = cursor.fetchone()
+            
+            if not pendaftaran:
+                # Jika belum ada, buat pendaftaran baru
+                cursor.execute("INSERT INTO pendaftaran (id_kelas, id_anak, status_pendaftaran) VALUES (%s, %s, 'Aktif')", (id_kelas, id_anak))
+                id_pendaftaran = cursor.lastrowid  # Ambil ID Auto Increment
+            else:
+                id_pendaftaran = pendaftaran['id_pendaftaran']
+                
+            # Langkah B: Cek apakah sudah ada tagihan yang 'Pending' untuk pendaftaran ini
+            cursor.execute("SELECT id_pembayaran, tanggal_bayar FROM pembayaran WHERE id_pendaftaran = %s AND status_pembayaran = 'Pending'", (id_pendaftaran,))
+            pembayaran_pending = cursor.fetchone()
+            
+            if not pembayaran_pending:
+                # Jika belum ada tagihan Pending, buat tagihan baru
+                jumlah_bayar = kelas_detail['harga']
+                cursor.execute(
+                    "INSERT INTO pembayaran (id_pendaftaran, jumlah_bayar, status_pembayaran) VALUES (%s, %s, 'Pending')",
+                    (id_pendaftaran, jumlah_bayar)
+                )
+                id_pembayaran_db = cursor.lastrowid  # Ambil ID Auto Increment
+                tanggal_bayar = datetime.now()
+            else:
+                id_pembayaran_db = pembayaran_pending['id_pembayaran']
+                tanggal_bayar = pembayaran_pending['tanggal_bayar']
+                
+            # Simpan perubahan ke Database
+            conn.commit()
+            
+            # Langkah C: Kode unik diturunkan otomatis dari id_pembayaran (lihat generate_kode_pembayaran)
+            kode_pembayaran = generate_kode_pembayaran(id_pembayaran_db, tanggal_bayar)
+            invoice_id = kode_pembayaran
+
+            # Tampilkan ke halaman pembayaran
+            return render_template('orangtua/pembayaran.html', 
+                                   username=session.get('username'),
+                                   kelas=kelas_detail,
+                                   anak=detail_anak,
+                                   id_pembayaran=id_pembayaran_db,
+                                   kode_pembayaran=kode_pembayaran,
+                                   invoice_id=invoice_id)
+
         except Exception as e:
+            conn.rollback() # Batalkan transaksi jika terjadi error
             print(f"Error memuat halaman pembayaran: {e}")
             return "Terjadi kesalahan pada server", 500
         finally:
             cursor.close()
             conn.close()
             
-    # 3. Jika halaman pembayaran diakses langsung (Metode GET) tanpa membawa ID kelas
+    # 3. Jika diakses langsung tanpa lewat form kelas
     return render_template('orangtua/pembayaran.html', username=session.get('username'))
 
 @orangtua_bp.route('/riwayat_pembayaran')
 def riwayat_pembayaran():
-    return render_template('orangtua/riwayat_transaksi.html')
+    # 1. Pastikan user (orang tua) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    user_id = session['id_users']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil SELURUH riwayat transaksi milik anak-anak dari orang tua yang login.
+        #    Filter periode/status TIDAK dilakukan di sini lagi — semua data dikirim
+        #    sekaligus ke halaman, lalu difilter di sisi browser (JS) agar mengganti
+        #    dropdown tidak perlu reload halaman.
+        query = """
+            SELECT
+                p.id_pembayaran,
+                p.jumlah_bayar,
+                p.tanggal_bayar,
+                p.status_pembayaran,
+                p.bukti_bayar,
+                k.nama_kelas,
+                a.nama_panggilan,
+                a.nama_lengkap
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            WHERE a.id_orangtua = %s
+            ORDER BY p.tanggal_bayar DESC
+        """
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+
+        # 3. Normalisasi status & siapkan data untuk ditampilkan di tabel
+        # `status_pembayaran` di DB cuma ENUM('Pending','Lunas','Ditolak'), tapi status yang
+        # ditampilkan ke user dibagi jadi 4 berdasarkan kombinasi status_pembayaran + bukti_bayar:
+        #   - Ditolak                       -> Gagal
+        #   - Lunas                         -> Sukses (sudah divalidasi admin)
+        #   - Pending + ada bukti_bayar     -> Pending (sudah kirim bukti, menunggu validasi admin)
+        #   - Pending + bukti_bayar kosong  -> Menunggu Pembayaran (belum kirim bukti sama sekali)
+        daftar_transaksi = []
+        total_tahun_ini = 0
+        total_pending = 0
+        pending_count = 0
+        jumlah_sukses = 0
+
+        tahun_sekarang = datetime.now().year
+
+        for row in rows:
+            status_db = row.get('status_pembayaran') or 'Pending'
+            ada_bukti_bayar = bool(row.get('bukti_bayar'))
+
+            if status_db == 'Lunas':
+                status_kategori = 'sukses'
+                status_label = 'Sukses'
+                jumlah_sukses += 1
+                if row.get('tanggal_bayar') and row['tanggal_bayar'].year == tahun_sekarang:
+                    total_tahun_ini += float(row['jumlah_bayar'] or 0)
+            elif status_db == 'Ditolak':
+                status_kategori = 'gagal'
+                status_label = 'Gagal'
+            elif status_db == 'Pending' and ada_bukti_bayar:
+                status_kategori = 'pending'
+                status_label = 'Pending'
+                total_pending += float(row['jumlah_bayar'] or 0)
+                pending_count += 1
+            else:  # 'Pending' tanpa bukti_bayar sama sekali
+                status_kategori = 'menunggu'
+                status_label = 'Menunggu Pembayaran'
+                total_pending += float(row['jumlah_bayar'] or 0)
+                pending_count += 1
+
+            daftar_transaksi.append({
+                'kode_pembayaran': generate_kode_pembayaran(row['id_pembayaran'], row.get('tanggal_bayar')),
+                'nama_kelas': row.get('nama_kelas'),
+                'nama_anak': row.get('nama_panggilan') or row.get('nama_lengkap'),
+                'jumlah_bayar': row.get('jumlah_bayar') or 0,
+                'tanggal': row['tanggal_bayar'].strftime('%d %b %Y') if row.get('tanggal_bayar') else '-',
+                'tanggal_iso': row['tanggal_bayar'].strftime('%Y-%m-%d') if row.get('tanggal_bayar') else '',
+                'status_asli': status_label,
+                'status_kategori': status_kategori,
+            })
+
+        total_transaksi = len(daftar_transaksi)
+        success_rate = round((jumlah_sukses / total_transaksi) * 100, 1) if total_transaksi else 0
+
+        return render_template('orangtua/riwayat_transaksi.html',
+                               username=session.get('username'),
+                               daftar_transaksi=daftar_transaksi,
+                               total_tahun_ini=total_tahun_ini,
+                               total_pending=total_pending,
+                               pending_count=pending_count,
+                               success_rate=success_rate,
+                               total_transaksi=total_transaksi)
+
+    except Exception as e:
+        print(f"Error memuat riwayat transaksi: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @orangtua_bp.route('/jadwal_belajar')
 def jadwal_belajar():
