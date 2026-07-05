@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid, random, re
 from db import get_db_connection
 from extensions import mail
@@ -290,6 +290,143 @@ def halaman_syarat_ketentuan():
 def halaman_kebijakan_privasi():
     return render_template('orangtua/kebijakan_privasi.html')
 
+@orangtua_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    # Jika GET, tampilkan halaman form Lupa Password
+    if request.method == 'GET':
+        return render_template('orangtua/lupa_password.html')
+    
+    # Jika POST, proses pencarian email
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'message': 'Email wajib diisi.'}), 400
+
+        # Koneksi ke database
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Cari user berdasarkan email dan rolenya (R01 = Murid/Orangtua)
+        cursor.execute("SELECT id_users FROM users WHERE email = %s AND role_id_role = 'R01'", (email,))
+        user = cursor.fetchone()
+        
+        if user:
+            # 1. Buat kode OTP dan catat ID user
+            otp = str(random.randint(100000, 999999))
+            user_id = user['id_users']
+            
+            # 2. Simpan OTP ke database user_otps
+            cursor.execute("""
+                INSERT INTO user_otps (user_id_users, email, otp_code, expired_at, is_used) 
+                VALUES (%s, %s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
+            """, (user_id, email, otp))
+            conn.commit()
+            
+            # 3. Kirim email
+            try:
+                msg = Message('Kode OTP Reset Password', recipients=[email])
+                msg.body = f"Kode OTP untuk mereset kata sandi Anda adalah: {otp}\nBerlaku selama 5 menit."
+                mail.send(msg)
+                print(f"[DEBUG] OTP Lupa Password {otp} dikirim ke {email}")
+            except Exception as e:
+                print(f"Gagal mengirim email: {e}")
+                
+        cursor.close()
+        conn.close()
+            
+        # Selalu kembalikan respon sukses + redirect ke input OTP dengan membawa URL parameter email
+        return jsonify({
+            'message': 'Jika email terdaftar, kode OTP telah dikirim.',
+            'redirect': url_for('orangtua.verify_reset_otp', email=email)
+        }), 200
+
+@orangtua_bp.route('/verify-reset-otp', methods=['GET', 'POST'])
+def verify_reset_otp():
+    # Menampilkan halaman input OTP
+    if request.method == 'GET':
+        email = request.args.get('email')
+        if not email:
+            return redirect(url_for('orangtua.forgot_password'))
+        return render_template('orangtua/lupa_password_otp.html', email=email)
+        
+    # Memproses validasi kode OTP
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Cek OTP berdasarkan email (Ambil data paling baru jika ada multiple)
+        cursor.execute("""
+            SELECT * FROM user_otps 
+            WHERE email = %s AND otp_code = %s AND is_used = 0 AND expired_at > NOW()
+            ORDER BY id DESC LIMIT 1
+        """, (email, otp))
+        otp_data = cursor.fetchone()
+        
+        if otp_data:
+            # OTP Valid: Tandai sudah dipakai (hangus)
+            cursor.execute("UPDATE user_otps SET is_used = 1 WHERE id = %s", (otp_data['id'],))
+            conn.commit()
+            
+            # Simpan Sesi (session) bahwa email ini telah tervalidasi OTP-nya untuk reset password
+            session['reset_email'] = email
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'message': 'OTP Valid. Silakan buat password baru.',
+                'redirect': url_for('orangtua.reset_password')
+            }), 200
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({'message': 'Kode OTP salah atau telah kadaluarsa!'}), 400
+
+@orangtua_bp.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    # Mencegah user mengakses halaman ini jika belum verifikasi OTP
+    if request.method == 'GET':
+        if 'reset_email' not in session:
+            return redirect(url_for('orangtua.forgot_password'))
+        return render_template('orangtua/reset_password.html')
+        
+    # Proses update password baru ke database
+    if request.method == 'POST':
+        if 'reset_email' not in session:
+            return jsonify({'message': 'Sesi telah berakhir, silakan ulang dari awal.'}), 400
+            
+        data = request.get_json()
+        new_password = data.get('password')
+        email = session['reset_email'] # Email didapat dengan aman dari Session
+        
+        # Enkripsi password baru
+        hashed_password = generate_password_hash(new_password)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update ke tabel users
+        cursor.execute("""
+            UPDATE users SET password = %s WHERE email = %s AND role_id_role = 'R01'
+        """, (hashed_password, email))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        # Hapus sesi agar tidak bisa dikunjungi lagi 
+        session.pop('reset_email', None)
+        
+        return jsonify({
+            'message': 'Kata sandi berhasil diubah! Silakan login.',
+            'redirect': url_for('orangtua.halaman_portal_orangtua')
+        }), 200
 @orangtua_bp.route('/logout')
 def logout():
     session.clear()
