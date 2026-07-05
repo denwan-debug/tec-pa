@@ -189,15 +189,17 @@ def detail_kelas(id_kelas):
     if 'user_id' not in session:
         return redirect(url_for('pengajar.login_pengajar'))
         
+    # DEBUG 1: Pastikan ID yang diterima dari HTML sudah benar
+    print(f"==> Menerima request detail_kelas untuk ID: {id_kelas} (Tipe: {type(id_kelas)})")
+        
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. INISIALISASI VARIABEL DI AWAL (Solusi UnboundLocalError)
     detail_kelas_data = None
     daftar_siswa = []
     
     try:
-        # Query detail kelas
+        # 1. UBAH JOIN MENJADI LEFT JOIN DI SINI
         query_kelas = """
             SELECT 
                 k.id_kelas,
@@ -207,16 +209,21 @@ def detail_kelas(id_kelas):
                 k.jam_selesai,
                 k.kapasitas_maksimal,
                 k.status_kelas,
-                u.nama_lengkap AS nama_pengajar
+                u.username AS nama_pengajar
             FROM kelas k
-            JOIN users u ON k.id_pengajar = u.id_users
+            LEFT JOIN users u ON k.id_pengajar = u.id_users 
             WHERE k.id_kelas = %s
         """
         cursor.execute(query_kelas, (id_kelas,))
         detail_kelas_data = cursor.fetchone()
         
+        # 2. TAMBAHKAN PRINT INI UNTUK DEBUGGING (Cek di terminal VSCode/CMD Anda)
+        print(f"Mencari Kelas ID: {id_kelas}")
+        print(f"Hasil dari Database: {detail_kelas_data}")
+        
         # Jika kelas tidak ditemukan, batalkan dan kembali ke daftar
         if not detail_kelas_data:
+            print("Peringatan: Data kelas kosong! Melempar kembali ke menu awal.")
             return redirect(url_for('pengajar.kelas_pengajar'))
             
         # Konversi waktu
@@ -245,16 +252,13 @@ def detail_kelas(id_kelas):
         daftar_siswa = cursor.fetchall()
         
     except Exception as e:
-        print(f"Error pada database detail kelas: {e}")
-        # 2. PASTIKAN ADA RETURN DI EXCEPT AGAR PROSES BERHENTI SAAT ERROR
+        # DEBUG 3: Menangkap jika ada error sintaks SQL atau error koneksi
+        print(f"!!! Error pada database detail kelas: {e}")
+        return redirect(url_for('pengajar.kelas_pengajar'))
         
     finally:
         cursor.close()
         conn.close()
-        
-    # 3. PENGECEKAN TERAKHIR SEBELUM RENDER
-    if not detail_kelas_data:
-        return redirect(url_for('pengajar.kelas_pengajar'))
         
     return render_template('pengajar/detail_kelas.html', kelas=detail_kelas_data, daftar_siswa=daftar_siswa)
 
