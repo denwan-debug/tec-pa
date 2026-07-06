@@ -1,12 +1,21 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
-import uuid, random, re
+import uuid, random, re, os
 from db import get_db_connection
 from extensions import mail
 from flask_mail import Message
 
 orangtua_bp = Blueprint('orangtua', __name__,)
+
+# Folder penyimpanan file bukti pembayaran yang diupload orang tua
+UPLOAD_FOLDER_BUKTI_BAYAR = os.path.join('static', 'uploads', 'bukti_bayar')
+EKSTENSI_DIIZINKAN = {'png', 'jpg', 'jpeg', 'pdf'}
+
+
+def ekstensi_valid(nama_file):
+    return '.' in nama_file and nama_file.rsplit('.', 1)[1].lower() in EKSTENSI_DIIZINKAN
 
 
 def generate_kode_pembayaran(id_pembayaran, tanggal_bayar=None):
@@ -542,7 +551,14 @@ def halaman_pendaftaran_kelas():
     
     query = """
         SELECT k.*, u.username AS nama_tutor,
-        (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+        (
+            SELECT COUNT(*)
+            FROM pendaftaran p
+            JOIN pembayaran pay ON pay.id_pendaftaran = p.id_pendaftaran
+            WHERE p.id_kelas = k.id_kelas
+              AND p.status_pendaftaran = 'Aktif'
+              AND pay.status_pembayaran = 'Lunas'
+        ) AS jumlah_siswa
         FROM kelas k
         LEFT JOIN users u ON k.id_pengajar = u.id_users
         WHERE k.status_kelas = 'Aktif'
@@ -840,6 +856,7 @@ def riwayat_pembayaran():
                 pending_count += 1
 
             daftar_transaksi.append({
+                'id_pembayaran': row['id_pembayaran'],
                 'kode_pembayaran': generate_kode_pembayaran(row['id_pembayaran'], row.get('tanggal_bayar')),
                 'nama_kelas': row.get('nama_kelas'),
                 'nama_anak': row.get('nama_panggilan') or row.get('nama_lengkap'),
@@ -868,6 +885,114 @@ def riwayat_pembayaran():
     finally:
         cursor.close()
         conn.close()
+
+
+@orangtua_bp.route('/riwayat_pembayaran/detail/<int:id_pembayaran>', methods=['GET', 'POST'])
+def detail_pembayaran(id_pembayaran):
+    # 1. Pastikan user (orang tua) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    user_id = session['id_users']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil detail transaksi, PASTIKAN transaksi ini memang milik anak dari
+        #    orang tua yang sedang login (supaya tidak bisa lihat/upload punya orang lain)
+        query = """
+            SELECT
+                p.id_pembayaran, p.jumlah_bayar, p.tanggal_bayar,
+                p.status_pembayaran, p.bukti_bayar, p.keterangan,
+                k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai,
+                a.nama_panggilan, a.nama_lengkap
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            WHERE p.id_pembayaran = %s AND a.id_orangtua = %s
+        """
+        cursor.execute(query, (id_pembayaran, user_id))
+        trx = cursor.fetchone()
+
+        if not trx:
+            flash('Transaksi tidak ditemukan.', 'error')
+            return redirect(url_for('orangtua.riwayat_pembayaran'))
+
+        # 3. Tentukan kategori status (logika sama persis dengan halaman riwayat)
+        status_db = trx.get('status_pembayaran') or 'Pending'
+        ada_bukti_bayar = bool(trx.get('bukti_bayar'))
+
+        if status_db == 'Lunas':
+            status_kategori = 'sukses'
+        elif status_db == 'Ditolak':
+            status_kategori = 'gagal'
+        elif status_db == 'Pending' and ada_bukti_bayar:
+            status_kategori = 'pending'
+        else:
+            status_kategori = 'menunggu'
+
+        # 4. Proses upload bukti bayar (hanya berlaku saat status masih "menunggu")
+        if request.method == 'POST':
+            if status_kategori != 'menunggu':
+                flash('Bukti pembayaran untuk transaksi ini sudah tidak bisa diupload lagi.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            file = request.files.get('bukti_bayar')
+            if not file or file.filename == '':
+                flash('Silakan pilih file bukti pembayaran terlebih dahulu.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            if not ekstensi_valid(file.filename):
+                flash('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            os.makedirs(UPLOAD_FOLDER_BUKTI_BAYAR, exist_ok=True)
+            ekstensi = file.filename.rsplit('.', 1)[1].lower()
+            nama_file = secure_filename(f"bukti_{id_pembayaran}_{uuid.uuid4().hex[:8]}.{ekstensi}")
+            file.save(os.path.join(UPLOAD_FOLDER_BUKTI_BAYAR, nama_file))
+
+            cursor.execute(
+                "UPDATE pembayaran SET bukti_bayar = %s WHERE id_pembayaran = %s",
+                (nama_file, id_pembayaran)
+            )
+            conn.commit()
+
+            flash('Bukti pembayaran berhasil dikirim! Menunggu validasi dari admin.', 'success')
+            return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+        # 5. Siapkan data untuk ditampilkan (GET)
+        jam_mulai = trx.get('jam_mulai')
+        jam_selesai = trx.get('jam_selesai')
+
+        data_trx = {
+            'id_pembayaran': trx['id_pembayaran'],
+            'kode_pembayaran': generate_kode_pembayaran(trx['id_pembayaran'], trx.get('tanggal_bayar')),
+            'nama_kelas': trx.get('nama_kelas'),
+            'hari_jadwal': trx.get('hari_jadwal'),
+            'jam_mulai': str(jam_mulai)[:5] if jam_mulai else '',
+            'jam_selesai': str(jam_selesai)[:5] if jam_selesai else '',
+            'nama_anak': trx.get('nama_panggilan') or trx.get('nama_lengkap'),
+            'jumlah_bayar': trx.get('jumlah_bayar') or 0,
+            'tanggal': trx['tanggal_bayar'].strftime('%d %B %Y, %H:%M') if trx.get('tanggal_bayar') else '-',
+            'bukti_bayar': trx.get('bukti_bayar'),
+            'keterangan': trx.get('keterangan') or 'Admin tidak menyertakan alasan spesifik untuk penolakan ini. Silakan hubungi customer service TEC Portal untuk informasi lebih lanjut.',
+        }
+
+        return render_template('orangtua/detail_pembayaran.html',
+                               username=session.get('username'),
+                               trx=data_trx,
+                               status_kategori=status_kategori)
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error memuat detail pembayaran: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @orangtua_bp.route('/jadwal_belajar')
 def jadwal_belajar():

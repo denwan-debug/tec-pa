@@ -806,7 +806,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <a href="#" class="btn-action-view">Lihat Details</a>
+                                        <a href="{{ url_for('orangtua.detail_pembayaran', id_pembayaran=trx.id_pembayaran) }}" class="btn-action-view">Lihat Details</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
