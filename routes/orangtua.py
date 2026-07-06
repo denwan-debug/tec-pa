@@ -994,9 +994,134 @@ def detail_pembayaran(id_pembayaran):
         conn.close()
 
 
+def _gabung_tanggal_jam(tanggal, jam):
+    """
+    Menggabungkan kolom `date` (tanggal) dan `time` (jam_mulai/jam_selesai) dari MySQL
+    menjadi satu objek datetime. Driver MySQL biasanya mengembalikan kolom TIME
+    sebagai timedelta, jadi kita tangani dua kemungkinan tipe sekaligus.
+    """
+    if isinstance(jam, timedelta):
+        return datetime.combine(tanggal, datetime.min.time()) + jam
+    return datetime.combine(tanggal, jam)
+
+
+def _format_jam(jam):
+    """Format kolom TIME (timedelta ATAU time) menjadi string 'HH:MM'."""
+    if isinstance(jam, timedelta):
+        total_menit = jam.seconds // 60
+        return f"{total_menit // 60:02d}:{total_menit % 60:02d}"
+    return jam.strftime('%H:%M')
+
+
 @orangtua_bp.route('/jadwal_belajar')
 def jadwal_belajar():
-    return render_template('orangtua/jadwal_belajar.html')
+    # 1. Pastikan user (orang tua/murid) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    id_orangtua = session['id_users']
+    selected_anak_id = request.args.get('anak_id')  # dikirim dari dropdown pilih anak
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil semua anak milik orang tua yang sedang login (untuk mengisi dropdown)
+        cursor.execute(
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            (id_orangtua,)
+        )
+        daftar_anak = cursor.fetchall()
+
+        anak_aktif = None
+        daftar_jadwal = []
+
+        if daftar_anak:
+            # 3. Tentukan anak mana yang datanya mau ditampilkan
+            if selected_anak_id:
+                anak_aktif = next(
+                    (a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)),
+                    None
+                )
+            if not anak_aktif:
+                # Default: anak pertama (baru pertama kali buka halaman / anak_id tidak valid)
+                anak_aktif = daftar_anak[0]
+
+            # 4. Ambil semua kelas yang diikuti anak yang aktif dipilih.
+            #    Pakai LEFT JOIN ke sesi_kelas supaya kelas yang SUDAH terdaftar (ada di
+            #    tabel pendaftaran) tetap muncul walaupun sesi_kelas untuk kelas tsb
+            #    belum diinput oleh pengajar/admin.
+            query_jadwal = """
+                SELECT
+                    sk.id_sesi, sk.tanggal, sk.topik_pembahasan,
+                    k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, k.status_kelas,
+                    u.username AS nama_pengajar
+                FROM pendaftaran pd
+                JOIN kelas k ON pd.id_kelas = k.id_kelas
+                JOIN users u ON k.id_pengajar = u.id_users
+                LEFT JOIN sesi_kelas sk ON sk.id_kelas = k.id_kelas
+                WHERE pd.id_anak = %s AND pd.status_pendaftaran = 'Aktif'
+                ORDER BY (sk.tanggal IS NULL) ASC, sk.tanggal ASC, k.jam_mulai ASC
+            """
+            cursor.execute(query_jadwal, (anak_aktif['id_anak'],))
+            rows = cursor.fetchall()
+
+            hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
+            bulan_map = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
+                         7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'}
+            sekarang = datetime.now()
+
+            for row in rows:
+                tanggal = row['tanggal']
+
+                if tanggal is not None:
+                    # Kelas ini sudah punya sesi terjadwal dengan tanggal pasti (tabel sesi_kelas)
+                    mulai_dt = _gabung_tanggal_jam(tanggal, row['jam_mulai'])
+                    selesai_dt = _gabung_tanggal_jam(tanggal, row['jam_selesai'])
+
+                    # Tentukan status sesi (Akan Datang / Sedang Berlangsung / Selesai) secara dinamis
+                    if sekarang < mulai_dt:
+                        status_sesi = 'Akan Datang'
+                    elif mulai_dt <= sekarang <= selesai_dt:
+                        status_sesi = 'Sedang Berlangsung'
+                    else:
+                        status_sesi = 'Selesai'
+
+                    hari_display = hari_map[tanggal.weekday()]
+                    tanggal_display = f"{tanggal.day:02d} {bulan_map[tanggal.month]}"
+                else:
+                    # Kelas sudah terdaftar (pendaftaran Aktif) tapi belum ada sesi_kelas
+                    # spesifik yang diinput -> tampilkan sebagai jadwal rutin mingguan
+                    status_sesi = 'Terjadwal Rutin'
+                    hari_display = row['hari_jadwal']
+                    tanggal_display = None
+
+                daftar_jadwal.append({
+                    'id_sesi': row['id_sesi'],
+                    'id_kelas': row['id_kelas'],
+                    'hari': hari_display,
+                    'tanggal_display': tanggal_display,
+                    'jam_mulai': _format_jam(row['jam_mulai']),
+                    'jam_selesai': _format_jam(row['jam_selesai']),
+                    'nama_kelas': row['nama_kelas'],
+                    'nama_pengajar': row['nama_pengajar'],
+                    'topik': row['topik_pembahasan'],
+                    'status_kelas': row['status_kelas'],
+                    'status_sesi': status_sesi,
+                })
+
+        return render_template('orangtua/jadwal_belajar.html',
+                               username=session.get('username'),
+                               daftar_anak=daftar_anak,
+                               anak_aktif=anak_aktif,
+                               daftar_jadwal=daftar_jadwal)
+
+    except Exception as e:
+        print(f"Error memuat jadwal belajar: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @orangtua_bp.route('/presensi')
 def presensi():

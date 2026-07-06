@@ -348,7 +348,7 @@
                     </div>
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>Alex Rivera</h4>
+                            <h4>{{ username or 'Orang Tua' }}</h4>
                             <p>Orang Tua</p>
                         </div>
                         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Profile" class="profile-avatar">
@@ -359,7 +359,11 @@
             <div class="content-header">
                 <div class="header-title">
                     <h1>Jadwal Belajar</h1>
+                    {% if anak_aktif %}
+                    <p>Jadwal kelas milik <strong>{{ anak_aktif.nama_panggilan or anak_aktif.nama_lengkap }}</strong>. Pantau agar tidak ada sesi yang terlewat.</p>
+                    {% else %}
                     <p>Pantau dan kelola jadwal kelas agar tidak ada sesi yang terlewat.</p>
+                    {% endif %}
                 </div>
                 <button class="btn-sync-calendar">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -370,123 +374,100 @@
             </div>
 
             <div class="dashboard-container">
+                {% if daftar_anak %}
                 <div class="filter-row">
                     <div class="filter-controls">
-                        <select class="select-filter">
-                            <option>Oktober 2023</option>
-                            <option>November 2023</option>
+                        <select class="select-filter" id="selectAnak" onchange="if(this.value){ window.location.href = '/jadwal_belajar?anak_id=' + this.value; }">
+                            {% for anak in daftar_anak %}
+                            <option value="{{ anak.id_anak }}" {% if anak_aktif and anak.id_anak == anak_aktif.id_anak %}selected{% endif %}>
+                                {{ anak.nama_panggilan or anak.nama_lengkap }}
+                            </option>
+                            {% endfor %}
                         </select>
-                        <select class="select-filter">
-                            <option>Semua Status</option>
-                            <option>Akan Datang</option>
-                            <option>Selesai</option>
+                        <select class="select-filter" id="selectStatus" onchange="filterJadwalByStatus(this.value)">
+                            <option value="semua">Semua Status</option>
+                            <option value="Akan Datang">Akan Datang</option>
+                            <option value="Sedang Berlangsung">Sedang Berlangsung</option>
+                            <option value="Selesai">Selesai</option>
+                            <option value="Terjadwal Rutin">Jadwal Rutin</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="schedule-grid">
-                    
-                    <div class="schedule-card">
+                <div class="schedule-grid" id="scheduleGrid">
+                    {% for jadwal in daftar_jadwal %}
+                    <div class="schedule-card" data-status="{{ jadwal.status_sesi }}">
                         <div class="card-header-row">
-                            <span class="schedule-date">Senin, 15 Okt</span>
-                            <span class="status-badge badge-upcoming">Akan Datang</span>
-                        </div>
-                        <div class="schedule-time">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            14:00 - 15:30 WIB
-                        </div>
-                        <h3 class="schedule-class-name">Intermediate Grammar B1</h3>
-                        <div class="schedule-teacher">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Mr. James Wilson
-                        </div>
-                        <div class="card-action-row">
-                            <a href="#" class="btn-class-action">Detail Kelas &rarr;</a>
-                        </div>
-                    </div>
+                            {% if jadwal.tanggal_display %}
+                            <span class="schedule-date">{{ jadwal.hari }}, {{ jadwal.tanggal_display }}</span>
+                            {% else %}
+                            <span class="schedule-date">Setiap {{ jadwal.hari }}</span>
+                            {% endif %}
 
-                    <div class="schedule-card">
-                        <div class="card-header-row">
-                            <span class="schedule-date">Rabu, 17 Okt</span>
-                            <span class="status-badge badge-upcoming">Akan Datang</span>
-                        </div>
-                        <div class="schedule-time">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            16:00 - 17:30 WIB
-                        </div>
-                        <h3 class="schedule-class-name">Speaking & Phonics Stage 2</h3>
-                        <div class="schedule-teacher">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Ms. Sarah Parker
-                        </div>
-                        <div class="card-action-row">
-                            <a href="#" class="btn-class-action">Detail Kelas &rarr;</a>
-                        </div>
-                    </div>
-
-                    <div class="schedule-card">
-                        <div class="card-header-row">
-                            <span class="schedule-date">Jumat, 19 Okt</span>
+                            {% if jadwal.status_sesi == 'Sedang Berlangsung' %}
                             <span class="status-badge badge-live">Sedang Berlangsung</span>
+                            {% elif jadwal.status_sesi == 'Selesai' %}
+                            <span class="status-badge badge-completed">Selesai</span>
+                            {% elif jadwal.status_sesi == 'Terjadwal Rutin' %}
+                            <span class="status-badge badge-upcoming">Jadwal Rutin</span>
+                            {% else %}
+                            <span class="status-badge badge-upcoming">Akan Datang</span>
+                            {% endif %}
                         </div>
                         <div class="schedule-time">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            09:00 - 10:30 WIB
+                            {{ jadwal.jam_mulai }} - {{ jadwal.jam_selesai }} WIB
                         </div>
-                        <h3 class="schedule-class-name">Listening Skills Builder</h3>
+                        <h3 class="schedule-class-name">{{ jadwal.nama_kelas }}</h3>
+                        {% if jadwal.topik %}
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Topik: {{ jadwal.topik }}</p>
+                        {% elif jadwal.status_sesi == 'Terjadwal Rutin' %}
+                        <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Topik sesi berikutnya belum diinput oleh pengajar.</p>
+                        {% endif %}
                         <div class="schedule-teacher">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Mr. David Kim
+                            {{ jadwal.nama_pengajar }}
                         </div>
                         <div class="card-action-row">
+                            {% if jadwal.status_sesi == 'Sedang Berlangsung' %}
                             <a href="#" class="btn-class-action" style="color: var(--status-live-text);">Bergabung ke Kelas &rarr;</a>
-                        </div>
-                    </div>
-
-                    <div class="schedule-card">
-                        <div class="card-header-row">
-                            <span class="schedule-date">Senin, 08 Okt</span>
-                            <span class="status-badge badge-completed">Selesai</span>
-                        </div>
-                        <div class="schedule-time">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            14:00 - 15:30 WIB
-                        </div>
-                        <h3 class="schedule-class-name">Intermediate Grammar B1</h3>
-                        <div class="schedule-teacher">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Mr. James Wilson
-                        </div>
-                        <div class="card-action-row">
+                            {% elif jadwal.status_sesi == 'Selesai' %}
                             <a href="#" class="btn-class-action action-gray">Lihat Rangkuman &rarr;</a>
+                            {% else %}
+                            <a href="#" class="btn-class-action">Detail Kelas &rarr;</a>
+                            {% endif %}
                         </div>
                     </div>
-
-                    <div class="schedule-card">
-                        <div class="card-header-row">
-                            <span class="schedule-date">Rabu, 10 Okt</span>
-                            <span class="status-badge badge-completed">Selesai</span>
-                        </div>
-                        <div class="schedule-time">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            16:00 - 17:30 WIB
-                        </div>
-                        <h3 class="schedule-class-name">Speaking & Phonics Stage 2</h3>
-                        <div class="schedule-teacher">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                            Ms. Sarah Parker
-                        </div>
-                        <div class="card-action-row">
-                            <a href="#" class="btn-class-action action-gray">Lihat Rangkuman &rarr;</a>
-                        </div>
+                    {% else %}
+                    <div style="grid-column: 1 / -1; text-align:center; padding:60px 20px; color:#7a8b94;">
+                        <p style="font-size:1rem; font-weight:600; margin-bottom:6px;">Belum ada jadwal kelas.</p>
+                        <p style="font-size:0.9rem;">{{ anak_aktif.nama_panggilan or anak_aktif.nama_lengkap }} belum terdaftar di kelas manapun, atau sesi kelas belum dijadwalkan.</p>
                     </div>
-
+                    {% endfor %}
                 </div>
+                {% else %}
+                <div style="text-align:center; padding:60px 20px; color:#7a8b94;">
+                    <p style="font-size:1rem; font-weight:600; margin-bottom:6px;">Anda belum memiliki data anak terdaftar.</p>
+                    <p style="font-size:0.9rem;">Silakan tambahkan data anak terlebih dahulu di menu <a href="/manajemen_anak">Manajemen Anak</a>.</p>
+                </div>
+                {% endif %}
             </div>
         </main>
     </div>
 
     <script>
+        // Filter kartu jadwal berdasarkan status (Akan Datang / Sedang Berlangsung / Selesai)
+        function filterJadwalByStatus(status) {
+            const cards = document.querySelectorAll('#scheduleGrid .schedule-card');
+            cards.forEach(card => {
+                if (status === 'semua' || card.dataset.status === status) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
         const modal = document.getElementById('logoutModal');
         const logoutBtn = document.getElementById('btnTriggerLogout');
         const cancelBtn = document.getElementById('cancelLogout');

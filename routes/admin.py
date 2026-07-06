@@ -5,6 +5,32 @@ import uuid, math
 # Membuat blueprint untuk admin
 admin_bp = Blueprint('admin', __name__)
 
+
+# --- FILTER JINJA2: Format angka menjadi Rupiah (Rp450.000) ---
+@admin_bp.app_template_filter('rupiah')
+def format_rupiah(value):
+    try:
+        value = int(value)
+        return "Rp{:,.0f}".format(value).replace(",", ".")
+    except (ValueError, TypeError):
+        return "Rp0"
+
+
+# --- HELPER: Format tanggal ke Bahasa Indonesia (dilakukan di Python, bukan SQL,
+# supaya tidak tergantung cara driver database menangani karakter '%') ---
+_NAMA_BULAN_ID = {
+    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
+    7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'
+}
+
+def format_tanggal_indo(dt):
+    if not dt:
+        return '-'
+    try:
+        return f"{dt.day:02d} {_NAMA_BULAN_ID[dt.month]} {dt.year}, {dt.hour:02d}:{dt.minute:02d}"
+    except (AttributeError, KeyError):
+        return str(dt)
+
 @admin_bp.route('/dashboard_admin')
 def dashboard_admin():
     if 'user_id' not in session or session.get('role') != 'Kepala':
@@ -523,3 +549,211 @@ def tambah_pengajar():
         conn.close()
         
     return redirect(url_for('admin.manajemen_pengajar_admin'))
+
+
+# ==========================================================
+#                VALIDASI PEMBAYARAN (ADMIN)
+# ==========================================================
+
+@admin_bp.route('/validasi_pembayaran_admin')
+def validasi_pembayaran_admin():
+    # 1. Proteksi Sesi Admin (Kepala)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('admin.login_admin'))
+
+    # 2. Tangkap parameter pencarian, filter status, dan halaman untuk tabel riwayat
+    search = request.args.get('search', '')
+    status_filter = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 8
+    offset = (page - 1) * per_page
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # --- KELOMPOK STATISTIK KARTU ATAS ---
+        # A. Tugas yang tertunda (menunggu persetujuan)
+        cursor.execute("SELECT COUNT(*) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
+        tugas_tertunda = cursor.fetchone()['total'] or 0
+
+        # B. Divalidasi hari ini (disetujui/ditolak hari ini)
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM pembayaran 
+            WHERE status_pembayaran IN ('Lunas', 'Ditolak') AND DATE(tanggal_bayar) = CURDATE()
+        """)
+        divalidasi_hari_ini = cursor.fetchone()['total'] or 0
+
+        # C. Total nominal yang sedang menunggu validasi
+        cursor.execute("SELECT COALESCE(SUM(jumlah_bayar), 0) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
+        total_nominal_pending = cursor.fetchone()['total'] or 0
+
+        # D. Perlu perhatian: pengajuan pending TANPA bukti bayar, atau sudah menunggu > 2 hari
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM pembayaran
+            WHERE status_pembayaran = 'Pending'
+              AND (bukti_bayar IS NULL OR bukti_bayar = '' OR tanggal_bayar < (NOW() - INTERVAL 2 DAY))
+        """)
+        perlu_perhatian = cursor.fetchone()['total'] or 0
+
+        # --- ANTREAN: MENUNGGU PERSETUJUAN (ditampilkan di bagian atas halaman) ---
+        cursor.execute("""
+            SELECT 
+                p.id_pembayaran,
+                CONCAT('TXN-', LPAD(p.id_pembayaran, 5, '0')) AS kode_transaksi,
+                p.jumlah_bayar,
+                p.tanggal_bayar,
+                p.status_pembayaran,
+                p.bukti_bayar,
+                p.keterangan,
+                a.nama_lengkap AS nama_anak,
+                k.nama_kelas,
+                u.username AS nama_orangtua
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            JOIN users u ON a.id_orangtua = u.id_users
+            WHERE p.status_pembayaran = 'Pending'
+            ORDER BY p.tanggal_bayar ASC
+        """)
+        antrean_pembayaran = cursor.fetchall()
+        for item in antrean_pembayaran:
+            item['tanggal_bayar_fmt'] = format_tanggal_indo(item['tanggal_bayar'])
+
+        # --- TABEL RIWAYAT SEMUA TRANSAKSI (dengan pencarian, filter status & pagination) ---
+        base_query = """
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            JOIN users u ON a.id_orangtua = u.id_users
+            WHERE (a.nama_lengkap LIKE %s OR u.username LIKE %s OR k.nama_kelas LIKE %s)
+        """
+        search_param = f"%{search}%"
+        params = [search_param, search_param, search_param]
+
+        if status_filter in ('Pending', 'Lunas', 'Ditolak'):
+            base_query += " AND p.status_pembayaran = %s"
+            params.append(status_filter)
+
+        cursor.execute(f"SELECT COUNT(*) as total {base_query}", params)
+        total_data = cursor.fetchone()['total'] or 0
+        total_pages = max(1, math.ceil(total_data / per_page))
+
+        cursor.execute(f"""
+            SELECT 
+                p.id_pembayaran,
+                CONCAT('TXN-', LPAD(p.id_pembayaran, 5, '0')) AS kode_transaksi,
+                p.jumlah_bayar,
+                p.tanggal_bayar,
+                p.status_pembayaran,
+                p.bukti_bayar,
+                p.keterangan,
+                a.nama_lengkap AS nama_anak,
+                k.nama_kelas,
+                u.username AS nama_orangtua
+            {base_query}
+            ORDER BY p.tanggal_bayar DESC
+            LIMIT %s OFFSET %s
+        """, params + [per_page, offset])
+        semua_transaksi = cursor.fetchall()
+        for t in semua_transaksi:
+            t['tanggal_bayar_fmt'] = format_tanggal_indo(t['tanggal_bayar'])
+
+        return render_template(
+            'admin/validasi_pembayaran.html',
+            tugas_tertunda=tugas_tertunda,
+            divalidasi_hari_ini=divalidasi_hari_ini,
+            total_nominal_pending=total_nominal_pending,
+            perlu_perhatian=perlu_perhatian,
+            antrean_pembayaran=antrean_pembayaran,
+            semua_transaksi=semua_transaksi,
+            search=search,
+            status_filter=status_filter,
+            page=page,
+            total_pages=total_pages,
+            total_data=total_data
+        )
+
+    except Exception as e:
+        print(f"\n[ERROR VALIDASI PEMBAYARAN]: {e}\n")
+        flash('Gagal memuat data pembayaran dari database.', 'error')
+        return render_template(
+            'admin/validasi_pembayaran.html',
+            tugas_tertunda=0, divalidasi_hari_ini=0, total_nominal_pending=0, perlu_perhatian=0,
+            antrean_pembayaran=[], semua_transaksi=[], search=search, status_filter=status_filter,
+            page=1, total_pages=1, total_data=0
+        )
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@admin_bp.route('/validasi_pembayaran_admin/setujui/<int:id_pembayaran>', methods=['POST'])
+def setujui_pembayaran(id_pembayaran):
+    # Proteksi Sesi Admin (Kepala)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('admin.login_admin'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Hanya memproses transaksi yang statusnya masih 'Pending' (mencegah proses ganda)
+        cursor.execute("""
+            UPDATE pembayaran 
+            SET status_pembayaran = 'Lunas' 
+            WHERE id_pembayaran = %s AND status_pembayaran = 'Pending'
+        """, (id_pembayaran,))
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            flash('Pembayaran berhasil disetujui dan ditandai Lunas.', 'success')
+        else:
+            flash('Pembayaran tidak ditemukan atau sudah diproses sebelumnya.', 'error')
+
+    except Exception as e:
+        conn.rollback()
+        print(f"\n[ERROR SETUJUI PEMBAYARAN]: {e}\n")
+        flash('Terjadi kesalahan pada server saat menyetujui pembayaran.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('admin.validasi_pembayaran_admin'))
+
+
+@admin_bp.route('/validasi_pembayaran_admin/tolak/<int:id_pembayaran>', methods=['POST'])
+def tolak_pembayaran(id_pembayaran):
+    # Proteksi Sesi Admin (Kepala)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('admin.login_admin'))
+
+    alasan = request.form.get('alasan_tolak', '').strip()
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            UPDATE pembayaran 
+            SET status_pembayaran = 'Ditolak', keterangan = %s 
+            WHERE id_pembayaran = %s AND status_pembayaran = 'Pending'
+        """, (alasan if alasan else 'Ditolak oleh admin', id_pembayaran))
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            flash('Pembayaran berhasil ditolak.', 'success')
+        else:
+            flash('Pembayaran tidak ditemukan atau sudah diproses sebelumnya.', 'error')
+
+    except Exception as e:
+        conn.rollback()
+        print(f"\n[ERROR TOLAK PEMBAYARAN]: {e}\n")
+        flash('Terjadi kesalahan pada server saat menolak pembayaran.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('admin.validasi_pembayaran_admin'))
