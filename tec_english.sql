@@ -8,6 +8,7 @@ USE `tec_english`;
 -- Table structure for table `role`
 -- --------------------------------------------------------
 -- 1. Table structure for table `role`
+drop database tec_english;
 CREATE TABLE `role` (
   `id_role` varchar(10) NOT NULL,
   `nama_role` varchar(50) NOT NULL,
@@ -15,8 +16,8 @@ CREATE TABLE `role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 INSERT INTO role (id_role, nama_role) VALUES
 ('R01', 'murid'),
-('R02', 'admin'),
-('R03', 'pengajar');
+('R02', 'pengajar'),
+('R03', 'kepala');
 -- 2. Table structure for table `users`
 CREATE TABLE `users` (
   `id_users` varchar(10) NOT NULL,

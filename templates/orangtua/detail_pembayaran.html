@@ -594,7 +594,7 @@
                     </div>
 
                     {% if trx.bukti_bayar %}
-                    <a href="{{ url_for('static', filename='uploads/bukti_bayar/' + trx.bukti_bayar) }}" target="_blank" class="link-bukti">Lihat bukti pembayaran yang sudah Anda kirim &rarr;</a>
+                    <a href="{{ trx.bukti_bayar if 'http' in trx.bukti_bayar else url_for('static', filename='uploads/bukti_bayar/' + trx.bukti_bayar) }}" target="_blank" class="link-bukti">Lihat bukti pembayaran yang sudah Anda kirim &rarr;</a>
                     {% endif %}
                 </div>
 

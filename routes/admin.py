@@ -33,6 +33,7 @@ def format_tanggal_indo(dt):
 
 @admin_bp.route('/dashboard_admin')
 def dashboard_admin():
+    print("ISI SESSION:", dict(session))
     if 'user_id' not in session or session.get('role') != 'Kepala':
         return redirect(url_for('admin.login_admin'))
     

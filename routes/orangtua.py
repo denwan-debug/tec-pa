@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
-import uuid, random, re, os, logging
+import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
 from extensions import mail
 from flask_mail import Message
@@ -667,21 +667,22 @@ def edit_anak():
         except ValueError:
             tanggal_lahir = None
 
-    # 2. Tangani Upload Foto
+    # 2. Tangani Upload Foto ke Cloudinary
     foto = request.files.get('foto_profil')
-    nama_file_foto = None
+    url_foto_cloudinary = None
 
     if foto and foto.filename != '':
         if foto_valid(foto.filename):
-            # Buat foldernya jika belum ada
-            os.makedirs(UPLOAD_FOLDER_FOTO, exist_ok=True)
-            
-            # Buat nama file unik agar tidak bentrok dengan gambar lain
-            ekstensi = foto.filename.rsplit('.', 1)[1].lower()
-            nama_file_foto = secure_filename(f"anak_{id_anak}_{uuid.uuid4().hex[:6]}.{ekstensi}")
-            
-            # Simpan file ke folder static/img
-            foto.save(os.path.join(UPLOAD_FOLDER_FOTO, nama_file_foto))
+            try:
+                # Mengunggah ke Cloudinary ke folder khusus
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_anak"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto: {str(e)}', 'error')
+                return redirect('/manajemen_anak')
         else:
             flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
             return redirect('/manajemen_anak')
@@ -690,17 +691,17 @@ def edit_anak():
     cursor = conn.cursor()
     
     try:
-        # 3. Jalankan Query Update (Pisahkan logika jika ada foto vs tidak ada foto)
-        if nama_file_foto:
-            # Jika user mengunggah foto baru
+        # 3. Jalankan Query Update 
+        if url_foto_cloudinary:
+            # Simpan secure_url dari Cloudinary ke database
             cursor.execute("""
                 UPDATE anak 
                 SET nama_lengkap = %s, nama_panggilan = %s, sekolah_asal = %s, 
                     kelas = %s, tanggal_lahir = %s, jenis_kelamin = %s, foto_profil = %s
                 WHERE id_anak = %s AND id_orangtua = %s
-            """, (nama_lengkap, nama_panggilan, sekolah_asal, kelas, tanggal_lahir, jenis_kelamin, nama_file_foto, id_anak, user_id))
+            """, (nama_lengkap, nama_panggilan, sekolah_asal, kelas, tanggal_lahir, jenis_kelamin, url_foto_cloudinary, id_anak, user_id))
         else:
-            # Jika user TIDAK mengunggah foto (foto lama tetap aman)
+            # Jika user TIDAK mengunggah foto
             cursor.execute("""
                 UPDATE anak 
                 SET nama_lengkap = %s, nama_panggilan = %s, sekolah_asal = %s, 
@@ -1138,18 +1139,27 @@ def detail_pembayaran(id_pembayaran):
                 flash('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.', 'error')
                 return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
 
-            os.makedirs(UPLOAD_FOLDER_BUKTI_BAYAR, exist_ok=True)
-            ekstensi = file.filename.rsplit('.', 1)[1].lower()
-            nama_file = secure_filename(f"bukti_{id_pembayaran}_{uuid.uuid4().hex[:8]}.{ekstensi}")
-            file.save(os.path.join(UPLOAD_FOLDER_BUKTI_BAYAR, nama_file))
+            try:
+                # Mengunggah ke Cloudinary
+                # resource_type="auto" sangat penting karena file bisa berupa PDF!
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder="tec_portal/bukti_bayar",
+                    resource_type="auto" 
+                )
+                url_bukti = upload_result.get('secure_url')
+                
+                cursor.execute(
+                    "UPDATE pembayaran SET bukti_bayar = %s WHERE id_pembayaran = %s",
+                    (url_bukti, id_pembayaran)
+                )
+                conn.commit()
 
-            cursor.execute(
-                "UPDATE pembayaran SET bukti_bayar = %s WHERE id_pembayaran = %s",
-                (nama_file, id_pembayaran)
-            )
-            conn.commit()
+                flash('Bukti pembayaran berhasil dikirim! Menunggu validasi dari admin.', 'success')
+            except Exception as e:
+                conn.rollback()
+                flash(f'Gagal mengunggah bukti pembayaran: {str(e)}', 'error')
 
-            flash('Bukti pembayaran berhasil dikirim! Menunggu validasi dari admin.', 'success')
             return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
 
         # 5. Siapkan data untuk ditampilkan (GET)
@@ -1418,21 +1428,24 @@ def update_pengaturan():
     no_telp = request.form.get('no_telp')
     alamat = request.form.get('alamat')
     
-    # Checkbox Toggle: Jika on nilainya '1', jika off maka None/kosong
+    # Checkbox Toggle
     notif_tagihan = 1 if request.form.get('notif_tagihan') == '1' else 0
     
-    # Tangani Upload Foto Profil
+    # Tangani Upload Foto Profil ke Cloudinary
     foto = request.files.get('foto_profil')
-    nama_file_foto = None
+    url_foto_cloudinary = None
     
     if foto and foto.filename != '':
-        # (Fungsi foto_valid dan variabel UPLOAD_FOLDER_FOTO menggunakan logika yang sama dari edit anak)
         if foto_valid(foto.filename):
-            os.makedirs(UPLOAD_FOLDER_FOTO, exist_ok=True)
-            ekstensi = foto.filename.rsplit('.', 1)[1].lower()
-            # Gunakan prefix 'user_' agar bisa dibedakan dengan foto anak
-            nama_file_foto = secure_filename(f"user_{user_id}_{uuid.uuid4().hex[:6]}.{ekstensi}")
-            foto.save(os.path.join(UPLOAD_FOLDER_FOTO, nama_file_foto))
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_user"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto profil: {str(e)}', 'error')
+                return redirect(url_for('orangtua.pengaturan'))
         else:
             flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
             return redirect(url_for('orangtua.pengaturan'))
@@ -1441,13 +1454,13 @@ def update_pengaturan():
     cursor = conn.cursor()
     
     try:
-        if nama_file_foto:
-            # Update data user beserta foto baru
+        if url_foto_cloudinary:
+            # Update data user beserta foto baru (sekarang berupa URL)
             cursor.execute("""
                 UPDATE users 
                 SET nama_lengkap = %s, no_telp = %s, alamat = %s, notif_tagihan = %s, foto_profil = %s
                 WHERE id_users = %s
-            """, (nama_lengkap, no_telp, alamat, notif_tagihan, nama_file_foto, user_id))
+            """, (nama_lengkap, no_telp, alamat, notif_tagihan, url_foto_cloudinary, user_id))
         else:
             # Update data user tanpa mengubah foto profil lama
             cursor.execute("""

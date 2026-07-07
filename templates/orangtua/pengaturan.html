@@ -395,7 +395,7 @@
                                 </div>
                                 
                                 <div class="profile-upload">
-                                    <img src="{{ url_for('static', filename='img/' + user.foto_profil) if user.foto_profil else url_for('static', filename='img/default_parent.png') }}" class="profile-img-preview" id="previewImg" alt="Foto Profil">
+                                    <img src="{{ user.foto_profil if user.foto_profil else url_for('static', filename='img/default_parent.png') }}" class="profile-img-preview" id="previewImg" alt="Foto Profil">
                                     <div>
                                         <input type="file" id="foto_profil" name="foto_profil" accept=".jpg, .jpeg, .png" style="display: none;" onchange="previewFile()">
                                         <button type="button" class="btn-upload" onclick="document.getElementById('foto_profil').click()">Ubah Foto</button>

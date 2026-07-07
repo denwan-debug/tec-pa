@@ -501,7 +501,7 @@
                     </div>
                     
                     <!-- Posisi gambar dipindah ke bawah teks agar berada di sebelah kanan -->
-                    <img src="{{ url_for('static', filename='img/' ~ foto_profil) }}" 
+                    <img src="{{ foto_profil if 'http' in foto_profil else url_for('static', filename='img/' ~ foto_profil) }}" 
                         alt="Foto Profil" 
                         class="top-parent-avatar">
                 </div>
@@ -518,7 +518,7 @@
                     <!-- Card Profil Anak -->
                     <div class="profile-card card">
                         {% if anak_aktif and anak_aktif.foto_profil %}
-                            <img src="{{ url_for('static', filename='img/' + anak_aktif.foto_profil) }}" alt="Foto {{ anak_aktif.nama_lengkap }}" class="avatar-large">
+                            <img src="{{ anak_aktif.foto_profil if 'http' in anak_aktif.foto_profil else url_for('static', filename='img/' + anak_aktif.foto_profil) }}" alt="Foto {{ anak_aktif.nama_lengkap }}" class="avatar-large">
                         {% else %}
                             <img src="{{ url_for('static', filename='img/default_anak.png') }}" alt="Foto Profil" class="avatar-large">
                         {% endif %}
