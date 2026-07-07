@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from db import get_db_connection
+from werkzeug.utils import secure_filename
 
 # Membuat blueprint untuk pengajar
 pengajar_bp = Blueprint('pengajar', __name__)
@@ -9,6 +10,7 @@ def login_pengajar_action():
     data = request.get_json(force=True)
     email = data.get('email')
     password = data.get('password')
+    
 
     # 1. Validasi input kosong
     if not email or not password:
@@ -39,7 +41,7 @@ def login_pengajar_action():
                 session['user_id'] = pembimbing_data['id_users'] 
                 session['role'] = pembimbing_data['nama_role']     # Berisi 'Pengajar'
                 session['username'] = pembimbing_data['username'] # Menyimpan nama asli pembimbing
-                
+                session['foto_profil'] = pembimbing_data['foto_profil']
                 return jsonify({
                     "message": "Login berhasil!", 
                     "redirect": "/dashboard_pengajar" # Halaman utama setelah pembimbing masuk
@@ -271,6 +273,107 @@ def manajemen_jadwal():
 @pengajar_bp.route('/laporan_pengajar')
 def laporan_pengajar():
     return render_template('pengajar/manajemen_laporan.html')
+
+@pengajar_bp.route('/profil_pengajar')
+def profil_pengajar():
+    # Proteksi Sesi
+    if 'user_id' not in session:
+        return redirect(url_for('pengajar.login_pengajar'))
+        
+    pengajar_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    user_data = None
+    try:
+        # Mengambil data diri, abaikan notif_tagihan sesuai permintaan
+        query = """
+            SELECT username, nama_lengkap, email, no_telp, alamat, tempat_lahir, foto_profil 
+            FROM users 
+            WHERE id_users = %s
+        """
+        cursor.execute(query, (pengajar_id,))
+        user_data = cursor.fetchone()
+        
+    except Exception as e:
+        print(f"Error pada halaman profil pengajar: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('pengajar/profil_pengajar.html', user=user_data)
+
+from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+
+@pengajar_bp.route('/update_profil_pengajar', methods=['POST'])
+def update_profil_pengajar():
+    if 'user_id' not in session:
+        return redirect(url_for('pengajar.login_pengajar'))
+        
+    pengajar_id = session['user_id']
+    
+    # Tangkap data teks
+    nama_lengkap = request.form.get('nama_lengkap')
+    tempat_lahir = request.form.get('tempat_lahir')
+    no_telp = request.form.get('no_telp')
+    alamat = request.form.get('alamat')
+    
+    # Tangkap file foto
+    foto_file = request.files.get('foto_profil')
+    nama_foto_baru = None
+    
+    # Jika ada file yang diunggah dan namanya tidak kosong
+    if foto_file and foto_file.filename != '':
+        allowed_extensions = ['png', 'jpg', 'jpeg']
+        
+        # Mengambil ekstensi file dengan memisahkan string berdasarkan titik
+        ext = foto_file.filename.split('.')[-1].lower()
+        
+        if ext in allowed_extensions:
+            nama_asli = secure_filename(foto_file.filename)
+            nama_foto_baru = f"{pengajar_id}_{nama_asli}"
+            
+            # Menentukan path penyimpanan langsung ke static/img
+            simpan_path = f"static/img/{nama_foto_baru}"
+            
+            # Simpan file ke direktori (pastikan folder static/img sudah dibuat manual!)
+            foto_file.save(simpan_path)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if nama_foto_baru:
+            query = """
+                UPDATE users 
+                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s, foto_profil = %s 
+                WHERE id_users = %s
+            """
+            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, nama_foto_baru, pengajar_id))
+        else:
+            query = """
+                UPDATE users 
+                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s 
+                WHERE id_users = %s
+            """
+            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, pengajar_id))
+            
+        conn.commit()
+        print("Data profil berhasil diperbarui!")
+
+        if nama_foto_baru:
+            session['foto_profil'] = nama_foto_baru
+            session.modified = True
+        
+    except Exception as e:
+        print(f"Error saat update profil: {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('pengajar.profil_pengajar'))
 
 @pengajar_bp.route('/logout_pengajar')
 def logout_pengajar():

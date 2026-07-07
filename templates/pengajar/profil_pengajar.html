@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Profil Pengajar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-pink: #d84b7a;
+            --primary-light: #fcecf1;
+            --bg-color: #faf7f8;
+            --sidebar-bg: #fffefe;
+            --text-dark: #202020;
+            --text-gray: #6b6b6b;
+            --text-light-gray: #a0a0a0;
+            --border-color: #f0e6e8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- Sidebar Styles (Sama Persis dengan Kelas Pengajar) --- */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .logo-area { padding: 0 24px 32px 24px; }
+        .logo-title { color: var(--primary-pink); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .logo-subtitle { color: var(--text-gray); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .nav-menu { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; flex-grow: 1; }
+        
+        .nav-item {
+            display: flex; align-items: center; gap: 16px; padding: 12px 16px; 
+            color: var(--text-gray); text-decoration: none; font-size: 14px; 
+            font-weight: 500; border-radius: 8px; transition: all 0.2s;
+        }
+
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--primary-pink); color: white; }
+        .nav-item i { width: 20px; text-align: center; font-size: 16px; }
+
+        .logout-area { padding: 0 16px; }
+
+        /* --- Main Content Styles --- */
+        .main-content {
+            margin-left: 250px;
+            flex-grow: 1;
+            padding: 24px 40px;
+        }
+
+        /* --- Topbar (Sama Persis dengan Kelas Pengajar) --- */
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;
+        }
+
+        .page-title h1 { font-size: 24px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+        .page-title p { font-size: 14px; color: var(--text-gray); }
+
+        .user-area { display: flex; align-items: center; gap: 24px; }
+        .notification { color: var(--text-gray); font-size: 20px; position: relative; cursor: pointer; }
+        .notification::after {
+            content: ''; position: absolute; top: 0; right: 0; width: 8px; height: 8px; 
+            background-color: var(--primary-pink); border-radius: 50%; border: 2px solid white;
+        }
+
+        .profile-info { display: flex; align-items: center; gap: 12px; }
+        .profile-info img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .profile-text { text-align: right; }
+        .profile-text .name { font-size: 14px; font-weight: 600; }
+        .profile-text .role { font-size: 12px; color: var(--text-gray); }
+
+        /* --- Styling Khusus Halaman Profil --- */
+        .profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        
+        .card { background: white; border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-gray); margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; background-color: white; outline: none; transition: border 0.2s; }
+        .form-control:focus { border-color: var(--primary-pink); }
+        .form-control:read-only { background-color: var(--bg-color); color: #888; cursor: not-allowed; }
+        textarea.form-control { resize: vertical; min-height: 80px; }
+
+        .btn-submit { background-color: var(--primary-pink); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: opacity 0.2s; width: 100%; }
+        .btn-submit:hover { opacity: 0.9; }
+
+        .photo-area { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
+        .photo-preview { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 16px; border: 4px solid var(--primary-light); }
+    
+        /* Styling untuk tombol custom upload */
+        .custom-file-upload {
+            border: 1px solid var(--primary-pink);
+            color: var(--primary-pink);
+            background-color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .custom-file-upload:hover {
+            background-color: var(--primary-pink);
+            color: white;
+        }
+
+        /* Sembunyikan input file bawaan browser */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* --- MODAL LOGOUT STYLES --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+        }
+
+        .modal-content-box {
+            background-color: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content-box {
+            transform: translateY(0);
+        }
+
+        .modal-icon-logout {
+            width: 64px;
+            height: 64px;
+            background-color: #ed6494; /* Warna pink ikon */
+            color: #0a2540; /* Warna biru gelap untuk logo */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 24px auto;
+        }
+
+        .modal-content-box h2 {
+            color: #0a2540; /* Warna judul biru gelap */
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .modal-content-box p {
+            color: #4a5568; /* Warna abu-abu teks deskripsi */
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-confirm, .btn-cancel {
+            flex: 1;
+            padding: 14px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-confirm {
+            background-color: #ed6494; /* Tombol Logout Pink */
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background-color: #d84b7a;
+        }
+
+        .btn-cancel {
+            background-color: #f0f4fb; /* Tombol Cancel Biru Terang */
+            color: #0a2540;
+            border: 1px solid #d8e2f0;
+        }
+
+        .btn-cancel:hover {
+            background-color: #e2eaf6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <!-- Sidebar Sama Persis dengan kelas_pengajar.html -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-title">TEC Pengajar</div>
+                <div class="logo-subtitle">PENGAJAR</div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="{{ url_for('pengajar.dashboard_pengajar') }}" class="nav-item"><i class="fa-solid fa-border-all"></i> BERANDA</a>
+                <a href="{{ url_for('pengajar.manajemen_jadwal') }}" class="nav-item"><i class="fa-regular fa-calendar"></i> JADWAL</a>
+                <a href="{{ url_for('pengajar.kelas_pengajar') }}" class="nav-item"><i class="fa-solid fa-graduation-cap"></i> KELAS</a>
+                <a href="{{ url_for('pengajar.laporan_pengajar') }}" class="nav-item"><i class="fa-solid fa-chart-simple"></i> LAPORAN</a>
+                <a href="{{ url_for('pengajar.profil_pengajar') }}" class="nav-item active"><i class="fa-regular fa-user"></i> PROFIL</a>
+            </nav>
+
+            <div class="logout-area">
+                <a href="#" onclick="tampilkanModalLogout(event)" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>            
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Topbar Sama Persis dengan kelas_pengajar.html -->
+            <header class="topbar">
+                <div class="page-title">
+                    <h1>Profil Akun</h1>
+                    <p>Perbarui informasi data diri dan kelola keamanan akun Anda</p>
+                </div>
+                
+                <div class="user-area">
+                    <div class="notification">
+                        <i class="fa-regular fa-bell"></i>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-text">
+                            <div class="name">{{ session.get('username', 'Pengajar TEC') }}</div>
+                            <div class="role">{{ session.get('role', 'Pengajar') }}</div>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Pengajar') }}&background=d84b7a&color=fff" alt="Avatar">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Bagian Form Profil -->
+            <div class="profile-grid">
+                <!-- Kolom Kiri: Edit Data Diri -->
+                <div class="card">
+                    <h2 class="card-title">Informasi Data Diri</h2>
+                    <form action="{{ url_for('pengajar.update_profil_pengajar') }}" method="POST" enctype="multipart/form-data">
+                        
+                        <div class="photo-area">
+    <!-- Tambahkan id="preview-img" agar bisa dipanggil oleh JavaScript -->
+                            <img id="preview-img" src="{{ url_for('static', filename='img/' ~ user.foto_profil) if user and user.foto_profil and 'default' not in user.foto_profil else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff' }}" alt="Foto Profil" class="photo-preview">
+                            
+                            <!-- Tombol Custom -->
+                            <label for="foto_profil" class="custom-file-upload">
+                                <i class="fa-solid fa-camera"></i> Pilih Foto Baru
+                            </label>
+                            
+                            <!-- Input aslinya disembunyikan dan ditambahkan fungsi onchange -->
+                            <input type="file" id="foto_profil" name="foto_profil" accept="image/*" onchange="previewImage(event)">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" class="form-control" value="{{ user.username if user else '' }}" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" class="form-control" value="{{ user.email if user else '' }}" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nama Lengkap</label>
+                            <input type="text" class="form-control" name="nama_lengkap" value="{{ user.nama_lengkap if user and user.nama_lengkap else '' }}" placeholder="Masukkan nama lengkap">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label>Tempat Lahir</label>
+                                <input type="text" class="form-control" name="tempat_lahir" value="{{ user.tempat_lahir if user and user.tempat_lahir else '' }}" placeholder="Kota kelahiran">
+                            </div>
+                            <div class="form-group">
+                                <label>Nomor Telepon</label>
+                                <input type="text" class="form-control" name="no_telp" value="{{ user.no_telp if user and user.no_telp else '' }}" placeholder="08xxxxxxxxxx">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Alamat Tinggal</label>
+                            <textarea class="form-control" name="alamat" placeholder="Tuliskan alamat lengkap">{{ user.alamat if user and user.alamat else '' }}</textarea>
+                        </div>
+
+                        <button type="submit" class="btn-submit" style="margin-top: 8px;">Simpan Perubahan Data</button>
+                    </form>
+                </div>
+
+                <!-- Kolom Kanan: Keamanan / Ganti Password -->
+                <div class="card" style="height: fit-content;">
+                    <h2 class="card-title">Keamanan Akun</h2>
+                    <form action="{{ url_for('pengajar.update_profil_pengajar') }}" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Kata Sandi Saat Ini</label>
+                            <input type="password" class="form-control" name="password_lama" placeholder="Masukkan kata sandi lama" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Kata Sandi Baru</label>
+                            <input type="password" class="form-control" name="password_baru" placeholder="Minimal 8 karakter" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Konfirmasi Kata Sandi Baru</label>
+                            <input type="password" class="form-control" name="konfirmasi_password" placeholder="Ketik ulang kata sandi baru" required>
+                        </div>
+
+                        <button type="submit" class="btn-submit" style="background-color: #202020;">Perbarui Kata Sandi</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    <!-- HTML Modal Logout -->
+<div id="modalLogout" class="modal-overlay">
+    <div class="modal-content-box">
+        <div class="modal-icon-logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </div>
+        <h2>Konfirmasi Logout</h2>
+        <p>Apakah Anda yakin ingin keluar dari akun TEC Anda?</p>
+        <div class="modal-buttons">
+            <!-- Tombol Logout yang sesungguhnya (akan memanggil route Flask) -->
+            <a href="{{ url_for('pengajar.logout_pengajar') }}" class="btn-confirm">Logout</a>
+            <!-- Tombol Batal -->
+            <button onclick="sembunyikanModalLogout()" class="btn-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Script untuk mengontrol Modal -->
+<script>
+    function tampilkanModalLogout(event) {
+        // Mencegah link dari mengubah halaman secara langsung
+        event.preventDefault(); 
+        
+        const modal = document.getElementById('modalLogout');
+        // Ubah display menjadi flex agar muncul
+        modal.style.display = 'flex'; 
+        
+        // Sedikit delay agar efek animasi CSS (fade in & slide up) bisa berjalan
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+    }
+
+    function sembunyikanModalLogout() {
+        const modal = document.getElementById('modalLogout');
+        // Hapus class show untuk memutar animasi kebalikan (fade out)
+        modal.classList.remove('show');
+        
+        // Tunggu animasi selesai selama 0.3 detik (300ms) sebelum menghilangkan display-nya
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+</script>
+</body>
+<script>
+    // Fungsi untuk menampilkan live preview foto yang dipilih
+    function previewImage(event) {
+        var reader = new FileReader();
+        reader.onload = function(){
+            var output = document.getElementById('preview-img');
+            output.src = reader.result;
+        };
+        // Cek apakah ada file yang dipilih
+        if(event.target.files[0]){
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    }
+</script>
+</html>

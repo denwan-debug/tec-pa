@@ -174,11 +174,47 @@
             pointer-events: none;
         }
 
-        .user-profile {
+        /* Kontainer di pojok kanan atas */
+        .user-profile-header {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px; /* Jarak antara teks dan foto */
+            position: absolute; 
+            top: 20px;
+            right: 30px;
+            /* Background dan padding dihapus agar terlihat bersih seperti referensi */
+        }
+
+        /* Wrapper baru untuk mengatur orientasi teks */
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right; /* Mengatur teks agar rata kanan */
+            line-height: 1.2;
+        }
+
+        .username-text {
+            font-size: 18px; /* Ukuran diperbesar menyesuaikan gambar */
+            font-weight: 600;
+            color: #2b2525; /* Warna teks gelap */
+        }
+
+        /* Style baru untuk teks "Orang Tua" */
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b; /* Warna teks agak pudar kecoklatan */
             font-weight: 500;
+        }
+
+        /* Style untuk foto profil */
+        .top-parent-avatar {
+            width: 50px;         /* Perbesar ukuran foto */
+            height: 50px;        
+            border-radius: 50%;  
+            object-fit: cover;   
+            border: 3px solid #fbd0dd; /* Border pink sesuai referensi */
+            padding: 2px; /* Memberi jarak putih antara foto dan border */
+            background-color: #ffffff; /* Warna dasar padding */
         }
 
         /* === Dashboard Content === */
@@ -440,6 +476,12 @@
                         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/></svg>
                         Reports</a>
                     </li>
+                    <li><a href="/pengaturan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#CFE6F2" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19.14 12.94C19.18 12.64 19.2 12.33 19.2 12C19.2 11.67 19.18 11.36 19.14 11.06L21.16 9.48C21.34 9.34 21.39 9.07 21.28 8.87L19.36 5.55C19.24 5.34 18.99 5.26 18.77 5.35L16.39 6.31C15.9 5.93 15.36 5.61 14.77 5.36L14.41 2.81C14.37 2.58 14.17 2.4 13.93 2.4H10.07C9.83 2.4 9.63 2.58 9.59 2.81L9.23 5.36C8.64 5.61 8.1 5.93 7.61 6.31L5.23 5.35C5.01 5.26 4.76 5.34 4.64 5.55L2.72 8.87C2.61 9.07 2.66 9.34 2.84 9.48L4.86 11.06C4.82 11.36 4.8 11.67 4.8 12C4.8 12.33 4.82 12.64 4.86 12.94L2.84 14.52C2.66 14.66 2.61 14.93 2.72 15.13L4.64 18.45C4.76 18.66 5.01 18.74 5.23 18.65L7.61 17.69C8.1 18.07 8.64 18.39 9.23 18.64L9.59 21.19C9.63 21.42 9.83 21.6 10.07 21.6H13.93C14.17 21.6 14.37 21.42 14.41 21.19L14.77 18.64C15.36 18.39 15.9 18.07 16.39 17.69L18.77 18.65C18.99 18.74 19.24 18.66 19.36 18.45L21.28 15.13C21.39 14.93 21.34 14.66 21.16 14.52L19.14 12.94ZM12 15.6C10.01 15.6 8.4 13.99 8.4 12C8.4 10.01 10.01 8.4 12 8.4C13.99 8.4 15.6 10.01 15.6 12C15.6 13.99 13.99 15.6 12 15.6Z"/>
+                        </svg>
+                        Pengaturan
+                    </a></li>
                 </ul>
             </div>
             <div class="logout">
@@ -463,8 +505,16 @@
                     <input type="text" id="searchKelasInput" placeholder="Cari mata pelajaran..." oninput="cariKelas()">
                 </div>
 
-                <div class="user-profile text-capitalize">
-                    {{ username if username else 'Wali Murid' }}
+               <div class="user-profile-header">
+                    <div class="user-info">
+                        <span class="username-text">{{ username }}</span>
+                        <span class="user-role">Orang Tua</span>
+                    </div>
+                    
+                    <!-- Ubah path src untuk menyesuaikan dengan database dan direktori backend -->
+                    <img src="{{ url_for('static', filename='img/' ~ foto_profil) }}" 
+                        alt="Foto Profil" 
+                        class="top-parent-avatar">
                 </div>
             </header>
 

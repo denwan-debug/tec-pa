@@ -40,7 +40,7 @@ def index():
     selected_anak_id = request.args.get('anak_id') 
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor    (dictionary=True)
     
     try:
         # 1. Ambil daftar anak milik orang tua ini
@@ -52,6 +52,16 @@ def index():
         statistik_presensi = {'hadir': 0, 'tidak_hadir': 0, 'total': 0, 'persentase': 0}
         riwayat_transaksi = []
         
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+        user_data = cursor.fetchone()
+        # Gunakan foto dari database, jika kosong gunakan default_parent.png
+        foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
+        # --------------------------------------------------------------
+
+        # 1. Ambil daftar anak milik orang tua ini
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        daftar_anak = cursor.fetchall()
+
         if daftar_anak:
             if selected_anak_id:
                 for anak in daftar_anak:
@@ -123,7 +133,8 @@ def index():
                                anak_aktif=anak_aktif,
                                kelas_anak=kelas_anak,
                                statistik_presensi=statistik_presensi,
-                               riwayat_transaksi=riwayat_transaksi)
+                               riwayat_transaksi=riwayat_transaksi,
+                               foto_profil=foto_profil_user)
                                
     except Exception as e:
         print(f"Error loading dashboard: {e}")
@@ -717,6 +728,8 @@ def halaman_pendaftaran_kelas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
+    user_id = session['id_users']
+
     query = """
         SELECT k.*, u.username AS nama_tutor,
         (
@@ -734,6 +747,15 @@ def halaman_pendaftaran_kelas():
     cursor.execute(query)
     daftar_kelas = cursor.fetchall()
     
+    cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+    user_data = cursor.fetchone()
+    # Gunakan foto dari database, jika kosong gunakan default_parent.png
+    foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
+    # --------------------------------------------------------------
+
+    # 1. Ambil daftar anak milik orang tua ini
+    cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+    daftar_anak = cursor.fetchall()
     # Format waktu jam_mulai dan jam_selesai jadi string HH:MM
     for k in daftar_kelas:
         if k['jam_mulai']:
@@ -744,7 +766,7 @@ def halaman_pendaftaran_kelas():
     cursor.close()
     conn.close()
     
-    return render_template('orangtua/kelas.html', daftar_kelas=daftar_kelas, username=session.get('username'))
+    return render_template('orangtua/kelas.html', foto_profil=foto_profil_user, daftar_kelas=daftar_kelas, username=session.get('username'))
 
 @orangtua_bp.route('/konfirmasi_kelas/<id_kelas>')
 def konfirmasi_kelas(id_kelas):
