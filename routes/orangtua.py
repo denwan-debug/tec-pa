@@ -611,16 +611,42 @@ def tambah_anak():
     if not nama_lengkap:
         flash('Nama lengkap wajib diisi!', 'error')
         return redirect('/manajemen_anak')
-        
+
+    # Tangani Upload Foto ke Cloudinary (kalau orang tua mengisi foto saat menambah anak)
+    foto = request.files.get('foto_profil')
+    url_foto_cloudinary = None
+
+    if foto and foto.filename != '':
+        if foto_valid(foto.filename):
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_anak"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto: {str(e)}', 'error')
+                return redirect('/manajemen_anak')
+        else:
+            flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
+            return redirect('/manajemen_anak')
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        # Insert data anak baru ke database
-        cursor.execute("""
-            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas)
-            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
-        """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas))
+        if url_foto_cloudinary:
+            # Insert data anak baru berikut URL foto dari Cloudinary
+            cursor.execute("""
+                INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas, foto_profil)
+                VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
+            """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas, url_foto_cloudinary))
+        else:
+            # Insert data anak baru tanpa foto (biarkan pakai default_anak.png dari DB)
+            cursor.execute("""
+                INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas)
+                VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
+            """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas))
         
         conn.commit()
         flash('Data anak berhasil ditambahkan!', 'success')
