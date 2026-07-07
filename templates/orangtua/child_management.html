@@ -571,6 +571,79 @@
         </div>
     </div>
 
+    <!-- Modal Edit Data Anak -->
+    <div id="editBabyModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="text-align: left;">
+            <h2 style="margin-bottom: 20px; color: #1e293b;">Edit Profil Anak</h2>
+            <form action="{{ url_for('orangtua.edit_anak') }}" method="POST" enctype="multipart/form-data">
+                <!-- Hidden Input untuk ID Anak -->
+                <input type="hidden" name="id_anak" id="edit_id_anak">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Foto Profil (Opsional)</label>
+                    <input type="file" name="foto_profil" accept=".jpg, .jpeg, .png" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
+                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Format didukung: JPG, JPEG, PNG. Kosongkan jika tidak ingin mengubah foto.</p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Nama Lengkap</label>
+                    <input type="text" name="nama_lengkap" id="edit_nama_lengkap" required style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Nama Panggilan</label>
+                    <input type="text" name="nama_panggilan" id="edit_nama_panggilan" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Kelas / Jenjang Sekolah</label>
+                    <select name="kelas" id="edit_kelas" required style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: white;">
+                        <option value="" disabled>-- Pilih Kelas --</option>
+                        <option value="SD Kelas 1">SD Kelas 1</option>
+                        <option value="SD Kelas 2">SD Kelas 2</option>
+                        <option value="SD Kelas 3">SD Kelas 3</option>
+                        <option value="SD Kelas 4">SD Kelas 4</option>
+                        <option value="SD Kelas 5">SD Kelas 5</option>
+                        <option value="SD Kelas 6">SD Kelas 6</option>
+                        <option value="SMP Kelas 1 (7)">SMP Kelas 1 (7)</option>
+                        <option value="SMP Kelas 2 (8)">SMP Kelas 2 (8)</option>
+                        <option value="SMP Kelas 3 (9)">SMP Kelas 3 (9)</option>
+                        <option value="SMA Kelas 1 (10)">SMA Kelas 1 (10)</option>
+                        <option value="SMA Kelas 2 (11)">SMA Kelas 2 (11)</option>
+                        <option value="SMA Kelas 3 (12)">SMA Kelas 3 (12)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Sekolah Asal</label>
+                    <input type="text" name="sekolah_asal" id="edit_sekolah_asal" required style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Tanggal Lahir</label>
+                    <input type="date" name="tanggal_lahir" id="edit_tanggal_lahir" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;" required>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 0.9rem;">Jenis Kelamin</label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <input type="radio" name="jenis_kelamin" id="edit_jk_l" value="L" style="accent-color: var(--primary-accent);" required>
+                            Laki-laki
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <input type="radio" name="jenis_kelamin" id="edit_jk_p" value="P" style="accent-color: var(--primary-accent);">
+                            Perempuan
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="cancelEditBaby" class="btn-cancel">Batal</button>
+                    <button type="submit" class="btn-tambahin" style="background-color: #b42b51;">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="app-container">
         <aside class="sidebar">
             <div>
@@ -614,6 +687,11 @@
                         </svg>
                         Reports</a>
                     </li>
+                    <li><a href="/pengaturan"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/>
+                        </svg>
+                        Pengaturan</a>
+                    </li>
                 </ul>
             </div>
             <div class="logout">
@@ -652,7 +730,8 @@
                 {% endwith %}
 
                 <div class="management-grid">
-                    
+    
+                    <!-- Kolom Kiri: Daftar Anak -->
                     <div class="left-col">
                         <div class="section-title">
                             <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 1.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
@@ -662,13 +741,14 @@
                         {% if daftar_anak %}
                             {% for anak in daftar_anak %}
                             <div class="child-card child-item" style="cursor: pointer; transition: 0.2s;" 
+                                data-id="{{ anak.id_anak }}"
                                 data-nama="{{ anak.nama_lengkap }}"
                                 data-panggilan="{{ anak.nama_panggilan }}"
                                 data-kelas="{{ anak.kelas }}"
                                 data-sekolah="{{ anak.sekolah_asal }}"
                                 data-status="{{ anak.status_anak }}"
                                 data-jk="{{ anak.jenis_kelamin }}"
-                                data-tanggal="{{ anak.created_at.strftime('%d %b %Y') if anak.created_at else '-' }}">
+                                data-tanggallahir="{{ anak.tanggal_lahir.strftime('%Y-%m-%d') if anak.tanggal_lahir else '' }}">
                                 
                                 <div class="avatar-container">
                                     <img src="{{ url_for('static', filename='img/' + anak.foto_profil) if anak.foto_profil else 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=150&auto=format&fit=crop&q=80' }}" class="avatar-img" alt="{{ anak.nama_panggilan }}">
@@ -679,27 +759,55 @@
                                         <h3>{{ anak.nama_lengkap }}</h3>
                                         <span class="badge-active">{{ anak.status_anak }}</span>
                                     </div>
-                                    <div class="child-meta">{{ anak.kelas|upper if anak.kelas else '-' }} • {{ anak.sekolah_asal|upper if anak.sekolah_asal else '-' }}</div>
+                                    <!-- Meta info sesuai gambar rujukan -->
+                                <div class="child-meta">{{ anak.kelas.split(' (')[0]|upper if anak.kelas else 'BELUM ADA KELAS' }} • {{ anak.sekolah_asal|upper if anak.sekolah_asal else 'UMUM' }}</div>                                    
                                     <div class="child-stats-row">
                                         <div class="stat-item">
-                                            <span class="stat-label">Bergabung Sejak</span>
-                                            <span class="stat-value text-pink">{{ anak.created_at.strftime('%d %b %Y') if anak.created_at else '-' }}</span>
+                                            <span class="stat-label">Kelas Aktif</span>
+                                            <!-- Menarik jumlah kelas dari backend -->
+                                            <span class="stat-value text-pink">{{ "%02d"|format(anak.jumlah_kelas|default(0)) }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Blok HTML tersembunyi untuk menyimpan data kelas mendatang tiap anak -->
+                            <div id="kelas-data-{{ anak.id_anak }}" style="display: none;">
+                                {% if anak.jadwal_mendatang and anak.jadwal_mendatang|length > 0 %}
+                                    {% for kelas in anak.jadwal_mendatang %}
+                                    <div class="class-mini-card">
+                                        <div class="class-card-top">
+                                            <div class="class-icon-wrapper" style="background-color: #e0f2fe;">
+                                                <svg viewBox="0 0 24 24"><path d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6zm16-4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm0 14H8V4h12v12z"/></svg>
+                                            </div>
+                                            <span class="badge-schedule">{{ kelas.hari_jadwal[:3]|upper }} • {{ kelas.jam_mulai }}</span>
+                                        </div>
+                                        <div class="class-card-body">
+                                            <h5>{{ kelas.nama_kelas }}</h5>
+                                            <p>Pengajar: {{ kelas.nama_pengajar or 'Belum ditentukan' }}</p>
+                                        </div>
+                                        <div class="class-card-footer">
+                                            <span class="performance-dot-badge" style="background-color: #dbeafe; color: #1e40af;">B</span>
+                                            <span class="attendance-text">100% Kehadiran.</span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div style="grid-column: span 2; padding: 20px; text-align: center; color: #7a8b94; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
+                                        Belum ada kelas yang didaftarkan.
+                                    </div>
+                                {% endif %}
+                            </div>
                             {% endfor %}
                         {% else %}
-
                             <div class="child-card" style="justify-content: center; text-align: center; padding: 40px;">
                                 <p style="color: #7a8b94;">Belum ada data anak. Silakan tambah data anak Anda.</p>
                             </div>
                         {% endif %}
                     </div>
 
+                    <!-- Kolom Kanan: Detail & Kelas Mendatang -->
                     <div class="right-col">
-                        <div class="section-title" style="visibility: hidden;">Detail Space Placeholder</div>
-                        
                         <div class="detail-panel">
                             <div class="panel-header">
                                 <div class="panel-user-profile">
@@ -711,56 +819,26 @@
                                         <p id="detail-info">Klik kartu anak di sebelah kiri untuk melihat detail.</p>
                                     </div>
                                 </div>
+                                <!-- Tombol Edit Profil diposisikan di sebelah kanan sejajar header sesuai gambar -->
                                 <a href="#" class="btn-edit-profile" id="btn-edit-anak" style="display: none;">Edit Profil</a>
                             </div>
 
-                    
-                            
                             <div class="upcoming-classes" id="upcoming-classes-section" style="opacity: 0.4; pointer-events: none;">
- 
                                 <h4>
                                     <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9zm1 14h-2v-2h2zm0-4h-2V7h2z"/></svg>
-                                    Kelas Mendatang
+                                    KELAS MENDATANG
                                 </h4>
-
-                                <div class="class-cards-container">
-                                    <div class="class-mini-card">
-                                        <div class="class-card-top">
-                                            <div class="class-icon-wrapper">
-                                                <svg viewBox="0 0 24 24"><path d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6zm16-4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm0 14H8V4h12v12z"/></svg>
-                                            </div>
-                                            <span class="badge-schedule">MON • 17:00</span>
-                                        </div>
-                                        <div class="class-card-body">
-                                            <h5>Intermediate Grammar B1</h5>
-                                            <p>Pengajar: Mr. James Wilson</p>
-                                        </div>
-                                        <div class="class-card-footer">
-                                            <span class="performance-dot-badge">A+</span>
-                                            <span class="attendance-text">92% Kehadiran.</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="class-mini-card">
-                                        <div class="class-card-top">
-                                            <div class="class-icon-wrapper" style="background-color: #e0f2fe;">
-                                                <svg viewBox="0 0 24 24"><path d="M12 2c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l2.79-2.79C10.09 18.64 11.03 18 12 18c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 14c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7z"/></svg>
-                                            </div>
-                                            <span class="badge-schedule">WED • 16:30</span>
-                                        </div>
-                                        <div class="class-card-body">
-                                            <h5>Speaking & Phonics Stage 2</h5>
-                                            <p>Pengajar: Ms. Sarah Parker</p>
-                                        </div>
-                                        <div class="class-card-footer">
-                                            <span class="performance-dot-badge" style="background-color: #dbeafe; color: #1e40af;">B</span>
-                                            <span class="attendance-text">100% Kehadiran.</span>
-                                        </div>
+                                
+                                <!-- Container ini akan dirender ulang oleh Javascript saat kartu anak diklik -->
+                                <div class="class-cards-container" id="dynamic-classes-container">
+                                    <div style="grid-column: span 2; padding: 20px; text-align: center; color: #7a8b94;">
+                                        Silakan pilih profil anak terlebih dahulu.
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>                    </div>
 
                 </div>
             </div>
@@ -768,83 +846,146 @@
     </div>
 
     <script>
-        const modal = document.getElementById('logoutModal');
-        const logoutBtn = document.getElementById('btnTriggerLogout');
-        const cancelBtn = document.getElementById('cancelLogout');
+    // ==========================================
+    // 1. MODAL LOGOUT
+    // ==========================================
+    const modalLogout = document.getElementById('logoutModal');
+    const logoutBtn = document.getElementById('btnTriggerLogout');
+    const cancelLogoutBtn = document.getElementById('cancelLogout');
 
-        // Buka modal saat tombol logout diklik
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            modal.style.display = 'flex';
-        });
+    logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        modalLogout.style.display = 'flex';
+    });
+    cancelLogoutBtn.addEventListener('click', () => {
+        modalLogout.style.display = 'none';
+    });
 
-        // Tutup modal saat tombol cancel diklik
-        cancelBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
 
-        const modalAdd = document.getElementById('addBabyModal');
-        const btnAdd = document.querySelector('.btn-add-child');
-        const btnCancelAdd = document.getElementById('cancelAddBaby');
+    // ==========================================
+    // 2. MODAL TAMBAH ANAK
+    // ==========================================
+    const modalAdd = document.getElementById('addBabyModal');
+    const btnAdd = document.querySelector('.btn-add-child');
+    const btnCancelAdd = document.getElementById('cancelAddBaby');
 
-        btnAdd.addEventListener('click', () => {
-            modalAdd.style.display = 'flex';
-        });
+    btnAdd.addEventListener('click', () => {
+        modalAdd.style.display = 'flex';
+    });
+    btnCancelAdd.addEventListener('click', () => {
+        modalAdd.style.display = 'none';
+    });
 
-        btnCancelAdd.addEventListener('click', () => {
-            modalAdd.style.display = 'none';
-        });
 
-        // Menutup modal jika klik di luar area konten
-        window.addEventListener('click', (e) => {
-            if (e.target === modalAdd) {
-                modalAdd.style.display = 'none';
-            }
-        });
+    // ==========================================
+    // 3. INTERAKSI KARTU ANAK & MODAL EDIT PROFIL
+    // ==========================================
+    const modalEdit = document.getElementById('editBabyModal');
+    const btnEdit = document.getElementById('btn-edit-anak');
+    const btnCancelEdit = document.getElementById('cancelEditBaby');
+    
+    // Variabel untuk menyimpan data anak yang sedang diklik
+    let selectedChildData = {}; 
 
-        document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
         const childCards = document.querySelectorAll('.child-item');
         
         childCards.forEach(card => {
             card.addEventListener('click', function() {
-                // 1. Reset border/styling pada semua card agar tidak ada yang terpilih
+                // A. Reset styling semua kartu
                 childCards.forEach(c => {
                     c.style.borderColor = '#edf2f7';
                     c.style.backgroundColor = '#ffffff';
                 });
                 
-                // 2. Beri highlight (border pink) pada card yang sedang diklik
+                // B. Highlight kartu yang sedang diklik
                 this.style.borderColor = '#b42b51';
                 this.style.backgroundColor = '#fdf2f5';
 
-                // 3. Ambil data dari atribut data-* yang kita buat di HTML
-                const nama = this.getAttribute('data-nama');
-                const panggilan = this.getAttribute('data-panggilan');
-                const kelas = this.getAttribute('data-kelas');
-                const sekolah = this.getAttribute('data-sekolah');
-                const status = this.getAttribute('data-status');
-                const jk = this.getAttribute('data-jk');
+                // C. Simpan data anak ke variabel dari atribut data-*
+                selectedChildData = {
+                    id: this.getAttribute('data-id'),
+                    nama: this.getAttribute('data-nama'),
+                    panggilan: this.getAttribute('data-panggilan'),
+                    kelas: this.getAttribute('data-kelas'),
+                    sekolah: this.getAttribute('data-sekolah'),
+                    status: this.getAttribute('data-status'),
+                    jk: this.getAttribute('data-jk'),
+                    tanggallahir: this.getAttribute('data-tanggallahir')
+                };
 
-                // 4. Update teks di panel kanan
-                document.getElementById('detail-nama').innerText = nama;
-                document.getElementById('detail-info').innerText = status + ' • Bergabung sejak ' + this.getAttribute('data-tanggal');
+                // D. Update Text Profil di Panel Kanan
+                document.getElementById('detail-nama').innerText = 'Detail Anak: ' + selectedChildData.nama;
+                document.getElementById('detail-info').innerText = 'Kursus yang diikuti & Performa Terkini';
                 
-                // Update detail ekstra
-                document.getElementById('detail-panggilan').innerText = panggilan || '-';
-                document.getElementById('detail-kelas').innerText = kelas || '-';
-                document.getElementById('detail-sekolah').innerText = sekolah || '-';
-                document.getElementById('detail-jk').innerText = jk || '-';
-
-                // 5. Munculkan bagian detail ekstra dan tombol edit
-                document.getElementById('detail-extra-info').style.display = 'block';
-                document.getElementById('btn-edit-anak').style.display = 'block';
+                // E. Munculkan Tombol Edit Profil
+                if (btnEdit) {
+                    btnEdit.style.display = 'block';
+                }
                 
-                // 6. Aktifkan section kelas (hilangkan efek blur/disable)
+                // F. Aktifkan & Tarik Data Kelas Mendatang
                 document.getElementById('upcoming-classes-section').style.opacity = '1';
                 document.getElementById('upcoming-classes-section').style.pointerEvents = 'auto';
+                
+                const targetClassesHtml = document.getElementById('kelas-data-' + selectedChildData.id).innerHTML;
+                document.getElementById('dynamic-classes-container').innerHTML = targetClassesHtml;
             });
         });
     });
-    </script>
+
+    // ==========================================
+    // 4. LOGIKA TOMBOL EDIT PROFIL DIKLIK
+    // ==========================================
+    if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+            // Mencegah href="#" meloncat ke atas halaman
+            e.preventDefault(); 
+            
+            // Isi form dengan data anak yang tersimpan
+            document.getElementById('edit_id_anak').value = selectedChildData.id || '';
+            document.getElementById('edit_nama_lengkap').value = selectedChildData.nama || '';
+            document.getElementById('edit_nama_panggilan').value = selectedChildData.panggilan || '';
+            document.getElementById('edit_sekolah_asal').value = selectedChildData.sekolah || '';
+            document.getElementById('edit_tanggal_lahir').value = selectedChildData.tanggallahir || '';
+            
+            // Set Select Dropdown Kelas
+            if (selectedChildData.kelas) {
+                document.getElementById('edit_kelas').value = selectedChildData.kelas;
+            } else {
+                document.getElementById('edit_kelas').value = '';
+            }
+            
+            // Set Radio Button Jenis Kelamin
+            if (selectedChildData.jk === 'L' || selectedChildData.jk === 'Laki-laki') {
+                document.getElementById('edit_jk_l').checked = true;
+            } else if (selectedChildData.jk === 'P' || selectedChildData.jk === 'Perempuan') {
+                document.getElementById('edit_jk_p').checked = true;
+            } else {
+                document.getElementById('edit_jk_l').checked = false;
+                document.getElementById('edit_jk_p').checked = false;
+            }
+
+            // Tampilkan Modal Edit
+            modalEdit.style.display = 'flex';
+        });
+    }
+
+    // Tombol Batal Edit
+    if (btnCancelEdit) {
+        btnCancelEdit.addEventListener('click', () => {
+            modalEdit.style.display = 'none';
+        });
+    }
+
+
+    // ==========================================
+    // 5. TUTUP SEMUA MODAL JIKA KLIK DI LUAR
+    // ==========================================
+    window.addEventListener('click', (e) => {
+        if (e.target === modalAdd) modalAdd.style.display = 'none';
+        if (e.target === modalEdit) modalEdit.style.display = 'none';
+        if (e.target === modalLogout) modalLogout.style.display = 'none';
+    });
+</script>
 </body>
 </html>
