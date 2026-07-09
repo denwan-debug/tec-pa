@@ -1,6 +1,10 @@
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from db import get_db_connection
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
+import random
+from extensions import mail
+from flask_mail import Message
 
 # Membuat blueprint untuk pengajar
 pengajar_bp = Blueprint('pengajar', __name__)
@@ -35,7 +39,22 @@ def login_pengajar_action():
             
             # Menggunakan check_password_hash karena akun dengan role Pengajar/Murid 
             # idealnya tersimpan dalam bentuk hash (scrypt) seperti akun 'Farrel' atau 'denis'
-            if pembimbing_data['password'] == password:
+            # Dukung dua kondisi:
+            # 1. Password sudah di-hash (scrypt/pbkdf2) -- akun yang sudah pernah ganti/reset password
+            # 2. Password masih plaintext -- akun lama yang belum pernah diubah sejak awal dibuat
+            stored_password = pembimbing_data['password'] or ''
+            password_valid = False
+
+            if stored_password.startswith(('scrypt:', 'pbkdf2:')):
+                try:
+                    password_valid = check_password_hash(stored_password, password)
+                except Exception as e:
+                    print(f"Error saat memverifikasi hash password: {e}")
+                    password_valid = False
+            else:
+                password_valid = (stored_password == password)
+
+            if password_valid:
                 
                 # 4. Simpan data pengguna ke dalam session Flask
                 session['user_id'] = pembimbing_data['id_users'] 
@@ -238,12 +257,15 @@ def detail_kelas(id_kelas):
             detail_kelas_data['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
 
         # Query daftar siswa
+        # Query daftar siswa
         query_siswa = """
             SELECT 
                 a.id_anak,
                 a.nama_lengkap,
                 a.nama_panggilan,
                 a.jenis_kelamin,
+                a.sekolah_asal, 
+                a.kelas,
                 p.status_pendaftaran,
                 p.tanggal_daftar
             FROM pendaftaran p
@@ -312,8 +334,56 @@ def update_profil_pengajar():
         return redirect(url_for('pengajar.login_pengajar'))
         
     pengajar_id = session['user_id']
-    
-    # Tangkap data teks
+    form_type = request.form.get('form_type')
+
+    # ==================================================
+    # FORM 1: Ganti Kata Sandi (kolom "Keamanan Akun")
+    # ==================================================
+    if form_type == 'ganti_password':
+        password_lama = request.form.get('password_lama')
+        password_baru = request.form.get('password_baru')
+        konfirmasi_password = request.form.get('konfirmasi_password')
+
+        if not password_lama or not password_baru or not konfirmasi_password:
+            flash('Semua kolom kata sandi wajib diisi!', 'error')
+            return redirect(url_for('pengajar.profil_pengajar'))
+
+        if len(password_baru) < 8:
+            flash('Kata sandi baru minimal 8 karakter!', 'error')
+            return redirect(url_for('pengajar.profil_pengajar'))
+
+        if password_baru != konfirmasi_password:
+            flash('Konfirmasi kata sandi baru tidak cocok!', 'error')
+            return redirect(url_for('pengajar.profil_pengajar'))
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT password FROM users WHERE id_users = %s", (pengajar_id,))
+            user_row = cursor.fetchone()
+
+            if not user_row or not check_password_hash(user_row['password'], password_lama):
+                flash('Kata sandi saat ini salah!', 'error')
+                return redirect(url_for('pengajar.profil_pengajar'))
+
+            password_hash_baru = generate_password_hash(password_baru)
+            cursor.execute("UPDATE users SET password = %s WHERE id_users = %s", (password_hash_baru, pengajar_id))
+            conn.commit()
+            flash('Kata sandi berhasil diperbarui!', 'success')
+
+        except Exception as e:
+            conn.rollback()
+            print(f"Error saat ganti password: {e}")
+            flash('Terjadi kesalahan saat memperbarui kata sandi.', 'error')
+        finally:
+            cursor.close()
+            conn.close()
+
+        return redirect(url_for('pengajar.profil_pengajar'))
+
+    # ==================================================
+    # FORM 2: Update Data Diri (kolom "Informasi Data Diri")
+    # ==================================================
     nama_lengkap = request.form.get('nama_lengkap')
     tempat_lahir = request.form.get('tempat_lahir')
     no_telp = request.form.get('no_telp')
@@ -339,6 +409,9 @@ def update_profil_pengajar():
             
             # Simpan file ke direktori (pastikan folder static/img sudah dibuat manual!)
             foto_file.save(simpan_path)
+        else:
+            flash('Format foto tidak didukung. Gunakan JPG atau PNG.', 'error')
+            return redirect(url_for('pengajar.profil_pengajar'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -360,7 +433,7 @@ def update_profil_pengajar():
             cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, pengajar_id))
             
         conn.commit()
-        print("Data profil berhasil diperbarui!")
+        flash('Perubahan data berhasil disimpan!', 'success')
 
         if nama_foto_baru:
             session['foto_profil'] = nama_foto_baru
@@ -369,11 +442,166 @@ def update_profil_pengajar():
     except Exception as e:
         print(f"Error saat update profil: {e}")
         conn.rollback()
+        flash('Gagal menyimpan perubahan. Silakan coba lagi.', 'error')
     finally:
         cursor.close()
         conn.close()
         
     return redirect(url_for('pengajar.profil_pengajar'))
+
+@pengajar_bp.route('/forgot-password-pengajar', methods=['GET', 'POST'])
+def forgot_password_pengajar():
+    # Jika GET, tampilkan halaman form Lupa Password
+    if request.method == 'GET':
+        return render_template('pengajar/lupa_password_pengajar.html')
+
+    # Jika POST, proses pencarian email
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+
+        if not email:
+            return jsonify({'message': 'Email wajib diisi.'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Cari user berdasarkan email dan rolenya (R02 = Pengajar)
+        cursor.execute("SELECT id_users FROM users WHERE email = %s AND role_id_role = 'R02'", (email,))
+        user = cursor.fetchone()
+
+        # Kalau email ini bukan akun Pengajar (atau tidak terdaftar sama sekali),
+        # langsung tolak dengan pesan jelas -- jangan lanjut ke halaman OTP.
+        if not user:
+            cursor.close()
+            conn.close()
+            return jsonify({'message': 'Akun Pengajar dengan email ini tidak ditemukan!'}), 404
+
+        otp = str(random.randint(100000, 999999))
+        user_id = user['id_users']
+
+        cursor.execute("""
+            INSERT INTO user_otps (user_id_users, email, otp_code, expired_at, is_used)
+            VALUES (%s, %s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
+        """, (user_id, email, otp))
+        conn.commit()
+
+        try:
+            msg = Message('Kode OTP Reset Password - TEC Pengajar', recipients=[email])
+            msg.body = f"Kode OTP untuk mereset kata sandi akun Pengajar Anda adalah: {otp}\nBerlaku selama 5 menit."
+            mail.send(msg)
+            print(f"[DEBUG] OTP Lupa Password Pengajar {otp} dikirim ke {email}")
+        except Exception as e:
+            print(f"Gagal mengirim email: {e}")
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'message': 'Kode OTP telah dikirim ke email Anda.',
+            'redirect': url_for('pengajar.verify_reset_otp_pengajar', email=email)
+        }), 200
+
+
+@pengajar_bp.route('/verify-reset-otp-pengajar', methods=['GET', 'POST'])
+def verify_reset_otp_pengajar():
+    # Menampilkan halaman input OTP
+    if request.method == 'GET':
+        email = request.args.get('email')
+        if not email:
+            return redirect(url_for('pengajar.forgot_password_pengajar'))
+        return render_template('pengajar/otp_pengajar.html', email=email)
+
+    # Memproses validasi kode OTP
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # PENTING: JOIN ke tabel users dan pastikan role-nya R02 (Pengajar).
+        # Ini mencegah OTP milik akun lain (Orang Tua, dll) yang kebetulan
+        # memakai email sama ikut dianggap valid di alur reset password Pengajar.
+        cursor.execute("""
+            SELECT o.* FROM user_otps o
+            JOIN users u ON o.user_id_users = u.id_users
+            WHERE o.email = %s AND o.otp_code = %s AND o.is_used = 0 AND o.expired_at > NOW()
+              AND u.role_id_role = 'R02'
+            ORDER BY o.id DESC LIMIT 1
+        """, (email, otp))
+        otp_data = cursor.fetchone()
+
+        if otp_data:
+            cursor.execute("UPDATE user_otps SET is_used = 1 WHERE id = %s", (otp_data['id'],))
+            conn.commit()
+
+            # Tandai di sesi bahwa email ini sudah tervalidasi OTP-nya untuk reset password
+            session['reset_email_pengajar'] = email
+
+            cursor.close()
+            conn.close()
+
+            return jsonify({
+                'message': 'OTP Valid. Silakan buat password baru.',
+                'redirect': url_for('pengajar.reset_password_pengajar')
+            }), 200
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({'message': 'Kode OTP salah atau telah kadaluarsa!'}), 400
+
+
+@pengajar_bp.route('/reset-password-pengajar', methods=['GET', 'POST'])
+def reset_password_pengajar():
+    # Mencegah user mengakses halaman ini jika belum verifikasi OTP
+    if request.method == 'GET':
+        if 'reset_email_pengajar' not in session:
+            return redirect(url_for('pengajar.forgot_password_pengajar'))
+        return render_template('pengajar/reset_password_pengajar.html')
+
+    # Proses update password baru ke database
+    if request.method == 'POST':
+        if 'reset_email_pengajar' not in session:
+            return jsonify({'message': 'Sesi telah berakhir, silakan ulang dari awal.'}), 400
+
+        data = request.get_json()
+        new_password = data.get('password')
+        konfirmasi_password = data.get('konfirmasi_password')
+        email = session['reset_email_pengajar']
+
+        if not new_password or len(new_password) < 8:
+            return jsonify({'message': 'Kata sandi baru minimal 8 karakter!'}), 400
+
+        if konfirmasi_password is not None and new_password != konfirmasi_password:
+            return jsonify({'message': 'Konfirmasi kata sandi tidak cocok!'}), 400
+
+        hashed_password = generate_password_hash(new_password)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE users SET password = %s WHERE email = %s AND role_id_role = 'R02'
+        """, (hashed_password, email))
+        conn.commit()
+
+        baris_terupdate = cursor.rowcount
+
+        cursor.close()
+        conn.close()
+
+        session.pop('reset_email_pengajar', None)
+
+        if baris_terupdate == 0:
+            return jsonify({'message': 'Akun Pengajar tidak ditemukan, kata sandi gagal diubah.'}), 404
+
+        return jsonify({
+            'message': 'Kata sandi berhasil diubah! Silakan login.',
+            'redirect': url_for('pengajar.login_pengajar')
+        }), 200
+
 
 @pengajar_bp.route('/logout_pengajar')
 def logout_pengajar():

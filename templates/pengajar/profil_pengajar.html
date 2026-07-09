@@ -96,7 +96,7 @@
         .profile-text .role { font-size: 12px; color: var(--text-gray); }
 
         /* --- Styling Khusus Halaman Profil --- */
-        .profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        .profile-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
         
         .card { background: white; border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; }
         .card-title { font-size: 18px; font-weight: 600; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
@@ -237,9 +237,97 @@
         .btn-cancel:hover {
             background-color: #e2eaf6;
         }
+
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--text-light-gray);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
     </style>
 </head>
 <body>
+
+    <!-- Toast Notification: muncul otomatis kalau ada flash message dari Flask -->
+    <div class="toast-container" id="toastContainer">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast {{ 'error' if category == 'error' else '' }}">
+                        <div class="toast-icon">
+                            <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' else 'fa-circle-check' }}"></i>
+                        </div>
+                        <span class="toast-message">{{ message }}</span>
+                        <button class="toast-close" onclick="this.parentElement.remove()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <div class="dashboard-container">
         <!-- Sidebar Sama Persis dengan kelas_pengajar.html -->
@@ -290,7 +378,8 @@
                 <div class="card">
                     <h2 class="card-title">Informasi Data Diri</h2>
                     <form action="{{ url_for('pengajar.update_profil_pengajar') }}" method="POST" enctype="multipart/form-data">
-                        
+                        <input type="hidden" name="form_type" value="data_diri">
+
                         <div class="photo-area">
     <!-- Tambahkan id="preview-img" agar bisa dipanggil oleh JavaScript -->
                             <img id="preview-img" src="{{ url_for('static', filename='img/' ~ user.foto_profil) if user and user.foto_profil and 'default' not in user.foto_profil else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff' }}" alt="Foto Profil" class="photo-preview">
@@ -340,27 +429,7 @@
                 </div>
 
                 <!-- Kolom Kanan: Keamanan / Ganti Password -->
-                <div class="card" style="height: fit-content;">
-                    <h2 class="card-title">Keamanan Akun</h2>
-                    <form action="{{ url_for('pengajar.update_profil_pengajar') }}" method="POST" enctype="multipart/form-data">
-                        <div class="form-group">
-                            <label>Kata Sandi Saat Ini</label>
-                            <input type="password" class="form-control" name="password_lama" placeholder="Masukkan kata sandi lama" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Kata Sandi Baru</label>
-                            <input type="password" class="form-control" name="password_baru" placeholder="Minimal 8 karakter" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Konfirmasi Kata Sandi Baru</label>
-                            <input type="password" class="form-control" name="konfirmasi_password" placeholder="Ketik ulang kata sandi baru" required>
-                        </div>
-
-                        <button type="submit" class="btn-submit" style="background-color: #202020;">Perbarui Kata Sandi</button>
-                    </form>
-                </div>
+                
             </div>
         </main>
     </div>
@@ -422,5 +491,23 @@
             reader.readAsDataURL(event.target.files[0]);
         }
     }
+
+    // Tampilkan toast notification (kalau ada) dengan animasi slide-in,
+    // lalu otomatis hilang setelah 4 detik
+    document.addEventListener('DOMContentLoaded', function () {
+        const toasts = document.querySelectorAll('.toast');
+        toasts.forEach(function (toast, index) {
+            setTimeout(function () {
+                toast.classList.add('show');
+            }, 100 + (index * 100));
+
+            setTimeout(function () {
+                toast.classList.remove('show');
+                setTimeout(function () {
+                    toast.remove();
+                }, 350);
+            }, 4000 + (index * 100));
+        });
+    });
 </script>
 </html>

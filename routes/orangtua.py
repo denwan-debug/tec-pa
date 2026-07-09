@@ -6,6 +6,11 @@ import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
 from extensions import mail
 from flask_mail import Message
+from google_calendar import (
+    get_authorization_url, exchange_code_for_credentials, save_credentials,
+    is_connected, disconnect, sync_jadwal_to_calendar,
+    GoogleCalendarNotConfigured, GoogleCalendarNotConnected,
+)
 
 orangtua_bp = Blueprint('orangtua', __name__,)
 
@@ -731,6 +736,7 @@ def halaman_pendaftaran_kelas():
     
     user_id = session['id_users']
 
+    # ... (Biarkan query daftar_kelas tetap seperti aslinya) ...
     query = """
         SELECT k.*, u.username AS nama_tutor,
         (
@@ -748,15 +754,22 @@ def halaman_pendaftaran_kelas():
     cursor.execute(query)
     daftar_kelas = cursor.fetchall()
     
-    cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+    # --- UBAH BAGIAN INI: Tambahkan no_telp dan alamat ke dalam query ---
+    cursor.execute("SELECT foto_profil, no_telp, alamat FROM users WHERE id_users = %s", (user_id,))
     user_data = cursor.fetchone()
-    # Gunakan foto dari database, jika kosong gunakan default_parent.png
+    
+    # Cek apakah profil sudah lengkap
+    profil_lengkap = True
+    if not user_data or not user_data.get('no_telp') or not user_data.get('alamat'):
+        profil_lengkap = False
+        
     foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
     # --------------------------------------------------------------
 
     # 1. Ambil daftar anak milik orang tua ini
     cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
     daftar_anak = cursor.fetchall()
+    
     # Format waktu jam_mulai dan jam_selesai jadi string HH:MM
     for k in daftar_kelas:
         if k['jam_mulai']:
@@ -767,7 +780,12 @@ def halaman_pendaftaran_kelas():
     cursor.close()
     conn.close()
     
-    return render_template('orangtua/kelas.html', foto_profil=foto_profil_user, daftar_kelas=daftar_kelas, username=session.get('username'))
+    # --- UBAH BAGIAN INI JUGA: Kirim variabel profil_lengkap ke HTML ---
+    return render_template('orangtua/kelas.html', 
+                           foto_profil=foto_profil_user, 
+                           daftar_kelas=daftar_kelas, 
+                           username=session.get('username'),
+                           profil_lengkap=profil_lengkap)
 
 @orangtua_bp.route('/konfirmasi_kelas/<id_kelas>')
 def konfirmasi_kelas(id_kelas):
@@ -983,6 +1001,14 @@ def riwayat_pembayaran():
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # 1b. Ambil daftar anak & foto profil orang tua untuk topbar (konsisten dengan index.html)
+        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan, kelas FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        daftar_anak = cursor.fetchall()
+
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+        user_row = cursor.fetchone()
+        foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else 'default_parent.png'
+
         # 2. Ambil SELURUH riwayat transaksi milik anak-anak dari orang tua yang login.
         #    Filter periode/status TIDAK dilakukan di sini lagi — semua data dikirim
         #    sekaligus ke halaman, lalu difilter di sisi browser (JS) agar mengganti
@@ -1063,6 +1089,8 @@ def riwayat_pembayaran():
 
         return render_template('orangtua/riwayat_transaksi.html',
                                username=session.get('username'),
+                               daftar_anak=daftar_anak,
+                               foto_profil=foto_profil_user,
                                daftar_transaksi=daftar_transaksi,
                                total_tahun_ini=total_tahun_ini,
                                total_pending=total_pending,
@@ -1213,6 +1241,76 @@ def _format_jam(jam):
     return jam.strftime('%H:%M')
 
 
+def _ambil_daftar_jadwal(cursor, id_anak):
+    """
+    Ambil semua kelas yang diikuti seorang anak beserta sesi_kelas-nya
+    (dipakai bersama oleh halaman Jadwal Belajar dan sinkronisasi Google
+    Calendar, supaya logikanya tidak dobel).
+    """
+    query_jadwal = """
+        SELECT
+            sk.id_sesi, sk.tanggal, sk.topik_pembahasan,
+            k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, k.status_kelas,
+            u.username AS nama_pengajar
+        FROM pendaftaran pd
+        JOIN kelas k ON pd.id_kelas = k.id_kelas
+        JOIN users u ON k.id_pengajar = u.id_users
+        LEFT JOIN sesi_kelas sk ON sk.id_kelas = k.id_kelas
+        WHERE pd.id_anak = %s AND pd.status_pendaftaran = 'Aktif'
+        ORDER BY (sk.tanggal IS NULL) ASC, sk.tanggal ASC, k.jam_mulai ASC
+    """
+    cursor.execute(query_jadwal, (id_anak,))
+    rows = cursor.fetchall()
+
+    hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
+    bulan_map = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
+                 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'}
+    sekarang = datetime.now()
+
+    daftar_jadwal = []
+    for row in rows:
+        tanggal = row['tanggal']
+
+        if tanggal is not None:
+            # Kelas ini sudah punya sesi terjadwal dengan tanggal pasti (tabel sesi_kelas)
+            mulai_dt = _gabung_tanggal_jam(tanggal, row['jam_mulai'])
+            selesai_dt = _gabung_tanggal_jam(tanggal, row['jam_selesai'])
+
+            # Tentukan status sesi (Akan Datang / Sedang Berlangsung / Selesai) secara dinamis
+            if sekarang < mulai_dt:
+                status_sesi = 'Akan Datang'
+            elif mulai_dt <= sekarang <= selesai_dt:
+                status_sesi = 'Sedang Berlangsung'
+            else:
+                status_sesi = 'Selesai'
+
+            hari_display = hari_map[tanggal.weekday()]
+            tanggal_display = f"{tanggal.day:02d} {bulan_map[tanggal.month]}"
+        else:
+            # Kelas sudah terdaftar (pendaftaran Aktif) tapi belum ada sesi_kelas
+            # spesifik yang diinput -> tampilkan sebagai jadwal rutin mingguan
+            status_sesi = 'Terjadwal Rutin'
+            hari_display = row['hari_jadwal']
+            tanggal_display = None
+
+        daftar_jadwal.append({
+            'id_sesi': row['id_sesi'],
+            'id_kelas': row['id_kelas'],
+            'hari': hari_display,
+            'tanggal_display': tanggal_display,
+            'tanggal_iso': tanggal.isoformat() if tanggal is not None else None,
+            'jam_mulai': _format_jam(row['jam_mulai']),
+            'jam_selesai': _format_jam(row['jam_selesai']),
+            'nama_kelas': row['nama_kelas'],
+            'nama_pengajar': row['nama_pengajar'],
+            'topik': row['topik_pembahasan'],
+            'status_kelas': row['status_kelas'],
+            'status_sesi': status_sesi,
+        })
+
+    return daftar_jadwal
+
+
 @orangtua_bp.route('/jadwal_belajar')
 def jadwal_belajar():
     # 1. Pastikan user (orang tua/murid) sudah login
@@ -1233,6 +1331,10 @@ def jadwal_belajar():
         )
         daftar_anak = cursor.fetchall()
 
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (id_orangtua,))
+        user_row = cursor.fetchone()
+        foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else 'default_parent.png'
+
         anak_aktif = None
         daftar_jadwal = []
 
@@ -1247,78 +1349,115 @@ def jadwal_belajar():
                 # Default: anak pertama (baru pertama kali buka halaman / anak_id tidak valid)
                 anak_aktif = daftar_anak[0]
 
-            # 4. Ambil semua kelas yang diikuti anak yang aktif dipilih.
-            #    Pakai LEFT JOIN ke sesi_kelas supaya kelas yang SUDAH terdaftar (ada di
-            #    tabel pendaftaran) tetap muncul walaupun sesi_kelas untuk kelas tsb
-            #    belum diinput oleh pengajar/admin.
-            query_jadwal = """
-                SELECT
-                    sk.id_sesi, sk.tanggal, sk.topik_pembahasan,
-                    k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, k.status_kelas,
-                    u.username AS nama_pengajar
-                FROM pendaftaran pd
-                JOIN kelas k ON pd.id_kelas = k.id_kelas
-                JOIN users u ON k.id_pengajar = u.id_users
-                LEFT JOIN sesi_kelas sk ON sk.id_kelas = k.id_kelas
-                WHERE pd.id_anak = %s AND pd.status_pendaftaran = 'Aktif'
-                ORDER BY (sk.tanggal IS NULL) ASC, sk.tanggal ASC, k.jam_mulai ASC
-            """
-            cursor.execute(query_jadwal, (anak_aktif['id_anak'],))
-            rows = cursor.fetchall()
-
-            hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
-            bulan_map = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
-                         7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'}
-            sekarang = datetime.now()
-
-            for row in rows:
-                tanggal = row['tanggal']
-
-                if tanggal is not None:
-                    # Kelas ini sudah punya sesi terjadwal dengan tanggal pasti (tabel sesi_kelas)
-                    mulai_dt = _gabung_tanggal_jam(tanggal, row['jam_mulai'])
-                    selesai_dt = _gabung_tanggal_jam(tanggal, row['jam_selesai'])
-
-                    # Tentukan status sesi (Akan Datang / Sedang Berlangsung / Selesai) secara dinamis
-                    if sekarang < mulai_dt:
-                        status_sesi = 'Akan Datang'
-                    elif mulai_dt <= sekarang <= selesai_dt:
-                        status_sesi = 'Sedang Berlangsung'
-                    else:
-                        status_sesi = 'Selesai'
-
-                    hari_display = hari_map[tanggal.weekday()]
-                    tanggal_display = f"{tanggal.day:02d} {bulan_map[tanggal.month]}"
-                else:
-                    # Kelas sudah terdaftar (pendaftaran Aktif) tapi belum ada sesi_kelas
-                    # spesifik yang diinput -> tampilkan sebagai jadwal rutin mingguan
-                    status_sesi = 'Terjadwal Rutin'
-                    hari_display = row['hari_jadwal']
-                    tanggal_display = None
-
-                daftar_jadwal.append({
-                    'id_sesi': row['id_sesi'],
-                    'id_kelas': row['id_kelas'],
-                    'hari': hari_display,
-                    'tanggal_display': tanggal_display,
-                    'jam_mulai': _format_jam(row['jam_mulai']),
-                    'jam_selesai': _format_jam(row['jam_selesai']),
-                    'nama_kelas': row['nama_kelas'],
-                    'nama_pengajar': row['nama_pengajar'],
-                    'topik': row['topik_pembahasan'],
-                    'status_kelas': row['status_kelas'],
-                    'status_sesi': status_sesi,
-                })
+            # 4. Ambil semua kelas + sesi milik anak yang aktif dipilih
+            daftar_jadwal = _ambil_daftar_jadwal(cursor, anak_aktif['id_anak'])
 
         return render_template('orangtua/jadwal_belajar.html',
                                username=session.get('username'),
                                daftar_anak=daftar_anak,
                                anak_aktif=anak_aktif,
-                               daftar_jadwal=daftar_jadwal)
+                               foto_profil=foto_profil_user,
+                               daftar_jadwal=daftar_jadwal,
+                               google_calendar_connected=is_connected(id_orangtua))
 
     except Exception as e:
         print(f"Error memuat jadwal belajar: {e}")
         return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@orangtua_bp.route('/google_calendar/connect')
+def google_calendar_connect():
+    """Mulai alur OAuth: redirect orang tua ke consent screen Google."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    try:
+        auth_url, state = get_authorization_url()
+    except GoogleCalendarNotConfigured as e:
+        flash(str(e), 'error')
+        return redirect(url_for('orangtua.jadwal_belajar'))
+
+    session['gcal_oauth_state'] = state
+    session['gcal_return_to'] = request.args.get('next') or url_for('orangtua.jadwal_belajar')
+    return redirect(auth_url)
+
+
+@orangtua_bp.route('/google_calendar/oauth2callback')
+def google_calendar_callback():
+    """Google redirect ke sini setelah orang tua menyetujui/menolak akses."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    return_to = session.pop('gcal_return_to', None) or url_for('orangtua.jadwal_belajar')
+    state = session.pop('gcal_oauth_state', None)
+
+    if request.args.get('error'):
+        flash('Menghubungkan Google Calendar dibatalkan.', 'error')
+        return redirect(return_to)
+
+    try:
+        creds = exchange_code_for_credentials(state, request.url)
+        save_credentials(session['id_users'], creds)
+        flash('Google Calendar berhasil terhubung.', 'success')
+    except Exception as e:
+        print(f"Gagal menghubungkan Google Calendar: {e}")
+        flash('Gagal menghubungkan Google Calendar. Silakan coba lagi.', 'error')
+
+    return redirect(return_to)
+
+
+@orangtua_bp.route('/google_calendar/disconnect', methods=['POST'])
+def google_calendar_disconnect():
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    disconnect(session['id_users'])
+    return jsonify({'success': True})
+
+
+@orangtua_bp.route('/google_calendar/sync', methods=['POST'])
+def google_calendar_sync():
+    """Dipanggil oleh tombol 'Sinkronisasi Kalender' di halaman Jadwal Belajar."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    id_orangtua = session['id_users']
+    selected_anak_id = request.args.get('anak_id')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            (id_orangtua,)
+        )
+        daftar_anak = cursor.fetchall()
+        if not daftar_anak:
+            return jsonify({'success': False, 'message': 'Belum ada data anak terdaftar.'}), 400
+
+        anak_aktif = next(
+            (a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)),
+            daftar_anak[0]
+        )
+
+        daftar_jadwal = _ambil_daftar_jadwal(cursor, anak_aktif['id_anak'])
+
+        hasil = sync_jadwal_to_calendar(
+            id_orangtua, daftar_jadwal,
+            nama_anak=anak_aktif['nama_panggilan'] or anak_aktif['nama_lengkap']
+        )
+        return jsonify({'success': True, **hasil})
+
+    except GoogleCalendarNotConnected:
+        return jsonify({'success': False, 'code': 'NOT_CONNECTED', 'message': 'Belum terhubung ke Google Calendar.'}), 409
+    except GoogleCalendarNotConfigured as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    except Exception as e:
+        print(f"Error sinkronisasi Google Calendar: {e}")
+        return jsonify({'success': False, 'message': 'Terjadi kesalahan pada server.'}), 500
     finally:
         cursor.close()
         conn.close()

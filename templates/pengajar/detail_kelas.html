@@ -633,8 +633,20 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 font-medium text-gray-500">#{{ siswa.id_anak }}</td>
-                                        <td class="px-6 py-4 text-gray-700">{{ siswa.sekolah_asal or '-' }}</td>
-                                        <td class="px-6 py-4 text-gray-700">{{ siswa.kelas_sekolah or '-' }}</td>
+                                        <td class="px-6 py-4 text-gray-700">
+                                            {% if siswa.sekolah_asal %}
+                                                {{ siswa.sekolah_asal }}
+                                            {% else %}
+                                                <span class="text-gray-400 italic text-xs">Belum diisi</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-700">
+                                            {% if siswa.kelas %}
+                                                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold">{{ siswa.kelas }}</span>
+                                            {% else %}
+                                                <span class="text-gray-400 italic text-xs">Belum diisi</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}

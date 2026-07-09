@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TEC Portal - Detail Transaksi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
     <style>
         /* === Reset & Base Styles === */
@@ -116,16 +117,75 @@
             width: 100%;
         }
 
-        /* === Flash Messages === */
-        .flash-message {
-            padding: 14px 18px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
+        /* === Flash Message === */
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
-        .flash-success { background: #d1fae5; color: #065f46; }
-        .flash-error { background: #fee2e2; color: #991b1b; }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark, #202020);
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
 
         /* === Header Ringkasan Transaksi === */
         .trx-header {
@@ -485,15 +545,24 @@
 
             <div class="page-content">
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="flash-message {% if category == 'success' %}flash-success{% else %}flash-error{% endif %}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
+                <!-- Toast Notification -->
+                <div class="toast-container" id="toastContainer">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="toast {{ 'error' if category == 'error' else '' }}">
+                                    <div class="toast-icon">
+                                        <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' else 'fa-circle-check' }}"></i>
+                                    </div>
+                                    <span class="toast-message">{{ message }}</span>
+                                    <button type="button" class="toast-close" onclick="this.parentElement.remove()">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
 
                 <!-- Ringkasan transaksi: selalu tampil apa pun statusnya -->
                 <div class="trx-header">
@@ -655,6 +724,25 @@
     </div>
 
     <script>
+        // === Toast Notification Script ===
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(function (toast, index) {
+                // Animasi masuk
+                setTimeout(function () {
+                    toast.classList.add('show');
+                }, 100 + (index * 100));
+
+                // Animasi keluar dan hapus elemen setelah 4 detik
+                setTimeout(function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        toast.remove();
+                    }, 350);
+                }, 4000 + (index * 100));
+            });
+        });
+
         const logoutBtn = document.getElementById('btnTriggerLogout');
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();

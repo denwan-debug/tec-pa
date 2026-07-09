@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TEC Portal - Pengaturan Akun</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
     <style>
         /* === Reset & Base Styles === */
@@ -129,48 +130,6 @@
             overflow-y: auto;
         }
 
-        .topbar {
-            background-color: #FCF9F9; 
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #edf2f7;
-        }
-
-        .child-selector {
-            background-color: #fce7f3;
-            color: var(--primary-accent);
-            padding: 8px 35px 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font-family: inherit;
-            appearance: none; 
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b42b51' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 14px;
-            transition: background-color 0.2s;
-        }
-
-        .child-selector:hover, 
-        .child-selector:focus {
-            background-color: #fad1e6;
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
-        }
-
         /* === Dashboard Content === */
         .dashboard-container {
             padding: 30px;
@@ -279,6 +238,76 @@
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
         .btn-logout { flex: 1; padding: 12px; border-radius: 8px; background: #4a5568; color: white; text-decoration: none; font-weight: bold; }
         .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
+
+        /* === Flash Message === */
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark, #202020);
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
     </style>
 </head>
 <body>
@@ -361,22 +390,27 @@
         </aside>
 
         <main class="main-content">
-            <!-- Topbar - konsisten dengan index.html -->
-            <header class="topbar">
-                <div class="user-profile">
-                    <form id="childSelectForm" action="/index" method="GET">
-                        <select name="anak_id" class="child-selector" onchange="document.getElementById('childSelectForm').submit();">
-                            <option disabled selected>Pengaturan Akun</option>
-                        </select>
-                    </form>
-                </div>
-
-                <div class="user-profile text-capitalize">
-                    {{ username }}
-                </div>
-            </header>
-
             <div class="dashboard-container">
+
+                <!-- Toast Notification -->
+                <div class="toast-container" id="toastContainer">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="toast {{ 'error' if category == 'error' else '' }}">
+                                    <div class="toast-icon">
+                                        <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' else 'fa-circle-check' }}"></i>
+                                    </div>
+                                    <span class="toast-message">{{ message }}</span>
+                                    <button type="button" class="toast-close" onclick="this.parentElement.remove()">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
                 <!-- Welcome Banner Style for Header -->
                 <section class="welcome-banner">
                     <h1 class="text-capitalize">Pengaturan Akun</h1>
@@ -395,7 +429,11 @@
                                 </div>
                                 
                                 <div class="profile-upload">
-                                    <img src="{{ user.foto_profil if user.foto_profil else url_for('static', filename='img/default_parent.png') }}" class="profile-img-preview" id="previewImg" alt="Foto Profil">
+                                    {% if user.foto_profil and user.foto_profil.startswith('http') %}
+                                        <img src="{{ user.foto_profil }}" class="profile-img-preview" id="previewImg" alt="Foto Profil">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='img/' + (user.foto_profil if user.foto_profil else 'default_avatar.png')) }}" class="profile-img-preview" id="previewImg" alt="Foto Profil">
+                                    {% endif %}
                                     <div>
                                         <input type="file" id="foto_profil" name="foto_profil" accept=".jpg, .jpeg, .png" style="display: none;" onchange="previewFile()">
                                         <button type="button" class="btn-upload" onclick="document.getElementById('foto_profil').click()">Ubah Foto</button>
@@ -405,13 +443,12 @@
 
                                 <div class="form-group">
                                     <label class="form-label">Nama Lengkap Wali / Orang Tua</label>
-                                    <input type="text" class="form-control" name="nama_lengkap" value="{{ user.nama_lengkap or '' }}" placeholder="Masukkan nama lengkap Anda" required>
+                                    <input type="text" class="form-control" name="nama_lengkap" value="{{ user.nama_lengkap or '' }}" placeholder="Masukkan nama lengkap Anda">
                                 </div>
 
                                 <div class="form-group">
                                     <label class="form-label">Email Akun</label>
                                     <input type="email" class="form-control" value="{{ user.email }}" readonly>
-                                    <p style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px;">* Untuk mengubah email, silakan hubungi pusat bantuan demi keamanan akun.</p>
                                 </div>
 
                                 <div class="form-group">
@@ -496,6 +533,24 @@
     </div>
 
     <script>
+        // === Toast Notification Script ===
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(function (toast, index) {
+                // Animasi masuk
+                setTimeout(function () {
+                    toast.classList.add('show');
+                }, 100 + (index * 100));
+
+                // Animasi keluar dan hapus elemen setelah 4 detik
+                setTimeout(function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        toast.remove();
+                    }, 350);
+                }, 4000 + (index * 100));
+            });
+        });
         // === Modal Logout Script (Dari index.html) ===
         const modalLogout = document.getElementById('logoutModal');
         const logoutBtn = document.getElementById('btnTriggerLogout');

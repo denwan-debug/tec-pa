@@ -38,10 +38,10 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 INSERT INTO users (id_users, username, email, password, role_id_role, status_akun)
 VALUES (
-    '80B4304668',
-    'Admin',
-    'admin@admin',
-    'scrypt:32768:8:1$2mA7UH2qnMWVyLGM$9f5fbb9acbf1f60e4b99bdc6539a0c3d4ddc32241623480b617217760f1868e8b7d9c2cb32fbeb1e531a22cbdece8193515623bd3d2b2e2ddf4ee9d1c3a71ded',
+    '80B4304669',
+    'Admin 123',
+    'admin@admin123',
+    'admin123',
     'R03',
     'verified'
 );

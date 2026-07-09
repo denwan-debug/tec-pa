@@ -183,7 +183,7 @@
                                 <div class="shrink-0">
                                     {% if item.bukti_bayar %}
                                     <button type="button"
-                                            onclick="bukaBukti('{{ url_for('static', filename='uploads/bukti_pembayaran/' + item.bukti_bayar) }}')"
+                                            onclick="bukaBukti('{{ item.bukti_bayar }}')"
                                             class="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition whitespace-nowrap">
                                         <i class="fa-solid fa-paperclip"></i> Bukti
                                     </button>
@@ -235,6 +235,7 @@
                                     <th class="pb-4 font-bold">Tanggal</th>
                                     <th class="pb-4 font-bold">Jumlah</th>
                                     <th class="pb-4 font-bold">Status</th>
+                                    <th class="pb-4 font-bold">Bukti</th>
                                 </tr>
                             </thead>
                             <tbody class="text-sm font-semibold text-gray-700">
@@ -257,10 +258,23 @@
                                         <span class="bg-amber-50 text-amber-500 text-xs font-bold px-3 py-1.5 rounded-full">Pending</span>
                                         {% endif %}
                                     </td>
+                                    <td class="py-4">
+                                        {% if t.bukti_bayar %}
+                                        <button type="button"
+                                                onclick="bukaBukti('{{ t.bukti_bayar }}')"
+                                                class="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+                                            <i class="fa-solid fa-paperclip"></i> Bukti
+                                        </button>
+                                        {% else %}
+                                        <span class="flex items-center gap-1.5 bg-gray-50 text-gray-400 font-semibold text-xs px-3 py-1.5 rounded-lg border border-dashed border-gray-200 whitespace-nowrap w-fit">
+                                            <i class="fa-solid fa-circle-exclamation"></i> Tanpa Bukti
+                                        </span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" class="py-10 text-center text-gray-400 font-medium">Belum ada data transaksi.</td>
+                                    <td colspan="7" class="py-10 text-center text-gray-400 font-medium">Belum ada data transaksi.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -293,6 +307,11 @@
                 <button onclick="tutupBukti()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <img id="buktiImage" src="" alt="Bukti Pembayaran" class="w-full rounded-xl border border-gray-100 object-contain max-h-[70vh]">
+            <div id="buktiError" class="hidden text-center py-10">
+                <i class="fa-solid fa-circle-exclamation text-3xl text-red-400 mb-3"></i>
+                <p class="text-sm text-gray-500 font-semibold">Bukti pembayaran gagal dimuat.</p>
+                <a id="buktiLinkFallback" href="#" target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-bold text-blue-600 hover:underline">Buka di tab baru &rarr;</a>
+            </div>
         </div>
     </div>
 
@@ -343,12 +362,41 @@
 
     <script>
         // --- MODAL BUKTI PEMBAYARAN ---
+        // url di sini adalah URL Cloudinary lengkap yang tersimpan di kolom
+        // bukti_bayar pada database (diisi saat orang tua mengupload bukti).
         function bukaBukti(url) {
-            document.getElementById('buktiImage').src = url;
+            const img = document.getElementById('buktiImage');
+            const errorBox = document.getElementById('buktiError');
+            const fallbackLink = document.getElementById('buktiLinkFallback');
+
+            if (!url) {
+                console.warn('bukaBukti dipanggil tanpa URL bukti pembayaran.');
+                return;
+            }
+
+            fallbackLink.href = url;
+
+            // File PDF tidak bisa dirender lewat <img>, jadi langsung buka di tab baru.
+            if (url.toLowerCase().endsWith('.pdf')) {
+                window.open(url, '_blank', 'noopener');
+                return;
+            }
+
+            // Reset tampilan sebelum memuat gambar baru
+            img.classList.remove('hidden');
+            errorBox.classList.add('hidden');
+            img.src = url;
+
+            img.onerror = () => {
+                img.classList.add('hidden');
+                errorBox.classList.remove('hidden');
+            };
+
             document.getElementById('buktiModal').classList.remove('hidden');
         }
         function tutupBukti() {
             document.getElementById('buktiModal').classList.add('hidden');
+            document.getElementById('buktiImage').src = '';
         }
 
         // --- MODAL TOLAK PEMBAYARAN ---

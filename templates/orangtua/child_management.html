@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TEC Portal - Manajemen Anak</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+
         /* === Reset & Base Styles === */
         * {
             margin: 0;
@@ -217,6 +219,19 @@
             height: 100%;
             border-radius: 14px;
             object-fit: cover;
+        }
+
+        /* Fallback: dipakai kalau anak belum punya foto profil.
+           Menampilkan kotak pink berisi inisial huruf pertama nama panggilan/lengkap. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3; /* Latar pink muda */
+            color: var(--primary-accent); /* Huruf pink tua */
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
         .status-dot {
@@ -485,6 +500,76 @@
             cursor: pointer; 
         }        
         .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
+    
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark, #202020);
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
+
     </style>
     <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
 </head>
@@ -720,15 +805,24 @@
 
             <div class="dashboard-container">
                 
+                <!-- Toast Notification Container -->
+            <div class="toast-container" id="toastContainer">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div style="padding: 12px 15px; margin-bottom: 20px; border-radius: 8px; font-weight: 600; background-color: {% if category == 'error' %}#fee2e2{% else %}#dcfce7{% endif %}; color: {% if category == 'error' %}#991b1b{% else %}#166534{% endif %}; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                {{ message }}
+                            <div class="toast {{ 'error' if category == 'error' else '' }}">
+                                <div class="toast-icon">
+                                    <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' else 'fa-circle-check' }}"></i>
+                                </div>
+                                <span class="toast-message">{{ message }}</span>
+                                <button type="button" class="toast-close" onclick="this.parentElement.remove()">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
                             </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+            </div>
 
                 <div class="management-grid">
     
@@ -752,7 +846,11 @@
                                 data-tanggallahir="{{ anak.tanggal_lahir.strftime('%Y-%m-%d') if anak.tanggal_lahir else '' }}">
                                 
                                 <div class="avatar-container">
-                                    <img src="{{ url_for('static', filename='img/' + anak.foto_profil) if anak.foto_profil else 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=150&auto=format&fit=crop&q=80' }}" class="avatar-img" alt="{{ anak.nama_panggilan }}">
+                                    {% if anak.foto_profil and 'http' in anak.foto_profil %}
+                                        <img src="{{ anak.foto_profil }}" class="avatar-img" alt="{{ anak.nama_panggilan }}">
+                                    {% else %}
+                                        <div class="avatar-img avatar-initial">{{ (anak.nama_panggilan[0] if anak.nama_panggilan else (anak.nama_lengkap[0] if anak.nama_lengkap else '?')) }}</div>
+                                    {% endif %}
                                     <span class="status-dot"></span>
                                 </div>
                                 <div class="child-info">
@@ -987,6 +1085,25 @@
         if (e.target === modalEdit) modalEdit.style.display = 'none';
         if (e.target === modalLogout) modalLogout.style.display = 'none';
     });
+    document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(function (toast, index) {
+                // Animasi masuk
+                setTimeout(function () {
+                    toast.classList.add('show');
+                }, 100 + (index * 100));
+
+                // Animasi keluar dan hapus elemen setelah 4 detik
+                setTimeout(function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        toast.remove();
+                    }, 350);
+                }, 4000 + (index * 100));
+            });
+        });
+
 </script>
+        
 </body>
 </html>

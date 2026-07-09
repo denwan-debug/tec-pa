@@ -87,33 +87,40 @@
             overflow-y: auto; background-color: #fcfbfa;
         }
 
-        /* === Top Navbar === */
-        .top-navbar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 35px; background-color: var(--bg-light); border-bottom: 1px solid #f1f5f9;
+        /* === Top Navbar (konsisten dengan index.html, tanpa search bar) === */
+        .topbar {
+            display: flex; justify-content: flex-end; align-items: center;
+            padding: 15px 30px; background-color: #FCF9F9; border-bottom: 1px solid #edf2f7;
+            min-height: 63px; box-sizing: border-box;
+            /* position dan z-index dihapus agar topbar ikut ter-scroll secara normal */
         }
 
-        .search-container { position: relative; width: 350px; }
-        .search-container input {
-            width: 100%; padding: 10px 15px 10px 40px; border-radius: 20px;
-            border: 1px solid #f1f5f9; background-color: #fdfafb; font-size: 0.9rem; outline: none;
+        .user-profile-header {
+            display: flex; align-items: center; gap: 15px;
+            /* dulunya position:absolute -> lepas dari topbar & tembus konten saat scroll.
+               Sekarang mengikuti alur flex topbar (justify-content:flex-end) */
         }
-        .search-container svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
 
-        .top-nav-right { display: flex; align-items: center; gap: 25px; }
-        .btn-switch-account {
-            display: flex; align-items: center; gap: 8px; background-color: #e0f2fe;
-            color: #0369a1; border: none; padding: 8px 16px; border-radius: 20px;
-            font-weight: 600; font-size: 0.85rem; cursor: pointer;
+        .user-info {
+            display: flex; flex-direction: column; text-align: right; line-height: 1.2;
+            white-space: nowrap; /* Nama tidak pernah terpotong/wrap */
         }
-        .notification-icon { position: relative; cursor: pointer; color: #1e293b; }
-        .notification-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background-color: var(--primary-accent); border-radius: 50%; }
-        
-        .user-profile-info { display: flex; align-items: center; gap: 12px; }
-        .profile-text { text-align: right; }
-        .profile-text h4 { font-size: 0.9rem; color: #1e293b; font-weight: 600; }
-        .profile-text p { font-size: 0.75rem; color: #7a8b94; }
-        .profile-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+
+        .username-text { font-size: 18px; font-weight: 600; color: #2b2525; }
+        .user-role { font-size: 14px; color: #6d5b5b; font-weight: 500; }
+
+        .top-parent-avatar {
+            width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
+            border: 3px solid #fbd0dd; padding: 2px; background-color: #ffffff;
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex; align-items: center; justify-content: center;
+            background-color: #fce7f3; color: var(--primary-accent);
+            font-size: 20px; font-weight: 700; text-transform: uppercase;
+        }
 
         /* === Content Header === */
         .content-header { display: flex; justify-content: space-between; align-items: center; padding: 30px 35px 25px 35px; }
@@ -127,6 +134,131 @@
             box-shadow: 0 4px 6px rgba(180, 43, 81, 0.15); transition: background 0.2s;
         }
         .btn-sync-calendar:hover { background-color: #922040; }
+
+        /* === View Toggle (Kalender / Daftar) === */
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .view-toggle {
+            display: flex; background-color: #fdeef1; border-radius: 8px; padding: 4px;
+        }
+        .view-toggle button {
+            border: none; background: transparent; padding: 8px 18px; border-radius: 6px;
+            font-size: 0.8rem; font-weight: 700; letter-spacing: 0.03em; color: var(--primary-accent);
+            cursor: pointer; transition: 0.2s;
+        }
+        .view-toggle button.active { background-color: var(--primary-accent); color: #fff; }
+
+        /* === Calendar View === */
+        /* Tinggi kalender dibatasi agar pas di layar (dihitung via JS -> --cal-height),
+           dengan fallback jika JS belum sempat jalan. Kolom kiri & kanan diregangkan
+           penuh (stretch) supaya masing-masing bisa scroll internal sendiri. */
+        .calendar-layout {
+            display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: stretch;
+            min-height: var(--cal-height, 70vh); /* Menggunakan min-height agar bisa memanjang ke bawah jika terpaksa */
+        }
+
+        .calendar-col-left { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+
+        .mini-calendar-card, .day-detail-card {
+            background: var(--bg-light); border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+        .mini-calendar-card { flex-shrink: 0; }
+        .day-detail-card { 
+            margin-top: 20px; 
+            flex: 1; 
+            min-height: 200px; /* Memberikan garansi minimal tinggi 200px agar tidak gepeng */
+            overflow-y: auto; 
+        }
+
+        .mini-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .mini-cal-header h3 { font-size: 1.05rem; color: #1e293b; font-weight: 700; text-transform: capitalize; }
+        .mini-cal-nav { display: flex; gap: 6px; }
+        .mini-cal-nav button {
+            border: 1px solid #e2e8f0; background: #fff; width: 26px; height: 26px; border-radius: 6px;
+            cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center;
+        }
+        .mini-cal-nav button:hover { background: #f1f5f9; }
+
+        .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+        .mini-cal-grid .dow { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; padding-bottom: 6px; }
+        .mini-cal-day {
+            position: relative; padding: 8px 0; font-size: 0.85rem; border-radius: 8px; cursor: pointer;
+            color: #334155; display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .mini-cal-day.other-month { color: #cbd5e1; cursor: default; }
+        .mini-cal-day:hover:not(.other-month) { background: #f1f5f9; }
+        .mini-cal-day.selected { background: var(--primary-accent); color: #fff; font-weight: 700; }
+        .mini-cal-day.today:not(.selected) { border: 1px solid var(--primary-accent); font-weight: 700; }
+        .mini-cal-dot { width: 4px; height: 4px; border-radius: 50%; background: #7dd3fc; }
+        .mini-cal-day.selected .mini-cal-dot { background: #fff; }
+
+        .day-detail-card h4 { font-size: 0.95rem; color: #1e293b; margin-bottom: 12px; }
+        .day-event-item {
+            display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--card-border);
+        }
+        .day-event-item:last-child { border-bottom: none; }
+        .day-event-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+        .day-event-item .t { font-size: 0.78rem; color: var(--text-muted); }
+        .day-event-item .n { font-size: 0.9rem; font-weight: 700; color: #1e293b; }
+        .day-event-item .p { font-size: 0.78rem; color: #64748b; }
+        .day-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px 0; }
+
+        .week-card {
+            background: var(--bg-light); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px;
+            display: flex; flex-direction: column; height: 100%; min-height: 0;
+        }
+        .week-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-shrink: 0; }
+        .week-card-header h3 { font-size: 1.1rem; color: #1e293b; font-weight: 700; }
+        .week-nav { display: flex; align-items: center; gap: 10px; }
+        .week-nav button {
+            border: 1px solid #e2e8f0; background: #fff; width: 30px; height: 30px; border-radius: 6px;
+            cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center;
+        }
+        .week-nav button:hover { background: #f1f5f9; }
+        .legend { display: flex; gap: 16px; font-size: 0.8rem; color: #475569; }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+        .week-grid-scroll { 
+            overflow-y: auto; /* Mengizinkan scroll atas-bawah jika jadwal sangat banyak */
+            overflow-x: hidden; /* Mematikan scroll samping */
+            flex: 1; 
+            min-height: 0; 
+        }
+        .week-grid {
+            display: grid; 
+            /* Mengubah 120px menjadi 0 agar kotak hari bisa mengecil menyesuaikan sisa layar */
+            grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+            border-top: 1px solid var(--card-border); 
+            border-left: 1px solid var(--card-border);
+        }
+        .week-grid-col-header {
+            padding: 10px 4px; text-align: center; font-size: 0.8rem; color: #475569; font-weight: 600;
+            border-right: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border);
+            background: #fafafa;
+        }
+        .week-grid-col-header.is-today { color: var(--primary-accent); }
+        .week-grid-col-header .d { display: block; font-size: 1rem; font-weight: 700; margin-top: 2px; }
+        .week-grid-time-label {
+            font-size: 0.7rem; color: var(--text-muted); text-align: right; padding: 4px 6px;
+            border-right: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border);
+        }
+        .week-grid-cell {
+            position: relative; min-height: 52px; border-right: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .week-event {
+            position: absolute; left: 2px; right: 2px; border-radius: 8px; 
+            padding: 4px; /* Padding dikurangi agar tidak terlalu sesak saat kotak mengecil */
+            font-size: 0.65rem; line-height: 1.15; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            cursor: default;
+            word-break: break-word; /* Memaksa teks turun ke baris baru jika kotak kalender menjadi sempit */
+        }
+                .week-event .n { font-weight: 700; display: block; }
+        .week-event.status-akandatang { background: #dbeafe; color: #1d4ed8; border-left: 3px solid #1d4ed8; }
+        .week-event.status-berlangsung { background: #ffe4e6; color: #be123c; border-left: 3px solid #be123c; }
+        .week-event.status-selesai { background: #dcfce3; color: #15803d; border-left: 3px solid #15803d; }
+        .week-event.status-rutin { background: #f1f5f9; color: #475569; border-left: 3px dashed #94a3b8; }
 
         /* === Dashboard Containers & Filters === */
         .dashboard-container { padding: 0 35px 35px 35px; }
@@ -331,36 +463,20 @@
 
         <main class="main-content">
             
-            <div class="top-navbar">
-                <div class="search-container">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input type="text" placeholder="Cari jadwal kelas...">
-                </div>
-                
-                <div class="top-nav-right">
-                    <button class="btn-switch-account">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
-                        Ganti Akun Anak
-                    </button>
-                    <div class="notification-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                        <span class="notification-dot"></span>
+            <header class="topbar">
+                <div class="user-profile-header">
+                    <div class="user-info">
+                        <span class="username-text">{{ username }}</span>
+                        <span class="user-role">Orang Tua</span>
                     </div>
-                    <div class="user-profile-info">
-                        <div class="profile-text">
-                            <h4>{{ username or 'Orang Tua' }}</h4>
-                            <p>Orang Tua</p>
-                        </div>
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Profile" class="profile-avatar">
-                    </div>
+
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
                 </div>
-            </div>
+            </header>
 
             <div class="content-header">
                 <div class="header-title">
@@ -371,16 +487,68 @@
                     <p>Pantau dan kelola jadwal kelas agar tidak ada sesi yang terlewat.</p>
                     {% endif %}
                 </div>
-                <button class="btn-sync-calendar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    Sinkronisasi Kalender
-                </button>
+                <div class="header-actions">
+                    {% if daftar_anak %}
+                    <div class="view-toggle">
+                        <button type="button" id="btnViewKalender" class="active" onclick="switchView('kalender')">KALENDER</button>
+                        <button type="button" id="btnViewDaftar" onclick="switchView('daftar')">DAFTAR</button>
+                    </div>
+                    {% endif %}
+                    <button class="btn-sync-calendar" id="btnSyncCalendar" type="button">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span id="btnSyncCalendarLabel">{{ 'Sinkronisasi Kalender' if google_calendar_connected else 'Hubungkan Google Calendar' }}</span>
+                    </button>
+                </div>
             </div>
 
             <div class="dashboard-container">
                 {% if daftar_anak %}
+
+                <!-- ===== TAMPILAN KALENDER ===== -->
+                <div id="viewKalender">
+                    <div class="calendar-layout">
+                        <div class="calendar-col-left">
+                            <div class="mini-calendar-card">
+                                <div class="mini-cal-header">
+                                    <h3 id="miniCalTitle"></h3>
+                                    <div class="mini-cal-nav">
+                                        <button type="button" onclick="miniCalPrevMonth()">&lsaquo;</button>
+                                        <button type="button" onclick="miniCalNextMonth()">&rsaquo;</button>
+                                    </div>
+                                </div>
+                                <div class="mini-cal-grid" id="miniCalGrid"></div>
+                            </div>
+                            <div class="day-detail-card">
+                                <h4 id="dayDetailTitle"></h4>
+                                <div id="dayDetailList"></div>
+                            </div>
+                        </div>
+
+                        <div class="week-card">
+                            <div class="week-card-header">
+                                <div class="week-nav">
+                                    <button type="button" onclick="weekPrev()">&lsaquo;</button>
+                                    <h3 id="weekRangeTitle"></h3>
+                                    <button type="button" onclick="weekNext()">&rsaquo;</button>
+                                </div>
+                                <div class="legend">
+                                    <span><span class="legend-dot" style="background:#1d4ed8;"></span>Akan Datang</span>
+                                    <span><span class="legend-dot" style="background:#be123c;"></span>Berlangsung</span>
+                                    <span><span class="legend-dot" style="background:#15803d;"></span>Selesai</span>
+                                    <span><span class="legend-dot" style="background:#94a3b8;"></span>Rutin</span>
+                                </div>
+                            </div>
+                            <div class="week-grid-scroll">
+                                <div class="week-grid" id="weekGrid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== TAMPILAN DAFTAR (KARTU) ===== -->
+                <div id="viewDaftar" style="display:none;">
                 <div class="filter-row">
                     <div class="filter-controls">
                         <select class="select-filter" id="selectAnak" onchange="if(this.value){ window.location.href = '/jadwal_belajar?anak_id=' + this.value; }">
@@ -451,6 +619,7 @@
                     </div>
                     {% endfor %}
                 </div>
+                </div><!-- /#viewDaftar -->
                 {% else %}
                 <div style="text-align:center; padding:60px 20px; color:#7a8b94;">
                     <p style="font-size:1rem; font-weight:600; margin-bottom:6px;">Anda belum memiliki data anak terdaftar.</p>
@@ -462,6 +631,299 @@
     </div>
 
     <script>
+        /* =========================================================
+           DATA JADWAL (dikirim langsung dari Flask, dari tabel
+           pendaftaran + kelas + sesi_kelas -- bukan Google Calendar API,
+           jadi tidak perlu login akun Google).
+        ========================================================= */
+        const JADWAL_DATA = {{ daftar_jadwal | tojson }};
+
+        const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const HARI_ID_MON_FIRST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const START_HOUR = 7, END_HOUR = 21, ROW_H = 52;
+
+        function toDate(iso) { return new Date(iso + 'T00:00:00'); }
+        function isoOf(d) {
+            const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+            return `${y}-${m}-${dd}`;
+        }
+        function statusClass(status) {
+            if (status === 'Akan Datang') return 'status-akandatang';
+            if (status === 'Sedang Berlangsung') return 'status-berlangsung';
+            if (status === 'Selesai') return 'status-selesai';
+            return 'status-rutin';
+        }
+        function timeToMinutes(t) { const [h,m] = t.split(':').map(Number); return h*60+m; }
+
+        // ---- State ----
+        let miniCalMonth = new Date(); miniCalMonth.setDate(1);
+        let selectedDate = new Date();
+        let weekStart = mondayOf(new Date());
+
+        function mondayOf(d) {
+            const nd = new Date(d);
+            const day = (nd.getDay() + 6) % 7; // 0 = Senin
+            nd.setDate(nd.getDate() - day);
+            nd.setHours(0,0,0,0);
+            return nd;
+        }
+
+        // ---- View toggle (Kalender / Daftar Kartu) ----
+        function switchView(view) {
+            const cal = document.getElementById('viewKalender');
+            const list = document.getElementById('viewDaftar');
+            const btnCal = document.getElementById('btnViewKalender');
+            const btnList = document.getElementById('btnViewDaftar');
+            if (!cal || !list) return;
+            if (view === 'kalender') {
+                cal.style.display = ''; list.style.display = 'none';
+                btnCal.classList.add('active'); btnList.classList.remove('active');
+            } else {
+                cal.style.display = 'none'; list.style.display = '';
+                btnCal.classList.remove('active'); btnList.classList.add('active');
+            }
+        }
+
+        // ---- Mini month calendar ----
+        function miniCalPrevMonth() { miniCalMonth.setMonth(miniCalMonth.getMonth()-1); renderMiniCal(); }
+        function miniCalNextMonth() { miniCalMonth.setMonth(miniCalMonth.getMonth()+1); renderMiniCal(); }
+
+        function datesWithSessions() {
+            const set = new Set();
+            JADWAL_DATA.forEach(j => { if (j.tanggal_iso) set.add(j.tanggal_iso); });
+            return set;
+        }
+
+        function renderMiniCal() {
+            const title = document.getElementById('miniCalTitle');
+            title.textContent = `${BULAN_ID[miniCalMonth.getMonth()]} ${miniCalMonth.getFullYear()}`;
+
+            const grid = document.getElementById('miniCalGrid');
+            grid.innerHTML = '';
+            HARI_ID_MON_FIRST.forEach(h => {
+                const el = document.createElement('div');
+                el.className = 'dow';
+                el.textContent = h[0];
+                grid.appendChild(el);
+            });
+
+            const firstOfMonth = new Date(miniCalMonth.getFullYear(), miniCalMonth.getMonth(), 1);
+            const startOffset = (firstOfMonth.getDay() + 6) % 7; // 0 = Senin
+            const gridStart = new Date(firstOfMonth);
+            gridStart.setDate(gridStart.getDate() - startOffset);
+
+            const sessionDates = datesWithSessions();
+            const todayIso = isoOf(new Date());
+            const selectedIso = isoOf(selectedDate);
+
+            for (let i = 0; i < 42; i++) {
+                const d = new Date(gridStart);
+                d.setDate(d.getDate() + i);
+                const iso = isoOf(d);
+                const el = document.createElement('div');
+                el.className = 'mini-cal-day';
+                if (d.getMonth() !== miniCalMonth.getMonth()) el.classList.add('other-month');
+                if (iso === todayIso) el.classList.add('today');
+                if (iso === selectedIso) el.classList.add('selected');
+
+                const num = document.createElement('span');
+                num.textContent = d.getDate();
+                el.appendChild(num);
+                if (sessionDates.has(iso)) {
+                    const dot = document.createElement('span');
+                    dot.className = 'mini-cal-dot';
+                    el.appendChild(dot);
+                }
+                el.addEventListener('click', () => {
+                    selectedDate = d;
+                    weekStart = mondayOf(d);
+                    renderMiniCal();
+                    renderDayDetail();
+                    renderWeekGrid();
+                });
+                grid.appendChild(el);
+            }
+        }
+
+        // ---- Daftar sesi pada tanggal terpilih ----
+        function renderDayDetail() {
+            const iso = isoOf(selectedDate);
+            document.getElementById('dayDetailTitle').textContent =
+                `${HARI_ID[selectedDate.getDay()]}, ${selectedDate.getDate()} ${BULAN_ID[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+            const list = document.getElementById('dayDetailList');
+            list.innerHTML = '';
+            const items = JADWAL_DATA.filter(j => j.tanggal_iso === iso)
+                .sort((a,b) => timeToMinutes(a.jam_mulai) - timeToMinutes(b.jam_mulai));
+
+            if (items.length === 0) {
+                list.innerHTML = '<div class="day-empty">Tidak ada sesi kelas pada tanggal ini.</div>';
+                return;
+            }
+            const dotColor = { 'Akan Datang': '#1d4ed8', 'Sedang Berlangsung': '#be123c', 'Selesai': '#15803d' };
+            items.forEach(j => {
+                const row = document.createElement('div');
+                row.className = 'day-event-item';
+                row.innerHTML = `
+                    <span class="day-event-dot" style="background:${dotColor[j.status_sesi] || '#94a3b8'};"></span>
+                    <div>
+                        <div class="n">${j.nama_kelas}</div>
+                        <div class="t">${j.jam_mulai} - ${j.jam_selesai} WIB</div>
+                        <div class="p">${j.nama_pengajar}</div>
+                    </div>`;
+                list.appendChild(row);
+            });
+        }
+
+        // ---- Week agenda grid ----
+        function weekPrev() { weekStart.setDate(weekStart.getDate()-7); renderWeekGrid(); }
+        function weekNext() { weekStart.setDate(weekStart.getDate()+7); renderWeekGrid(); }
+
+        function renderWeekGrid() {
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(weekStart);
+                d.setDate(d.getDate() + i);
+                weekDates.push(d);
+            }
+            const last = weekDates[6];
+            document.getElementById('weekRangeTitle').textContent =
+                `Minggu ${weekStart.getDate()} ${BULAN_ID[weekStart.getMonth()].slice(0,3)} - ${last.getDate()} ${BULAN_ID[last.getMonth()].slice(0,3)}`;
+
+            const grid = document.getElementById('weekGrid');
+            grid.innerHTML = '';
+            const numHours = END_HOUR - START_HOUR;
+            grid.style.gridTemplateRows = `auto repeat(${numHours}, ${ROW_H}px)`;
+
+            // Header row
+            const corner = document.createElement('div');
+            corner.className = 'week-grid-col-header';
+            grid.appendChild(corner);
+
+            const todayIso = isoOf(new Date());
+            weekDates.forEach(d => {
+                const h = document.createElement('div');
+                h.className = 'week-grid-col-header' + (isoOf(d) === todayIso ? ' is-today' : '');
+                h.innerHTML = `${HARI_ID[d.getDay()]}<span class="d">${d.getDate()}</span>`;
+                grid.appendChild(h);
+            });
+
+            // Time labels (kolom 1, baris 2..N)
+            for (let h = START_HOUR; h < END_HOUR; h++) {
+                const lbl = document.createElement('div');
+                lbl.className = 'week-grid-time-label';
+                lbl.textContent = `${String(h).padStart(2,'0')}:00`;
+                lbl.style.gridColumn = '1';
+                lbl.style.gridRow = String(2 + (h - START_HOUR));
+                grid.appendChild(lbl);
+            }
+
+            // Kolom hari, masing-masing 1 container yang membentang semua baris jam
+            weekDates.forEach((d, idx) => {
+                const col = document.createElement('div');
+                col.className = 'week-grid-cell';
+                col.style.gridColumn = String(idx + 2);
+                col.style.gridRow = `2 / span ${numHours}`;
+                col.style.minHeight = (numHours * ROW_H) + 'px';
+
+                const iso = isoOf(d);
+                const hariNama = HARI_ID[d.getDay()];
+
+                const events = JADWAL_DATA.filter(j => {
+                    if (j.tanggal_iso) return j.tanggal_iso === iso;
+                    // Jadwal rutin (belum ada sesi_kelas spesifik) -> tampilkan tiap minggu di hari yg sama
+                    return j.status_sesi === 'Terjadwal Rutin' && j.hari === hariNama;
+                });
+
+                events.forEach(j => {
+                    const startMin = timeToMinutes(j.jam_mulai);
+                    const endMin = timeToMinutes(j.jam_selesai);
+                    const top = Math.max(0, (startMin - START_HOUR*60) / 60 * ROW_H);
+                    const height = Math.max(28, (endMin - startMin) / 60 * ROW_H - 2);
+
+                    const ev = document.createElement('div');
+                    ev.className = 'week-event ' + statusClass(j.status_sesi);
+                    ev.style.top = top + 'px';
+                    ev.style.height = height + 'px';
+                    ev.innerHTML = `<span class="n">${j.nama_kelas}</span>${j.jam_mulai}-${j.jam_selesai}`;
+                    ev.title = `${j.nama_kelas} (${j.nama_pengajar})`;
+                    col.appendChild(ev);
+                });
+
+                grid.appendChild(col);
+            });
+        }
+
+        function initCalendarView() {
+            if (!document.getElementById('viewKalender')) return; // tidak ada anak terdaftar
+            renderMiniCal();
+            renderDayDetail();
+            renderWeekGrid();
+        }
+        initCalendarView();
+
+        // ---- Sesuaikan tinggi kalender agar selalu pas di layar (tidak kelewatan) ----
+        function updateCalendarHeight() {
+            const topbar = document.querySelector('.topbar');
+            const contentHeader = document.querySelector('.content-header');
+            const dashboardContainer = document.querySelector('.dashboard-container');
+            if (!topbar || !contentHeader || !dashboardContainer) return;
+
+            const bottomPad = parseFloat(getComputedStyle(dashboardContainer).paddingBottom) || 0;
+            const used = topbar.offsetHeight + contentHeader.offsetHeight + bottomPad + 24; // 24px = margin aman
+            const available = Math.max(360, window.innerHeight - used);
+
+            document.documentElement.style.setProperty('--cal-height', available + 'px');
+        }
+        window.addEventListener('resize', updateCalendarHeight);
+        window.addEventListener('load', updateCalendarHeight);
+        updateCalendarHeight();
+
+        /* =========================================================
+           Sinkronisasi Google Calendar
+        ========================================================= */
+        const GCAL_CONNECTED = {{ 'true' if google_calendar_connected else 'false' }};
+        const CURRENT_ANAK_ID = {{ (anak_aktif.id_anak | tojson) if anak_aktif else 'null' }};
+
+        const btnSync = document.getElementById('btnSyncCalendar');
+        if (btnSync) {
+            btnSync.addEventListener('click', async () => {
+                if (!GCAL_CONNECTED) {
+                    const nextUrl = window.location.pathname + window.location.search;
+                    window.location.href = '/google_calendar/connect?next=' + encodeURIComponent(nextUrl);
+                    return;
+                }
+
+                const label = document.getElementById('btnSyncCalendarLabel');
+                const originalLabel = label.textContent;
+                btnSync.disabled = true;
+                label.textContent = 'Menyinkronkan...';
+
+                try {
+                    const params = new URLSearchParams();
+                    if (CURRENT_ANAK_ID) params.set('anak_id', CURRENT_ANAK_ID);
+
+                    const res = await fetch('/google_calendar/sync?' + params.toString(), { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        alert(`Sinkronisasi selesai.\n${data.created} sesi baru ditambahkan, ${data.updated} sesi diperbarui, ${data.skipped} jadwal rutin dilewati (belum ada tanggal pasti).`);
+                    } else if (data.code === 'NOT_CONNECTED') {
+                        const nextUrl = window.location.pathname + window.location.search;
+                        window.location.href = '/google_calendar/connect?next=' + encodeURIComponent(nextUrl);
+                    } else {
+                        alert('Gagal sinkronisasi: ' + (data.message || 'Terjadi kesalahan.'));
+                    }
+                } catch (e) {
+                    alert('Gagal terhubung ke server.');
+                } finally {
+                    btnSync.disabled = false;
+                    label.textContent = originalLabel;
+                }
+            });
+        }
+
         // Filter kartu jadwal berdasarkan status (Akan Datang / Sedang Berlangsung / Selesai)
         function filterJadwalByStatus(status) {
             const cards = document.querySelectorAll('#scheduleGrid .schedule-card');

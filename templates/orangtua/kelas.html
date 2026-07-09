@@ -143,6 +143,7 @@
             align-items: center;
             border-bottom: 1px solid var(--border-light);
             min-height: 70px;
+            position: relative; /* agar .user-profile-header (absolute) terikat pas ke topbar ini */
         }
 
         .search-container {
@@ -191,6 +192,7 @@
             flex-direction: column;
             text-align: right; /* Mengatur teks agar rata kanan */
             line-height: 1.2;
+            white-space: nowrap; /* Nama tidak pernah terpotong/wrap */
         }
 
         .username-text {
@@ -215,6 +217,20 @@
             border: 3px solid #fbd0dd; /* Border pink sesuai referensi */
             padding: 2px; /* Memberi jarak putih antara foto dan border */
             background-color: #ffffff; /* Warna dasar padding */
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3; /* Latar pink muda */
+            color: var(--primary-accent); /* Huruf pink tua */
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-transform: uppercase;
         }
 
         /* === Dashboard Content === */
@@ -511,17 +527,33 @@
                         <span class="user-role">Orang Tua</span>
                     </div>
                     
-                    <!-- Ubah path src untuk menyesuaikan dengan database dan direktori backend -->
-                    <img src="{{ url_for('static', filename='img/' ~ foto_profil) }}" 
-                        alt="Foto Profil" 
-                        class="top-parent-avatar">
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
                 </div>
             </header>
 
             <div class="dashboard-container">
+                <!-- Sebelumnya hanya berisi h1 dan p -->
                 <section class="card welcome-banner">
                     <h1>Pilihan Kelas Bahasa Inggris</h1>
                     <p>Temukan kelas terbaik yang sesuai dengan tingkat kemampuan akademik anak Anda</p>
+                    
+                    <!-- Tambahkan blok peringatan ini -->
+                    {% if not profil_lengkap %}
+                    <div style="margin-top: 15px; padding: 12px 15px; background-color: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 6px; display: flex; align-items: flex-start; gap: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span style="color: #92400e; font-size: 0.9rem; font-weight: 500; line-height: 1.5;">
+                            <strong>Pendaftaran Terkunci:</strong> Mohon lengkapi informasi alamat dan nomor telepon Anda terlebih dahulu di bagian <a href="/pengaturan" style="color: #d97706; font-weight: 700; text-decoration: underline;">Pengaturan</a> agar dapat memilih dan mendaftar kelas.
+                        </span>
+                    </div>
+                    {% endif %}
                 </section>
 
                 <div class="class-grid">
@@ -564,11 +596,23 @@
                                 Rp {{ "{:,.0f}".format(kelas.harga).replace(',', '.') }}
                             </div>
 
-                            <a href="{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}" 
+                           <!-- Ganti bagian tombol btn-daftar menjadi ini -->
+                            <a href="{% if not profil_lengkap %}#{% else %}{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}{% endif %}" 
                                 class="btn-daftar" 
-                                style="text-align: center; display: block; text-decoration: none;"
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %} style="pointer-events: none; background-color: #cbd5e1;" {% endif %}>
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}Kuota Penuh{% else %}Daftar Kelas{% endif %}
+                                style="text-align: center; display: block; text-decoration: none; {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal or not profil_lengkap %}background-color: #cbd5e1; color: #64748b;{% endif %}"
+                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %} 
+                                    style="pointer-events: none;" 
+                                {% elif not profil_lengkap %}
+                                    onclick="alert('Mohon lengkapi Nomor Telepon dan Alamat Anda di menu Pengaturan terlebih dahulu sebelum mendaftar kelas.'); window.location.href='/pengaturan'; return false;"
+                                {% endif %}>
+                                
+                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}
+                                    Kuota Penuh
+                                {% elif not profil_lengkap %}
+                                    Lengkapi Profil Dulu
+                                {% else %}
+                                    Daftar Kelas
+                                {% endif %}
                             </a>
                         </div>
                     </div>
