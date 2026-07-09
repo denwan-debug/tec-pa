@@ -53,7 +53,7 @@
                 <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
                     <i class="fa-solid fa-user-tie w-5 text-slate-600"></i> Manajemen Pengajar
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="{{ url_for('admin.validasi_pembayaran_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-wallet w-5"></i> Validasi Pembayaran
                 </a>
             </nav>
@@ -196,8 +196,12 @@
                         <td class="px-6 py-4 text-gray-500">
                             <p class="font-semibold text-gray-800">{{ pengajar.email }}</p>
                         </td>
-                        <td class="px-4 py-4 text-center">
-                            <button class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-ellipsis-vertical text-sm"></i></button>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <a href="{{ url_for('admin.detail_pengajar_admin', id_pengajar=pengajar.id_users) }}" 
+                            class="inline-flex items-center justify-center text-gray-400 hover:text-[#A22754] p-2 rounded-full hover:bg-rose-50 transition duration-200"
+                            title="Lihat Detail Pengajar">
+                                <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}

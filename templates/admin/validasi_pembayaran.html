@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Validasi Pembayaran</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #FFF5F5; }
+        .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body class="font-sans antialiased flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-[#A22754] rounded-xl flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
+                </a>
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
+                </a>
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="{{ url_for('admin.validasi_pembayaran_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-rose-100 mb-4">
+            <a href="#" id="btnTriggerLogout" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <div class="flex-1 max-w-md">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
+                    <form action="{{ url_for('admin.validasi_pembayaran_admin') }}" method="GET">
+                        <input type="text" name="search" value="{{ search }}" placeholder="Cari transaksi, siswa, atau orang tua..."
+                               class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-rose-200">
+                    </form>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6 pl-6">
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
+                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
+                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
+                    <div class="text-right">
+                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+                </div>
+            </div>
+        </header>
+
+        <section class="flex-1 p-10 overflow-y-auto">
+            <div class="max-w-7xl mx-auto space-y-8">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="px-5 py-3 rounded-xl text-sm font-semibold
+                                {% if category == 'success' %} bg-emerald-50 text-emerald-600 border border-emerald-100
+                                {% else %} bg-red-50 text-red-600 border border-red-100 {% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-black text-[#A22754]">Validasi Pembayaran</h1>
+                        <p class="text-sm text-gray-400 mt-1">Verifikasi pembayaran uang kuliah untuk semester mendatang.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <form action="{{ url_for('admin.validasi_pembayaran_admin') }}" method="GET">
+                            <input type="hidden" name="search" value="{{ search }}">
+                            <select name="status" onchange="this.form.submit()"
+                                    class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-rose-200">
+                                <option value="" {% if not status_filter %}selected{% endif %}>Semua Status</option>
+                                <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                                <option value="Lunas" {% if status_filter == 'Lunas' %}selected{% endif %}>Lunas</option>
+                                <option value="Ditolak" {% if status_filter == 'Ditolak' %}selected{% endif %}>Ditolak</option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- KARTU STATISTIK -->
+                <div class="grid grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-[#A22754] mb-4">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Tugas Yang Tertunda</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ tugas_tertunda }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-500 mb-4">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Divalidasi Hari Ini</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ divalidasi_hari_ini }}</h2>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
+                        <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 mb-4">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Nilai Tertunda</p>
+                        <h2 class="text-3xl font-black text-gray-800">{{ total_nominal_pending|rupiah }}</h2>
+                    </div>
+
+                    <div class="bg-red-50 p-6 rounded-2xl border border-red-100 card-shadow">
+                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center text-red-500 mb-4">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <p class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Perlu Perhatian</p>
+                        <h2 class="text-3xl font-black text-red-600">{{ perlu_perhatian }}</h2>
+                    </div>
+                </div>
+
+                <!-- ANTREAN MENUNGGU PERSETUJUAN -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">Antrean: Menunggu Persetujuan</h3>
+                        <a href="#riwayat-transaksi" class="text-sm font-bold text-blue-600 hover:underline">Lihat Semua Permintaan &rarr;</a>
+                    </div>
+
+                    <div class="space-y-4">
+                        {% for item in antrean_pembayaran %}
+                        <div class="bg-white rounded-2xl border border-rose-50 card-shadow p-4">
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+
+                                <div class="flex items-center gap-3 min-w-0 w-full sm:w-auto sm:flex-1 sm:basis-52">
+                                    <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-[#A22754] shrink-0">
+                                        <i class="fa-solid fa-user text-sm"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-bold text-gray-800 text-sm leading-tight truncate" title="{{ item.nama_anak }}">{{ item.nama_anak }}</h4>
+                                        <p class="text-xs text-gray-400 truncate">{{ item.kode_transaksi }}</p>
+                                        <p class="text-[11px] text-gray-400 truncate" title="{{ item.nama_kelas }} - {{ item.nama_orangtua }}">{{ item.nama_kelas }} &middot; {{ item.nama_orangtua }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="shrink-0">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tanggal</p>
+                                    <p class="text-xs font-semibold text-gray-700 whitespace-nowrap">{{ item.tanggal_bayar_fmt }} WIB</p>
+                                </div>
+
+                                <div class="shrink-0">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Jumlah</p>
+                                    <p class="text-base font-black text-blue-600 whitespace-nowrap">{{ item.jumlah_bayar|rupiah }}</p>
+                                </div>
+
+                                <div class="shrink-0">
+                                    {% if item.bukti_bayar %}
+                                    <button type="button"
+                                            onclick="bukaBukti('{{ item.bukti_bayar }}')"
+                                            class="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+                                        <i class="fa-solid fa-paperclip"></i> Bukti
+                                    </button>
+                                    {% else %}
+                                    <span class="flex items-center gap-1.5 bg-gray-50 text-gray-400 font-semibold text-xs px-3 py-1.5 rounded-lg border border-dashed border-gray-200 whitespace-nowrap">
+                                        <i class="fa-solid fa-circle-exclamation"></i> Tanpa Bukti
+                                    </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="flex items-center gap-2 shrink-0 ml-auto">
+                                    <button type="button" onclick="bukaModalTolak('{{ item.id_pembayaran }}', '{{ item.nama_anak }}')"
+                                            class="bg-rose-50 hover:bg-rose-100 text-red-500 font-bold text-xs px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">
+                                        Tolak
+                                    </button>
+                                    <form action="{{ url_for('admin.setujui_pembayaran', id_pembayaran=item.id_pembayaran) }}" method="POST"
+                                          onsubmit="return confirm('Setujui pembayaran {{ item.nama_anak }} sebesar {{ item.jumlah_bayar|rupiah }}?');">
+                                        <button type="submit" class="bg-[#1E3A8A] hover:bg-[#1a3376] text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">
+                                            Setujui
+                                        </button>
+                                    </form>
+                                </div>
+
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="bg-white rounded-2xl border border-rose-50 card-shadow p-10 text-center">
+                            <i class="fa-solid fa-circle-check text-4xl text-emerald-400 mb-3"></i>
+                            <p class="text-gray-500 font-semibold">Tidak ada pembayaran yang menunggu persetujuan saat ini.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- RIWAYAT SEMUA TRANSAKSI -->
+                <div id="riwayat-transaksi" class="bg-white rounded-3xl border border-rose-50 card-shadow p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-bold text-gray-800">Riwayat Semua Transaksi</h3>
+                        <p class="text-xs text-gray-400 font-semibold">{{ total_data }} transaksi ditemukan</p>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] text-gray-400 uppercase tracking-[0.2em]">
+                                <tr class="border-b border-gray-50">
+                                    <th class="pb-4 font-bold">Kode</th>
+                                    <th class="pb-4 font-bold">Siswa / Orang Tua</th>
+                                    <th class="pb-4 font-bold">Kelas</th>
+                                    <th class="pb-4 font-bold">Tanggal</th>
+                                    <th class="pb-4 font-bold">Jumlah</th>
+                                    <th class="pb-4 font-bold">Status</th>
+                                    <th class="pb-4 font-bold">Bukti</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm font-semibold text-gray-700">
+                                {% for t in semua_transaksi %}
+                                <tr class="border-b border-gray-50">
+                                    <td class="py-4 text-gray-500">{{ t.kode_transaksi }}</td>
+                                    <td class="py-4">
+                                        <p class="text-gray-800">{{ t.nama_anak }}</p>
+                                        <p class="text-xs text-gray-400 font-medium">{{ t.nama_orangtua }}</p>
+                                    </td>
+                                    <td class="py-4 text-gray-500">{{ t.nama_kelas }}</td>
+                                    <td class="py-4 text-gray-500">{{ t.tanggal_bayar_fmt }}</td>
+                                    <td class="py-4 text-gray-800">{{ t.jumlah_bayar|rupiah }}</td>
+                                    <td class="py-4">
+                                        {% if t.status_pembayaran == 'Lunas' %}
+                                        <span class="bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1.5 rounded-full">Lunas</span>
+                                        {% elif t.status_pembayaran == 'Ditolak' %}
+                                        <span class="bg-red-50 text-red-500 text-xs font-bold px-3 py-1.5 rounded-full">Ditolak</span>
+                                        {% else %}
+                                        <span class="bg-amber-50 text-amber-500 text-xs font-bold px-3 py-1.5 rounded-full">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4">
+                                        {% if t.bukti_bayar %}
+                                        <button type="button"
+                                                onclick="bukaBukti('{{ t.bukti_bayar }}')"
+                                                class="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+                                            <i class="fa-solid fa-paperclip"></i> Bukti
+                                        </button>
+                                        {% else %}
+                                        <span class="flex items-center gap-1.5 bg-gray-50 text-gray-400 font-semibold text-xs px-3 py-1.5 rounded-lg border border-dashed border-gray-200 whitespace-nowrap w-fit">
+                                            <i class="fa-solid fa-circle-exclamation"></i> Tanpa Bukti
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="py-10 text-center text-gray-400 font-medium">Belum ada data transaksi.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PAGINATION -->
+                    {% if total_pages > 1 %}
+                    <div class="flex items-center justify-center gap-2 mt-8">
+                        {% for p in range(1, total_pages + 1) %}
+                        <a href="{{ url_for('admin.validasi_pembayaran_admin', page=p, search=search, status=status_filter) }}"
+                           class="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition
+                           {% if p == page %} bg-[#A22754] text-white {% else %} bg-gray-50 text-gray-500 hover:bg-rose-50 {% endif %}">
+                            {{ p }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: LIHAT BUKTI PEMBAYARAN -->
+    <div id="buktiModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden">
+        <div class="bg-white w-[90%] max-w-lg rounded-[24px] p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Bukti Pembayaran</h3>
+                <button onclick="tutupBukti()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <img id="buktiImage" src="" alt="Bukti Pembayaran" class="w-full rounded-xl border border-gray-100 object-contain max-h-[70vh]">
+            <div id="buktiError" class="hidden text-center py-10">
+                <i class="fa-solid fa-circle-exclamation text-3xl text-red-400 mb-3"></i>
+                <p class="text-sm text-gray-500 font-semibold">Bukti pembayaran gagal dimuat.</p>
+                <a id="buktiLinkFallback" href="#" target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-bold text-blue-600 hover:underline">Buka di tab baru &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TOLAK PEMBAYARAN -->
+    <div id="tolakModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden">
+        <div class="bg-white w-[90%] max-w-md rounded-[24px] p-8 shadow-2xl">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-5 mx-auto">
+                <i class="fa-solid fa-circle-exclamation text-2xl text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2 text-center">Tolak Pembayaran</h3>
+            <p class="text-sm text-gray-500 mb-6 text-center">Berikan alasan penolakan untuk <span id="namaAnakTolak" class="font-bold text-gray-700"></span>.</p>
+            <form id="formTolak" method="POST">
+                <textarea name="alasan_tolak" rows="3" placeholder="Contoh: Bukti transfer tidak sesuai nominal tagihan."
+                          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 mb-6"></textarea>
+                <div class="flex gap-4">
+                    <button type="button" onclick="tutupModalTolak()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition">
+                        Tolak Pembayaran
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: KONFIRMASI LOGOUT -->
+    <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                </svg>
+            </div>
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
+            <div class="flex gap-4 w-full">
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
+                    Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MODAL BUKTI PEMBAYARAN ---
+        // url di sini adalah URL Cloudinary lengkap yang tersimpan di kolom
+        // bukti_bayar pada database (diisi saat orang tua mengupload bukti).
+        function bukaBukti(url) {
+            const img = document.getElementById('buktiImage');
+            const errorBox = document.getElementById('buktiError');
+            const fallbackLink = document.getElementById('buktiLinkFallback');
+
+            if (!url) {
+                console.warn('bukaBukti dipanggil tanpa URL bukti pembayaran.');
+                return;
+            }
+
+            fallbackLink.href = url;
+
+            // File PDF tidak bisa dirender lewat <img>, jadi langsung buka di tab baru.
+            if (url.toLowerCase().endsWith('.pdf')) {
+                window.open(url, '_blank', 'noopener');
+                return;
+            }
+
+            // Reset tampilan sebelum memuat gambar baru
+            img.classList.remove('hidden');
+            errorBox.classList.add('hidden');
+            img.src = url;
+
+            img.onerror = () => {
+                img.classList.add('hidden');
+                errorBox.classList.remove('hidden');
+            };
+
+            document.getElementById('buktiModal').classList.remove('hidden');
+        }
+        function tutupBukti() {
+            document.getElementById('buktiModal').classList.add('hidden');
+            document.getElementById('buktiImage').src = '';
+        }
+
+        // --- MODAL TOLAK PEMBAYARAN ---
+        function bukaModalTolak(idPembayaran, namaAnak) {
+            document.getElementById('namaAnakTolak').innerText = namaAnak;
+            document.getElementById('formTolak').action = "{{ url_for('admin.tolak_pembayaran', id_pembayaran=0) }}".replace('0', idPembayaran);
+            document.getElementById('tolakModal').classList.remove('hidden');
+        }
+        function tutupModalTolak() {
+            document.getElementById('tolakModal').classList.add('hidden');
+        }
+
+        // --- MODAL LOGOUT (sama seperti halaman dashboard) ---
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const modal = document.getElementById('logoutModal');
+        const modalInner = document.getElementById('modalInner');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalInner.classList.remove('scale-95');
+                modalInner.classList.add('scale-100');
+            }, 10);
+        });
+
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalInner.classList.remove('scale-100');
+            modalInner.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        };
+
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    </script>
+
+</body>
+</html>

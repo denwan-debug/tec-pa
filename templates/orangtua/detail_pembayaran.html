@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Portal - Detail Transaksi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
+    <style>
+        /* === Reset & Base Styles === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* === Colors & Variables (samakan dengan riwayat_transaksi.html) === */
+        :root {
+            --sidebar-bg: #3d515c;
+            --sidebar-hover: #2e3e47;
+            --primary-accent: #b42b51;
+            --text-muted: #7a8b94;
+            --bg-light: #ffffff;
+            --border-light: #edf2f7;
+            --text-dark: #1a202c;
+            --text-gray: #4a5568;
+        }
+
+        /* === Layout === */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === Sidebar (sama persis dengan riwayat_transaksi.html) === */
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header { padding: 30px 20px; }
+        .sidebar-header h2 { font-size: 1.2rem; margin-bottom: 5px; }
+        .sidebar-header p { font-size: 0.8rem; color: #b0c4de; }
+        .sidebar-menu { list-style: none; flex-grow: 1; }
+        .sidebar-menu li a {
+            display: flex; align-items: center; gap: 15px; padding: 15px 25px;
+            color: white; text-decoration: none; font-family: 'ABeeZee', sans-serif;
+            font-size: 0.95rem; font-weight: 300; transition: 0.3s;
+        }
+        .sidebar-menu li a svg { width: 20px; height: 20px; }
+        .sidebar-menu li.active a, .sidebar-menu li a:hover {
+            background-color: var(--sidebar-hover);
+            border-left: 4px solid var(--primary-accent);
+        }
+
+        .nav-logout {
+            display: flex; align-items: center; gap: 10px; background: transparent;
+            border: none; color: #ffffff; font-size: 1rem; font-weight: 500;
+            cursor: pointer; padding: 25px; transition: opacity 0.2s ease; width: 100%;
+        }
+        .nav-logout:hover { opacity: 0.8; }
+
+        /* === Main Content === */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: #fcfbfa;
+        }
+
+        .topbar {
+            background-color: #ffffff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            min-height: 70px;
+        }
+
+        .btn-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .btn-back:hover { background: #f8fafc; }
+
+        .page-content {
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* === Flash Message === */
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark, #202020);
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
+
+        /* === Header Ringkasan Transaksi === */
+        .trx-header {
+            background: var(--bg-light);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .trx-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .trx-header-top h1 {
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .trx-kode {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-menunggu { background: #e2e8f0; color: #475569; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-sukses { background: #d1fae5; color: #065f46; }
+        .status-gagal { background: #fee2e2; color: #991b1b; }
+
+        .trx-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            border-top: 1px dashed var(--border-light);
+            padding-top: 20px;
+        }
+
+        .trx-detail-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .trx-detail-item .value {
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        .trx-detail-item .value.harga {
+            color: var(--primary-accent);
+            font-size: 1.1rem;
+        }
+
+        /* === Card Konten Sesuai Status === */
+        .card-box {
+            background: var(--bg-light);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .card-box h2 {
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+        }
+
+        .card-box p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* Upload (Menunggu Pembayaran) */
+        .rekening-box {
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-top: 10px;
+            background: #fafafa;
+        }
+
+        .rekening-bank {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .bank-logo {
+            width: 44px;
+            height: 44px;
+            background: #1e3a8a;
+            color: #ffffff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .rekening-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .rekening-anama {
+            font-size: 0.8rem;
+            color: var(--text-gray);
+        }
+
+        .rekening-nomor-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px dashed var(--border-light);
+            padding-top: 14px;
+        }
+
+        .rekening-nomor {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--primary-accent);
+        }
+
+        .btn-copy {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            background: #ffffff;
+            color: var(--text-gray);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-copy:hover { background: #f8fafc; }
+
+        .upload-box {
+            border: 2px dashed #e2e8f0;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .upload-box input[type="file"] {
+            margin: 15px auto 5px auto;
+            display: block;
+            font-size: 0.85rem;
+        }
+
+        .upload-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .btn-submit:hover { background-color: #931e3f; }
+
+        /* Pending */
+        .info-banner {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .info-banner-icon {
+            width: 38px;
+            height: 38px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .link-bukti {
+            display: inline-block;
+            margin-top: 15px;
+            color: var(--primary-accent);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        /* Sukses / Invoice */
+        .invoice-stamp {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .invoice-stamp .check-circle {
+            width: 60px;
+            height: 60px;
+            background: #d1fae5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px auto;
+            color: #10b981;
+        }
+
+        .invoice-stamp h2 {
+            color: #065f46;
+            margin-bottom: 5px;
+        }
+
+        .btn-print {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--text-gray);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Gagal */
+        .reason-box {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 18px;
+            margin-top: 10px;
+        }
+
+        .reason-box p { color: #991b1b; }
+
+        @media print {
+            .sidebar, .topbar, .btn-print, .btn-back { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <aside class="sidebar">
+            <div>
+                <div class="sidebar-header">
+                    <h2>TEC Portal</h2>
+                    <p>Supportive Academic Partner</p>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a href="/index"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 6V0H18V6H10ZM0 10V0H8V10H0ZM10 18V8H18V18H10ZM0 18V12H8V18H0ZM2 8H6V2H2V8ZM12 16H16V10H12V16ZM12 4H16V2H12V4ZM2 16H6V14H2V16Z" fill="#CFE6F2"/>
+                        </svg>
+                        Dashboard / Beranda</a>
+                    </li>
+                    <li><a href="/manajemen_anak"><svg width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 4C15.45 4 14.9792 3.80417 14.5875 3.4125C14.1958 3.02083 14 2.55 14 2C14 1.45 14.1958 0.979167 14.5875 0.5875C14.9792 0.195833 15.45 0 16 0C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2C18 2.55 17.8042 3.02083 17.4125 3.4125C17.0208 3.80417 16.55 4 16 4ZM15 20V12C15 11.3333 14.8292 10.7333 14.4875 10.2C14.1458 9.66667 13.7083 9.25 13.175 8.95L14.05 6.375C14.1833 5.95833 14.4292 5.625 14.7875 5.375C15.1458 5.125 15.55 5 16 5C16.45 5 16.8542 5.125 17.2125 5.375C17.5708 5.625 17.8167 5.95833 17.95 6.375L20.5 14H18V20H15ZM10.5 9.5C10.0833 9.5 9.72917 9.35417 9.4375 9.0625C9.14583 8.77083 9 8.41667 9 8C9 7.58333 9.14583 7.22917 9.4375 6.9375C9.72917 6.64583 10.0833 6.5 10.5 6.5C10.9167 6.5 11.2708 6.64583 11.5625 6.9375C11.8542 7.22917 12 7.58333 12 8C12 8.41667 11.8542 8.77083 11.5625 9.0625C11.2708 9.35417 10.9167 9.5 10.5 9.5ZM3.5 4C2.95 4 2.47917 3.80417 2.0875 3.4125C1.69583 3.02083 1.5 2.55 1.5 2C1.5 1.45 1.69583 0.979167 2.0875 0.5875C2.47917 0.195833 2.95 0 3.5 0C4.05 0 4.52083 0.195833 4.9125 0.5875C5.30417 0.979167 5.5 1.45 5.5 2C5.5 2.55 5.30417 3.02083 4.9125 3.4125C4.52083 3.80417 4.05 4 3.5 4ZM1.5 20V13H0V7C0 6.45 0.195833 5.97917 0.5875 5.5875C0.979167 5.19583 1.45 5 2 5H5C5.55 5 6.02083 5.19583 6.4125 5.5875C6.80417 5.97917 7 6.45 7 7V13H5.5V20H1.5ZM9 20V16H8V12C8 11.5833 8.14583 11.2292 8.4375 10.9375C8.72917 10.6458 9.08333 10.5 9.5 10.5H11.5C11.9167 10.5 12.2708 10.6458 12.5625 10.9375C12.8542 11.2292 13 11.5833 13 12V16H12V20H9Z" fill="#CFE6F2"/>
+                        </svg>
+                        Manajemen Anak</a>
+                    </li>
+                    <li><a href="/kelas"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 18L4 14.2V8.2L0 6L11 0L22 6V14H20V7.1L18 8.2V14.2L11 18ZM11 9.7L17.85 6L11 2.3L4.15 6L11 9.7ZM11 15.725L16 13.025V9.25L11 12L6 9.25V13.025L11 15.725Z" fill="#CFE6F2"/>
+                        </svg>
+                        Kelas</a>
+                    </li>
+                    <li class="active"><a href="/riwayat_pembayaran"><svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 20C2.16667 20 1.45833 19.7083 0.875 19.125C0.291667 18.5417 0 17.8333 0 17V14H3V0L4.5 1.5L6 0L7.5 1.5L9 0L10.5 1.5L12 0L13.5 1.5L15 0L16.5 1.5L18 0V17C18 17.8333 17.7083 18.5417 17.125 19.125C16.5417 19.7083 15.8333 20 15 20H3ZM15 18C15.2833 18 15.5208 17.9042 15.7125 17.7125C15.9042 17.5208 16 17.2833 16 17V3H5V14H14V17C14 17.2833 14.0958 17.5208 14.2875 17.7125C14.4792 17.9042 14.7167 18 15 18ZM6 7V5H12V7H6ZM6 10V8H12V10H6ZM14 7C13.7167 7 13.4792 6.90417 13.2875 6.7125C13.0958 6.52083 13 6.28333 13 6C13 5.71667 13.0958 5.47917 13.2875 5.2875C13.4792 5.09583 13.7167 5 14 5C14.2833 5 14.5208 5.09583 14.7125 5.2875C14.9042 5.47917 15 5.71667 15 6C15 6.28333 14.9042 6.52083 14.7125 6.7125C14.5208 6.90417 14.2833 7 14 7ZM14 10C13.7167 10 13.4792 9.90417 13.2875 9.7125C13.0958 9.52083 13 9.28333 13 9C13 8.71667 13.0958 8.47917 13.2875 8.2875C13.4792 8.09583 13.7167 8 14 8C14.2833 8 14.5208 8.09583 14.7125 8.2875C14.9042 8.47917 15 8.71667 15 9C15 9.28333 14.9042 9.52083 14.7125 9.7125C14.5208 9.90417 14.2833 10 14 10ZM3 18H12V16H2V17C2 17.2833 2.09583 17.5208 2.2875 17.7125C2.47917 17.9042 2.71667 18 3 18ZM2 18C2 18 2 17.9042 2 17.7125C2 17.5208 2 17.2833 2 17V16V18Z" fill="#CFE6F2"/>
+                        </svg>
+                        Riwayat Pembayaran</a>
+                    </li>
+                    <li><a href="/jadwal_belajar"><svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#CFE6F2"/>
+                        </svg>
+                        Jadwal Belajar</a>
+                    </li>
+                    <li><a href="/presensi"><svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.95 16.35L4.4 12.8L5.85 11.35L7.95 13.45L12.15 9.25L13.6 10.7L7.95 16.35ZM2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#CFE6F2"/>
+                        </svg>
+                        Presensi</a>
+                    </li>
+                    <li><a href="/reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/>
+                        </svg>
+                        Reports</a>
+                    </li>
+                    <li><a href="/pengaturan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#CFE6F2" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19.14 12.94C19.18 12.64 19.2 12.33 19.2 12C19.2 11.67 19.18 11.36 19.14 11.06L21.16 9.48C21.34 9.34 21.39 9.07 21.28 8.87L19.36 5.55C19.24 5.34 18.99 5.26 18.77 5.35L16.39 6.31C15.9 5.93 15.36 5.61 14.77 5.36L14.41 2.81C14.37 2.58 14.17 2.4 13.93 2.4H10.07C9.83 2.4 9.63 2.58 9.59 2.81L9.23 5.36C8.64 5.61 8.1 5.93 7.61 6.31L5.23 5.35C5.01 5.26 4.76 5.34 4.64 5.55L2.72 8.87C2.61 9.07 2.66 9.34 2.84 9.48L4.86 11.06C4.82 11.36 4.8 11.67 4.8 12C4.8 12.33 4.82 12.64 4.86 12.94L2.84 14.52C2.66 14.66 2.61 14.93 2.72 15.13L4.64 18.45C4.76 18.66 5.01 18.74 5.23 18.65L7.61 17.69C8.1 18.07 8.64 18.39 9.23 18.64L9.59 21.19C9.63 21.42 9.83 21.6 10.07 21.6H13.93C14.17 21.6 14.37 21.42 14.41 21.19L14.77 18.64C15.36 18.39 15.9 18.07 16.39 17.69L18.77 18.65C18.99 18.74 19.24 18.66 19.36 18.45L21.28 15.13C21.39 14.93 21.34 14.66 21.16 14.52L19.14 12.94ZM12 15.6C10.01 15.6 8.4 13.99 8.4 12C8.4 10.01 10.01 8.4 12 8.4C13.99 8.4 15.6 10.01 15.6 12C15.6 13.99 13.99 15.6 12 15.6Z"/>
+                        </svg>
+                        Pengaturan
+                    </a></li>
+                </ul>
+            </div>
+            <div class="logout">
+                <button id="btnTriggerLogout" class="nav-logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    LOGOUT
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <a href="{{ url_for('orangtua.riwayat_pembayaran') }}" class="btn-back">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Kembali ke Riwayat
+                </a>
+                <div class="user-profile text-capitalize" style="font-weight:600;">{{ username if username else 'Wali Murid' }}</div>
+            </header>
+
+            <div class="page-content">
+
+                <!-- Toast Notification -->
+                <div class="toast-container" id="toastContainer">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="toast {{ 'error' if category == 'error' else '' }}">
+                                    <div class="toast-icon">
+                                        <i class="fa-solid {{ 'fa-circle-xmark' if category == 'error' else 'fa-circle-check' }}"></i>
+                                    </div>
+                                    <span class="toast-message">{{ message }}</span>
+                                    <button type="button" class="toast-close" onclick="this.parentElement.remove()">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                <!-- Ringkasan transaksi: selalu tampil apa pun statusnya -->
+                <div class="trx-header">
+                    <div class="trx-header-top">
+                        <div>
+                            <h1>{{ trx.nama_kelas }}</h1>
+                            <div class="trx-kode">Kode Pembayaran: #{{ trx.kode_pembayaran }}</div>
+                        </div>
+
+                        {% if status_kategori == 'menunggu' %}
+                            <span class="status-badge status-menunggu">Menunggu Pembayaran</span>
+                        {% elif status_kategori == 'pending' %}
+                            <span class="status-badge status-pending">Pending</span>
+                        {% elif status_kategori == 'sukses' %}
+                            <span class="status-badge status-sukses">Sukses</span>
+                        {% else %}
+                            <span class="status-badge status-gagal">Gagal</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="trx-detail-grid">
+                        <div class="trx-detail-item">
+                            <div class="label">Anak</div>
+                            <div class="value">{{ trx.nama_anak }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Jadwal</div>
+                            <div class="value">{{ trx.hari_jadwal }}, {{ trx.jam_mulai }} - {{ trx.jam_selesai }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Tanggal Transaksi</div>
+                            <div class="value">{{ trx.tanggal }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Jumlah Tagihan</div>
+                            <div class="value harga">Rp {{ "{:,.0f}".format(trx.jumlah_bayar).replace(',', '.') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============== KONTEN SESUAI STATUS ============== -->
+
+                {% if status_kategori == 'menunggu' %}
+                <!-- 1. MENUNGGU PEMBAYARAN: info rekening tujuan + form upload bukti bayar -->
+                <div class="card-box" style="margin-bottom: 20px;">
+                    <h2>Transfer ke Rekening Berikut</h2>
+                    <p>Lakukan pembayaran sejumlah <strong>Rp {{ "{:,.0f}".format(trx.jumlah_bayar).replace(',', '.') }}</strong> ke rekening di bawah ini, lalu unggah bukti transfernya.</p>
+
+                    <div class="rekening-box">
+                        <div class="rekening-bank">
+                            <div class="bank-logo">BCA</div>
+                            <div>
+                                <div class="rekening-label">Bank Central Asia (BCA)</div>
+                                <div class="rekening-anama">a.n. PT TEC English Indonesia</div>
+                            </div>
+                        </div>
+                        <div class="rekening-nomor-row">
+                            <span id="nomorRekening" class="rekening-nomor">1234 5678 9012</span>
+                            <button type="button" class="btn-copy" onclick="salinRekening()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span id="copyLabel">Salin</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="upload-hint" style="margin-top: 12px;">Pastikan nominal transfer sama persis dengan jumlah tagihan agar verifikasi lebih cepat.</div>
+                </div>
+
+                <div class="card-box">
+                    <h2>Unggah Bukti Pembayaran</h2>
+                    <p>Setelah transfer, unggah bukti transfer (screenshot/foto struk) di bawah ini agar admin dapat memverifikasi pembayaran Anda.</p>
+
+                    <form action="{{ url_for('orangtua.detail_pembayaran', id_pembayaran=trx.id_pembayaran) }}" method="POST" enctype="multipart/form-data">
+                        <div class="upload-box">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto; display:block;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <input type="file" name="bukti_bayar" accept=".jpg,.jpeg,.png,.pdf" required>
+                            <div class="upload-hint">Format yang didukung: JPG, PNG, atau PDF (maks. 5MB)</div>
+                        </div>
+
+                        <button type="submit" class="btn-submit">Kirim Bukti Pembayaran</button>
+                    </form>
+                </div>
+
+                {% elif status_kategori == 'pending' %}
+                <!-- 2. PENDING: bukti sudah dikirim, menunggu validasi admin -->
+                <div class="card-box">
+                    <h2>Menunggu Validasi Admin</h2>
+                    <div class="info-banner">
+                        <div class="info-banner-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                        <div>
+                            <p style="color:#92400e; font-weight:600; margin-bottom:4px;">Bukti pembayaran Anda sudah kami terima.</p>
+                            <p style="color:#92400e;">Tim admin sedang memverifikasi bukti transfer Anda. Estimasi proses validasi adalah <strong>1x24 jam kerja</strong>. Anda akan bisa melihat status ini berubah menjadi "Sukses" begitu admin selesai memvalidasi.</p>
+                        </div>
+                    </div>
+
+                    {% if trx.bukti_bayar %}
+                    <a href="{{ trx.bukti_bayar if 'http' in trx.bukti_bayar else url_for('static', filename='uploads/bukti_bayar/' + trx.bukti_bayar) }}" target="_blank" class="link-bukti">Lihat bukti pembayaran yang sudah Anda kirim &rarr;</a>
+                    {% endif %}
+                </div>
+
+                {% elif status_kategori == 'sukses' %}
+                <!-- 3. SUKSES: tampilkan invoice -->
+                <div class="card-box">
+                    <div class="invoice-stamp">
+                        <div class="check-circle">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <h2>Pembayaran Berhasil</h2>
+                        <p>Terima kasih, pembayaran Anda telah divalidasi oleh admin. Anak Anda resmi terdaftar di kelas ini.</p>
+                    </div>
+
+                    <div class="trx-detail-grid" style="border-top: 1px dashed var(--border-light); padding-top: 20px; margin-top: 10px;">
+                        <div class="trx-detail-item">
+                            <div class="label">No. Invoice</div>
+                            <div class="value">#{{ trx.kode_pembayaran }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Kelas</div>
+                            <div class="value">{{ trx.nama_kelas }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Atas Nama Anak</div>
+                            <div class="value">{{ trx.nama_anak }}</div>
+                        </div>
+                        <div class="trx-detail-item">
+                            <div class="label">Total Dibayar</div>
+                            <div class="value harga">Rp {{ "{:,.0f}".format(trx.jumlah_bayar).replace(',', '.') }}</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align:center;">
+                        <button class="btn-print" onclick="window.print()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            Cetak / Simpan Invoice
+                        </button>
+                    </div>
+                </div>
+
+                {% else %}
+                <!-- 4. GAGAL: tampilkan alasan penolakan -->
+                <div class="card-box">
+                    <h2>Transaksi Dibatalkan</h2>
+                    <p>Mohon maaf, pembayaran untuk transaksi ini tidak dapat diproses. Berikut keterangan dari admin:</p>
+
+                    <div class="reason-box">
+                        <p>{{ trx.keterangan }}</p>
+                    </div>
+
+                    <p style="margin-top: 15px;">Jika Anda merasa ini adalah kekeliruan, atau ingin mendaftar ulang untuk kelas ini, silakan hubungi customer service TEC Portal atau kembali ke halaman kelas untuk mendaftar kembali.</p>
+                </div>
+                {% endif %}
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // === Toast Notification Script ===
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(function (toast, index) {
+                // Animasi masuk
+                setTimeout(function () {
+                    toast.classList.add('show');
+                }, 100 + (index * 100));
+
+                // Animasi keluar dan hapus elemen setelah 4 detik
+                setTimeout(function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        toast.remove();
+                    }, 350);
+                }, 4000 + (index * 100));
+            });
+        });
+
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = '/logout';
+        });
+
+        function salinRekening() {
+            const nomor = document.getElementById('nomorRekening').textContent.replace(/\s/g, '');
+            navigator.clipboard.writeText(nomor).then(() => {
+                const label = document.getElementById('copyLabel');
+                label.textContent = 'Tersalin!';
+                setTimeout(() => { label.textContent = 'Salin'; }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

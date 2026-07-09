@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>TEC Parent Portal - Login</title>
     <style>
         /* === Reset & Base Styles === */
@@ -18,6 +19,7 @@
             height: 100vh;
             color: #333;
             overflow: hidden;
+            position: relative; /* Penting untuk penempatan absolut notifikasi */
         }
 
         /* === Layout Split Screen === */
@@ -152,17 +154,9 @@
             align-items: center;
         }
 
-        .input-wrapper i {
-            position: absolute;
-            left: 15px;
-            color: #a0aec0;
-            font-style: normal;
-            font-size: 1.1rem;
-        }
-
         .input-wrapper input {
             width: 100%;
-            padding: 12px 15px 12px 15px;
+            padding: 12px 15px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             font-size: 0.95rem;
@@ -229,6 +223,78 @@
             font-weight: 600;
         }
 
+        /* === Flash Message / Toast Notification (DIAMBIL DARI PENGATURAN) === */
+        /* --- TOAST NOTIFICATION CONTAINER (Melayang) --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none; /* Mencegah container menghalangi klik, kecuali isinya */
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto; /* Memungkinkan interaksi pada notifikasi itu sendiri */
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .toast.error .toast-icon {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .toast-message {
+            font-size: 14px;
+            font-weight: 600;
+            color: #202020;
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
+
         /* === Responsive Design === */
         @media (max-width: 768px) {
             .split-screen {
@@ -239,10 +305,23 @@
             .left-pane, .right-pane {
                 padding: 20px;
             }
+            .toast-container {
+                right: 12px;
+                left: 12px;
+                top: 12px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
         }
     </style>
 </head>
+
 <body>
+
+    <!-- Container untuk Notifikasi Toast (Ditempatkan di luar alur normal halaman) -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <div class="split-screen">
         <div class="left-pane">
@@ -267,7 +346,7 @@
         
             <form id="loginForm">
                     
-                    <div id="alertMessage" style="display: none; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; font-weight: 600; text-align: center;"></div>
+                    <!-- ALERT MESSAGE LAMA DIHAPUS DARI SINI -->
 
                     <div class="input-group">
                         <label for="emailInput">Alamat Email</label>
@@ -287,7 +366,7 @@
                         <label class="remember-me">
                             <input type="checkbox"> Ingat Saya
                         </label>
-                        <a href="#" class="forgot-password">Lupa Password?</a>
+                        <a href="{{ url_for('orangtua.forgot_password') }}" class="forgot-password">Lupa Password?</a>
                     </div>
 
                     <button type="submit" id="loginBtn" class="btn-primary">
@@ -303,6 +382,49 @@
     </div>
 
     <script>
+        // === Toast Notification Function (DINAMIS SEPERTI PENGATURAN) ===
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            
+            // Buat elemen toast baru secara dinamis
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+            
+            const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+            const closeIcon = '<i class="fa-solid fa-xmark"></i>';
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="fa-solid ${iconClass}"></i>
+                </div>
+                <span class="toast-message">${message}</span>
+                <button type="button" class="toast-close">
+                    ${closeIcon}
+                </button>
+            `;
+
+            // Tambahkan event listener untuk tombol tutup
+            toast.querySelector('.toast-close').addEventListener('click', function() {
+                this.parentElement.remove();
+            });
+
+            // Masukkan toast ke dalam container
+            container.appendChild(toast);
+
+            // Trigger animasi masuk
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            // Animasi keluar dan hapus elemen setelah 4 detik (sama seperti pengaturan)
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 350);
+            }, 4000);
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(event) {
             // 1. Mencegah halaman reload saat tombol ditekan
             event.preventDefault(); 
@@ -310,7 +432,7 @@
             // 2. Mengambil nilai dari inputan
             const emailValue = document.getElementById('emailInput').value;
             const passwordValue = document.getElementById('passwordInput').value;
-            const alertBox = document.getElementById('alertMessage');
+            // REFERENSI KE ALERTBOX LAMA DIHAPUS
             const btn = document.getElementById('loginBtn');
 
             // Ubah teks tombol saat loading
@@ -334,32 +456,26 @@
                 const data = await response.json();
 
                 // 4. Menampilkan hasil balasan dari server
-                alertBox.style.display = 'block';
+                // Menampilkan Toast Notifikasi
                 
                 if (response.ok) {
-                    alertBox.style.backgroundColor = '#d4edda';
-                    alertBox.style.color = '#155724';
-                    alertBox.innerText = data.message;
+                    showToast(data.message, 'success');
                     
                     // Arahkan ke halaman utama berdasarkan URL redirect dari Flask (yaitu halaman index '/')
+                    // Beri waktu 1.5 detik agar notifikasi terlihat dulu
                     setTimeout(() => {
                         window.location.href = data.redirect;
-                    }, 1000);
+                    }, 1500);
                 } else {
                     // Jika gagal (Status 401, 403, dll)
-                    alertBox.style.backgroundColor = '#f8d7da';
-                    alertBox.style.color = '#721c24';
-                    alertBox.innerText = data.message;
+                    showToast(data.message, 'error');
                     
                     // Kembalikan tombol ke semula
                     btn.innerHTML = "Masuk ➔";
                     btn.disabled = false;
                 }
             } catch (error) {
-                alertBox.style.display = 'block';
-                alertBox.style.backgroundColor = '#f8d7da';
-                alertBox.style.color = '#721c24';
-                alertBox.innerText = "Terjadi kesalahan pada server.";
+                showToast("Terjadi kesalahan pada server.", 'error');
                 btn.innerHTML = "Masuk ➔";
                 btn.disabled = false;
             }

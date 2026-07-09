@@ -139,17 +139,98 @@
             background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
-            justify-content: flex-end; /* Diubah agar profile ke kanan */
+            justify-content: space-between; /* Search di kiri, profile di kanan */
             align-items: center;
             border-bottom: 1px solid var(--border-light);
             min-height: 70px;
+            position: relative; /* agar .user-profile-header (absolute) terikat pas ke topbar ini */
         }
 
-        .user-profile {
+        .search-container {
+            position: relative;
+            width: 350px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            background-color: #ffffff;
+            font-size: 0.9rem;
+            outline: none;
+            color: #333;
+        }
+
+        .search-container input:focus {
+            border-color: var(--primary-accent);
+        }
+
+        .search-container svg {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        /* Kontainer di pojok kanan atas */
+        .user-profile-header {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px; /* Jarak antara teks dan foto */
+            position: absolute; 
+            top: 20px;
+            right: 30px;
+            /* Background dan padding dihapus agar terlihat bersih seperti referensi */
+        }
+
+        /* Wrapper baru untuk mengatur orientasi teks */
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right; /* Mengatur teks agar rata kanan */
+            line-height: 1.2;
+            white-space: nowrap; /* Nama tidak pernah terpotong/wrap */
+        }
+
+        .username-text {
+            font-size: 18px; /* Ukuran diperbesar menyesuaikan gambar */
+            font-weight: 600;
+            color: #2b2525; /* Warna teks gelap */
+        }
+
+        /* Style baru untuk teks "Orang Tua" */
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b; /* Warna teks agak pudar kecoklatan */
             font-weight: 500;
+        }
+
+        /* Style untuk foto profil */
+        .top-parent-avatar {
+            width: 50px;         /* Perbesar ukuran foto */
+            height: 50px;        
+            border-radius: 50%;  
+            object-fit: cover;   
+            border: 3px solid #fbd0dd; /* Border pink sesuai referensi */
+            padding: 2px; /* Memberi jarak putih antara foto dan border */
+            background-color: #ffffff; /* Warna dasar padding */
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3; /* Latar pink muda */
+            color: var(--primary-accent); /* Huruf pink tua */
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-transform: uppercase;
         }
 
         /* === Dashboard Content === */
@@ -237,6 +318,16 @@
         }
 
         .badge-kelas5 { background-color: var(--badge-kelas5); }
+
+        .badge-level {
+            left: auto;
+            right: 12px;
+        }
+
+        .badge-level.level-sd { background-color: var(--blue-badge-text); }
+        .badge-level.level-smp { background-color: var(--badge-smp); }
+        .badge-level.level-sma { background-color: var(--badge-kelas12); }
+        .badge-level.level-default { background-color: #64748b; }
 
         .card-body {
             padding: 20px;
@@ -401,6 +492,12 @@
                         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14H6V7H4V14ZM8 14H10V4H8V14ZM12 14H14V10H12V14ZM2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H16C16.55 0 17.0208 0.195833 17.4125 0.5875C17.8042 0.979167 18 1.45 18 2V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM2 16H16V2H2V16ZM2 2V16V2Z" fill="#CFE6F2"/></svg>
                         Reports</a>
                     </li>
+                    <li><a href="/pengaturan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#CFE6F2" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19.14 12.94C19.18 12.64 19.2 12.33 19.2 12C19.2 11.67 19.18 11.36 19.14 11.06L21.16 9.48C21.34 9.34 21.39 9.07 21.28 8.87L19.36 5.55C19.24 5.34 18.99 5.26 18.77 5.35L16.39 6.31C15.9 5.93 15.36 5.61 14.77 5.36L14.41 2.81C14.37 2.58 14.17 2.4 13.93 2.4H10.07C9.83 2.4 9.63 2.58 9.59 2.81L9.23 5.36C8.64 5.61 8.1 5.93 7.61 6.31L5.23 5.35C5.01 5.26 4.76 5.34 4.64 5.55L2.72 8.87C2.61 9.07 2.66 9.34 2.84 9.48L4.86 11.06C4.82 11.36 4.8 11.67 4.8 12C4.8 12.33 4.82 12.64 4.86 12.94L2.84 14.52C2.66 14.66 2.61 14.93 2.72 15.13L4.64 18.45C4.76 18.66 5.01 18.74 5.23 18.65L7.61 17.69C8.1 18.07 8.64 18.39 9.23 18.64L9.59 21.19C9.63 21.42 9.83 21.6 10.07 21.6H13.93C14.17 21.6 14.37 21.42 14.41 21.19L14.77 18.64C15.36 18.39 15.9 18.07 16.39 17.69L18.77 18.65C18.99 18.74 19.24 18.66 19.36 18.45L21.28 15.13C21.39 14.93 21.34 14.66 21.16 14.52L19.14 12.94ZM12 15.6C10.01 15.6 8.4 13.99 8.4 12C8.4 10.01 10.01 8.4 12 8.4C13.99 8.4 15.6 10.01 15.6 12C15.6 13.99 13.99 15.6 12 15.6Z"/>
+                        </svg>
+                        Pengaturan
+                    </a></li>
                 </ul>
             </div>
             <div class="logout">
@@ -417,23 +514,68 @@
 
         <main class="main-content">
             <header class="topbar">
-                <div class="user-profile text-capitalize">
-                    {{ username if username else 'Wali Murid' }}
+                <div class="search-container">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchKelasInput" placeholder="Cari mata pelajaran..." oninput="cariKelas()">
+                </div>
+
+               <div class="user-profile-header">
+                    <div class="user-info">
+                        <span class="username-text">{{ username }}</span>
+                        <span class="user-role">Orang Tua</span>
+                    </div>
+                    
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
                 </div>
             </header>
 
             <div class="dashboard-container">
+                <!-- Sebelumnya hanya berisi h1 dan p -->
                 <section class="card welcome-banner">
                     <h1>Pilihan Kelas Bahasa Inggris</h1>
                     <p>Temukan kelas terbaik yang sesuai dengan tingkat kemampuan akademik anak Anda</p>
+                    
+                    <!-- Tambahkan blok peringatan ini -->
+                    {% if not profil_lengkap %}
+                    <div style="margin-top: 15px; padding: 12px 15px; background-color: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 6px; display: flex; align-items: flex-start; gap: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: 2px; flex-shrink: 0;">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span style="color: #92400e; font-size: 0.9rem; font-weight: 500; line-height: 1.5;">
+                            <strong>Pendaftaran Terkunci:</strong> Mohon lengkapi informasi alamat dan nomor telepon Anda terlebih dahulu di bagian <a href="/pengaturan" style="color: #d97706; font-weight: 700; text-decoration: underline;">Pengaturan</a> agar dapat memilih dan mendaftar kelas.
+                        </span>
+                    </div>
+                    {% endif %}
                 </section>
 
                 <div class="class-grid">
                     {% for kelas in daftar_kelas %}
+
+                    {# Ambil jenjang langsung dari kolom `tingkat` di database #}
+                    {% set jenjang = kelas.tingkat or 'Umum' %}
+                    {% if jenjang|upper == 'SD' %}
+                        {% set level_class = 'level-sd' %}
+                    {% elif jenjang|upper == 'SMP' %}
+                        {% set level_class = 'level-smp' %}
+                    {% elif jenjang|upper in ['SMA', 'SMK'] %}
+                        {% set level_class = 'level-sma' %}
+                    {% else %}
+                        {% set level_class = 'level-default' %}
+                    {% endif %}
+
                     <div class="class-card">
                         <div class="card-image-container">
                             <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80" alt="{{ kelas.nama_kelas }}">
                             <span class="card-badge badge-kelas5">Aktif</span>
+                            <span class="card-badge badge-level {{ level_class }}">{{ jenjang }}</span>
                         </div>
                         <div class="card-body">
                             <h3>{{ kelas.nama_kelas }}</h3>
@@ -454,11 +596,23 @@
                                 Rp {{ "{:,.0f}".format(kelas.harga).replace(',', '.') }}
                             </div>
 
-                            <a href="{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}" 
+                           <!-- Ganti bagian tombol btn-daftar menjadi ini -->
+                            <a href="{% if not profil_lengkap %}#{% else %}{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}{% endif %}" 
                                 class="btn-daftar" 
-                                style="text-align: center; display: block; text-decoration: none;"
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %} style="pointer-events: none; background-color: #cbd5e1;" {% endif %}>
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}Kuota Penuh{% else %}Daftar Kelas{% endif %}
+                                style="text-align: center; display: block; text-decoration: none; {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal or not profil_lengkap %}background-color: #cbd5e1; color: #64748b;{% endif %}"
+                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %} 
+                                    style="pointer-events: none;" 
+                                {% elif not profil_lengkap %}
+                                    onclick="alert('Mohon lengkapi Nomor Telepon dan Alamat Anda di menu Pengaturan terlebih dahulu sebelum mendaftar kelas.'); window.location.href='/pengaturan'; return false;"
+                                {% endif %}>
+                                
+                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}
+                                    Kuota Penuh
+                                {% elif not profil_lengkap %}
+                                    Lengkapi Profil Dulu
+                                {% else %}
+                                    Daftar Kelas
+                                {% endif %}
                             </a>
                         </div>
                     </div>
@@ -467,6 +621,9 @@
                         <p>Belum ada kelas yang tersedia untuk saat ini.</p>
                     </div>
                     {% endfor %}
+                    <div id="noResultKelas" style="display: none; grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                        <p>Tidak ada mata pelajaran yang cocok dengan pencarian "<span id="noResultKeyword"></span>".</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -492,6 +649,28 @@
         cancelBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
         });
+
+        // Pencarian mata pelajaran/kelas secara langsung (client-side, tanpa reload)
+        function cariKelas() {
+            const keyword = document.getElementById('searchKelasInput').value.trim().toLowerCase();
+            const cards = document.querySelectorAll('.class-grid .class-card');
+            let jumlahTampil = 0;
+
+            cards.forEach(card => {
+                const judul = card.querySelector('h3') ? card.querySelector('h3').textContent.toLowerCase() : '';
+                const cocok = judul.includes(keyword);
+                card.style.display = cocok ? '' : 'none';
+                if (cocok) jumlahTampil++;
+            });
+
+            const noResult = document.getElementById('noResultKelas');
+            const noResultKeyword = document.getElementById('noResultKeyword');
+            if (noResult) {
+                const tampilkanNoResult = jumlahTampil === 0 && cards.length > 0 && keyword !== '';
+                noResult.style.display = tampilkanNoResult ? 'block' : 'none';
+                if (noResultKeyword) noResultKeyword.textContent = keyword;
+            }
+        }
     </script>
 </body>
 </html>

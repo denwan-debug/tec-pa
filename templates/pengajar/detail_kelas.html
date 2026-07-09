@@ -401,6 +401,103 @@
             color: var(--text-light-gray);
         }
 
+
+        /* --- MODAL LOGOUT STYLES --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+        }
+
+        .modal-content-box {
+            background-color: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content-box {
+            transform: translateY(0);
+        }
+
+        .modal-icon-logout {
+            width: 64px;
+            height: 64px;
+            background-color: #ed6494; /* Warna pink ikon */
+            color: #0a2540; /* Warna biru gelap untuk logo */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 24px auto;
+        }
+
+        .modal-content-box h2 {
+            color: #0a2540; /* Warna judul biru gelap */
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .modal-content-box p {
+            color: #4a5568; /* Warna abu-abu teks deskripsi */
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-confirm, .btn-cancel {
+            flex: 1;
+            padding: 14px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-confirm {
+            background-color: #ed6494; /* Tombol Logout Pink */
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background-color: #d84b7a;
+        }
+
+        .btn-cancel {
+            background-color: #f0f4fb; /* Tombol Cancel Biru Terang */
+            color: #0a2540;
+            border: 1px solid #d8e2f0;
+        }
+
+        .btn-cancel:hover {
+            background-color: #e2eaf6;
+        }
     </style>
 </head>
 <body>
@@ -421,34 +518,35 @@
             </nav>
 
             <div class="logout-area">
-                <a href="{{ url_for('pengajar.logout_pengajar') }}" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>
+                <a href="#" onclick="tampilkanModalLogout(event)" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>            
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col overflow-hidden relative ml-[250px]">
-            
-            <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-end shrink-0 z-10 shadow-sm gap-6">
-                <button class="text-gray-400 hover:text-[#A22754] transition relative">
-                    <i class="fa-regular fa-bell text-lg"></i>
-                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#A22754] rounded-full border-2 border-white"></span>
-                </button>
-                <div class="flex items-center gap-3 border-l border-gray-200 pl-6">
-                    <img src="https://ui-avatars.com/api/?name={{ kelas.nama_pengajar }}&background=A22754&color=fff" alt="Profile" class="w-9 h-9 rounded-full border border-gray-200">
-                    <div class="hidden md:block">
-                        <p class="text-sm font-bold text-gray-800">{{ kelas.nama_pengajar }}</p>
-                        <p class="text-[11px] text-gray-400 font-medium">Pengajar</p>
+        <main class="main-content">
+
+            <header class="topbar">
+                <div class="page-title">
+                    <h1>{{ kelas.nama_kelas }}</h1>
+                    <p>Kelas <i class="fa-solid fa-chevron-right" style="font-size: 10px; margin: 0 6px; color: var(--text-light-gray);"></i> <span style="font-weight: 600; color: var(--text-gray);">{{ kelas.nama_kelas }}</span></p>
+                </div>
+
+                <div class="user-area">
+                    <div class="notification">
+                        <i class="fa-regular fa-bell"></i>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-text">
+                            <div class="name">{{ kelas.nama_pengajar }}</div>
+                            <div class="role">Pengajar</div>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name={{ kelas.nama_pengajar }}&background=d84b7a&color=fff" alt="Profile">
                     </div>
                 </div>
             </header>
 
-            <section class="flex-1 p-8 overflow-y-auto pb-24">
-                
+            <section class="pb-24">
+
                 <div class="mb-8">
-                    <p class="text-sm text-gray-500 font-medium mb-2">
-                        Kelas <i class="fa-solid fa-chevron-right text-[10px] mx-2 text-gray-400"></i> <span class="font-semibold text-gray-700">{{ kelas.nama_kelas }}</span>
-                    </p>
-                    <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ kelas.nama_kelas }}</h1>
-                    
                     <div class="flex flex-wrap items-center gap-4 text-sm font-medium">
                         <span class="px-4 py-1.5 bg-rose-100 text-[#A22754] rounded-full font-bold uppercase">Status: {{ kelas.status_kelas }}</span>
                         <span class="text-gray-500 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> Setiap {{ kelas.hari_jadwal }} • {{ kelas.jam_mulai }} - {{ kelas.jam_selesai }} WIB</span>
@@ -535,8 +633,20 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 font-medium text-gray-500">#{{ siswa.id_anak }}</td>
-                                        <td class="px-6 py-4 text-gray-700">{{ siswa.sekolah_asal or '-' }}</td>
-                                        <td class="px-6 py-4 text-gray-700">{{ siswa.kelas_sekolah or '-' }}</td>
+                                        <td class="px-6 py-4 text-gray-700">
+                                            {% if siswa.sekolah_asal %}
+                                                {{ siswa.sekolah_asal }}
+                                            {% else %}
+                                                <span class="text-gray-400 italic text-xs">Belum diisi</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-700">
+                                            {% if siswa.kelas %}
+                                                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-semibold">{{ siswa.kelas }}</span>
+                                            {% else %}
+                                                <span class="text-gray-400 italic text-xs">Belum diisi</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
@@ -565,6 +675,49 @@
             </section>
         </main>
     </div>
+<!-- HTML Modal Logout -->
+<div id="modalLogout" class="modal-overlay">
+    <div class="modal-content-box">
+        <div class="modal-icon-logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </div>
+        <h2>Konfirmasi Logout</h2>
+        <p>Apakah Anda yakin ingin keluar dari akun TEC Anda? </p>
+        <div class="modal-buttons">
+            <!-- Tombol Logout yang sesungguhnya (akan memanggil route Flask) -->
+            <a href="{{ url_for('pengajar.logout_pengajar') }}" class="btn-confirm">Logout</a>
+            <!-- Tombol Batal -->
+            <button onclick="sembunyikanModalLogout()" class="btn-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
 
+<!-- Script untuk mengontrol Modal -->
+<script>
+    function tampilkanModalLogout(event) {
+        // Mencegah link dari mengubah halaman secara langsung
+        event.preventDefault(); 
+        
+        const modal = document.getElementById('modalLogout');
+        // Ubah display menjadi flex agar muncul
+        modal.style.display = 'flex'; 
+        
+        // Sedikit delay agar efek animasi CSS (fade in & slide up) bisa berjalan
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+    }
+
+    function sembunyikanModalLogout() {
+        const modal = document.getElementById('modalLogout');
+        // Hapus class show untuk memutar animasi kebalikan (fade out)
+        modal.classList.remove('show');
+        
+        // Tunggu animasi selesai selama 0.3 detik (300ms) sebelum menghilangkan display-nya
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+</script>
 </body>
 </html>

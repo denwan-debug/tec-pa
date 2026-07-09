@@ -1,54 +1,145 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import datetime
-import uuid, random, re
+from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
+import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
 from extensions import mail
 from flask_mail import Message
+from google_calendar import (
+    get_authorization_url, exchange_code_for_credentials, save_credentials,
+    is_connected, disconnect, sync_jadwal_to_calendar,
+    GoogleCalendarNotConfigured, GoogleCalendarNotConnected,
+)
 
 orangtua_bp = Blueprint('orangtua', __name__,)
+
+# Folder penyimpanan file bukti pembayaran yang diupload orang tua
+UPLOAD_FOLDER_BUKTI_BAYAR = os.path.join('static', 'uploads', 'bukti_bayar')
+EKSTENSI_DIIZINKAN = {'png', 'jpg', 'jpeg', 'pdf'}
+
+
+def ekstensi_valid(nama_file):
+    return '.' in nama_file and nama_file.rsplit('.', 1)[1].lower() in EKSTENSI_DIIZINKAN
+
+
+def generate_kode_pembayaran(id_pembayaran, tanggal_bayar=None):
+    """
+    Program tambahan: generate kode unik untuk id_pembayaran secara otomatis.
+    Format: PAY-YYYYMMDD-XXXXXX (tanggal transaksi + id_pembayaran 6 digit).
+
+    Kode ini diturunkan langsung dari `id_pembayaran` (Primary Key yang sudah
+    unik) sehingga TIDAK memerlukan kolom baru di tabel `pembayaran` dan akan
+    selalu sama tiap kali dipanggil untuk id_pembayaran yang sama.
+    """
+    tanggal_bayar = tanggal_bayar or datetime.now()
+    return f"PAY-{tanggal_bayar.strftime('%Y%m%d')}-{id_pembayaran:06d}"
 
 @orangtua_bp.route('/')
 @orangtua_bp.route('/index')
 def index():
-    # Pastikan user sudah login
     if 'id_users' not in session or session.get('role') != 'murid':
         return redirect(url_for('orangtua.halaman_portal_orangtua'))
         
     user_id = session['id_users']
-    
-    # Menangkap ID anak dari pilihan dropdown (URL: /index?anak_id=123)
     selected_anak_id = request.args.get('anak_id') 
     
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor    (dictionary=True)
     
     try:
-        # Ambil daftar anak milik orang tua ini untuk mengisi dropdown
+        # 1. Ambil daftar anak milik orang tua ini
         cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
         daftar_anak = cursor.fetchall()
         
-        # Tentukan anak mana yang datanya akan ditampilkan (anak_aktif)
         anak_aktif = None
+        kelas_anak = []
+        statistik_presensi = {'hadir': 0, 'tidak_hadir': 0, 'total': 0, 'persentase': 0}
+        riwayat_transaksi = []
         
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+        user_data = cursor.fetchone()
+        # Gunakan foto dari database, jika kosong gunakan default_parent.png
+        foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
+        # --------------------------------------------------------------
+
+        # 1. Ambil daftar anak milik orang tua ini
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        daftar_anak = cursor.fetchall()
+
         if daftar_anak:
             if selected_anak_id:
-                # Cari anak yang ID-nya cocok dengan pilihan dropdown
                 for anak in daftar_anak:
                     if str(anak['id_anak']) == str(selected_anak_id):
                         anak_aktif = anak
                         break
             
-            # Jika baru pertama kali login (belum memilih dropdown), otomatis pilih anak pertama
             if not anak_aktif:
                 anak_aktif = daftar_anak[0]
                 
-        # (Opsional: Di masa depan, Anda bisa tambahkan query untuk mengambil presensi/jadwal kelas anak_aktif di sini)
+            # 2. Ambil informasi kelas yang dimiliki si anak aktif
+            query_kelas = """
+                SELECT k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, u.username AS nama_tutor
+                FROM pendaftaran p
+                JOIN kelas k ON p.id_kelas = k.id_kelas
+                LEFT JOIN users u ON k.id_pengajar = u.id_users
+                WHERE p.id_anak = %s AND p.status_pendaftaran = 'Aktif'
+            """
+            cursor.execute(query_kelas, (anak_aktif['id_anak'],))
+            kelas_anak = cursor.fetchall()
+            
+            # Format jam kelas
+            for k in kelas_anak:
+                if k['jam_mulai'] and hasattr(k['jam_mulai'], 'total_seconds'):
+                    ts = int(k['jam_mulai'].total_seconds())
+                    k['jam_mulai'] = f"{ts // 3600:02d}:{(ts % 3600) // 60:02d}"
+                if k['jam_selesai'] and hasattr(k['jam_selesai'], 'total_seconds'):
+                    ts = int(k['jam_selesai'].total_seconds())
+                    k['jam_selesai'] = f"{ts // 3600:02d}:{(ts % 3600) // 60:02d}"
+
+            # 3. Hitung presensi si anak berdasarkan sesi kelas
+            query_presensi = """
+                SELECT status_kehadiran, COUNT(*) as jumlah
+                FROM presensi
+                JOIN pendaftaran p ON presensi.id_pendaftaran = p.id_pendaftaran
+                WHERE p.id_anak = %s
+                GROUP BY status_kehadiran
+            """
+            cursor.execute(query_presensi, (anak_aktif['id_anak'],))
+            presensi_data = cursor.fetchall()
+            
+            for p in presensi_data:
+                if p['status_kehadiran'] == 'Hadir':
+                    statistik_presensi['hadir'] += p['jumlah']
+                else:
+                    statistik_presensi['tidak_hadir'] += p['jumlah']
+            
+            statistik_presensi['total'] = statistik_presensi['hadir'] + statistik_presensi['tidak_hadir']
+            if statistik_presensi['total'] > 0:
+                statistik_presensi['persentase'] = round((statistik_presensi['hadir'] / statistik_presensi['total']) * 100)
+
+        # 4. Ambil riwayat transaksi keseluruhan orang tua (5 transaksi terakhir)
+        query_transaksi = """
+            SELECT p.id_pembayaran, p.jumlah_bayar, p.tanggal_bayar, p.status_pembayaran, k.nama_kelas
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            WHERE a.id_orangtua = %s
+            ORDER BY p.tanggal_bayar DESC
+            LIMIT 5
+        """
+        cursor.execute(query_transaksi, (user_id,))
+        riwayat_transaksi = cursor.fetchall()
 
         return render_template('orangtua/index.html', 
                                username=session.get('username'), 
                                daftar_anak=daftar_anak, 
-                               anak_aktif=anak_aktif)
+                               anak_aktif=anak_aktif,
+                               kelas_anak=kelas_anak,
+                               statistik_presensi=statistik_presensi,
+                               riwayat_transaksi=riwayat_transaksi,
+                               foto_profil=foto_profil_user)
                                
     except Exception as e:
         print(f"Error loading dashboard: {e}")
@@ -290,6 +381,143 @@ def halaman_syarat_ketentuan():
 def halaman_kebijakan_privasi():
     return render_template('orangtua/kebijakan_privasi.html')
 
+@orangtua_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    # Jika GET, tampilkan halaman form Lupa Password
+    if request.method == 'GET':
+        return render_template('orangtua/lupa_password.html')
+    
+    # Jika POST, proses pencarian email
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'message': 'Email wajib diisi.'}), 400
+
+        # Koneksi ke database
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Cari user berdasarkan email dan rolenya (R01 = Murid/Orangtua)
+        cursor.execute("SELECT id_users FROM users WHERE email = %s AND role_id_role = 'R01'", (email,))
+        user = cursor.fetchone()
+        
+        if user:
+            # 1. Buat kode OTP dan catat ID user
+            otp = str(random.randint(100000, 999999))
+            user_id = user['id_users']
+            
+            # 2. Simpan OTP ke database user_otps
+            cursor.execute("""
+                INSERT INTO user_otps (user_id_users, email, otp_code, expired_at, is_used) 
+                VALUES (%s, %s, %s, DATE_ADD(NOW(), INTERVAL 5 MINUTE), 0)
+            """, (user_id, email, otp))
+            conn.commit()
+            
+            # 3. Kirim email
+            try:
+                msg = Message('Kode OTP Reset Password', recipients=[email])
+                msg.body = f"Kode OTP untuk mereset kata sandi Anda adalah: {otp}\nBerlaku selama 5 menit."
+                mail.send(msg)
+                print(f"[DEBUG] OTP Lupa Password {otp} dikirim ke {email}")
+            except Exception as e:
+                print(f"Gagal mengirim email: {e}")
+                
+        cursor.close()
+        conn.close()
+            
+        # Selalu kembalikan respon sukses + redirect ke input OTP dengan membawa URL parameter email
+        return jsonify({
+            'message': 'Jika email terdaftar, kode OTP telah dikirim.',
+            'redirect': url_for('orangtua.verify_reset_otp', email=email)
+        }), 200
+
+@orangtua_bp.route('/verify-reset-otp', methods=['GET', 'POST'])
+def verify_reset_otp():
+    # Menampilkan halaman input OTP
+    if request.method == 'GET':
+        email = request.args.get('email')
+        if not email:
+            return redirect(url_for('orangtua.forgot_password'))
+        return render_template('orangtua/lupa_password_otp.html', email=email)
+        
+    # Memproses validasi kode OTP
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Cek OTP berdasarkan email (Ambil data paling baru jika ada multiple)
+        cursor.execute("""
+            SELECT * FROM user_otps 
+            WHERE email = %s AND otp_code = %s AND is_used = 0 AND expired_at > NOW()
+            ORDER BY id DESC LIMIT 1
+        """, (email, otp))
+        otp_data = cursor.fetchone()
+        
+        if otp_data:
+            # OTP Valid: Tandai sudah dipakai (hangus)
+            cursor.execute("UPDATE user_otps SET is_used = 1 WHERE id = %s", (otp_data['id'],))
+            conn.commit()
+            
+            # Simpan Sesi (session) bahwa email ini telah tervalidasi OTP-nya untuk reset password
+            session['reset_email'] = email
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'message': 'OTP Valid. Silakan buat password baru.',
+                'redirect': url_for('orangtua.reset_password')
+            }), 200
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({'message': 'Kode OTP salah atau telah kadaluarsa!'}), 400
+
+@orangtua_bp.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    # Mencegah user mengakses halaman ini jika belum verifikasi OTP
+    if request.method == 'GET':
+        if 'reset_email' not in session:
+            return redirect(url_for('orangtua.forgot_password'))
+        return render_template('orangtua/reset_password.html')
+        
+    # Proses update password baru ke database
+    if request.method == 'POST':
+        if 'reset_email' not in session:
+            return jsonify({'message': 'Sesi telah berakhir, silakan ulang dari awal.'}), 400
+            
+        data = request.get_json()
+        new_password = data.get('password')
+        email = session['reset_email'] # Email didapat dengan aman dari Session
+        
+        # Enkripsi password baru
+        hashed_password = generate_password_hash(new_password)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update ke tabel users
+        cursor.execute("""
+            UPDATE users SET password = %s WHERE email = %s AND role_id_role = 'R01'
+        """, (hashed_password, email))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        # Hapus sesi agar tidak bisa dikunjungi lagi 
+        session.pop('reset_email', None)
+        
+        return jsonify({
+            'message': 'Kata sandi berhasil diubah! Silakan login.',
+            'redirect': url_for('orangtua.halaman_portal_orangtua')
+        }), 200
 @orangtua_bp.route('/logout')
 def logout():
     session.clear()
@@ -297,7 +525,6 @@ def logout():
 
 @orangtua_bp.route('/manajemen_anak')
 def manajemen_anak():
-
     if 'id_users' not in session:
         return redirect('/login')
         
@@ -314,6 +541,34 @@ def manajemen_anak():
         """, (user_id,))
         daftar_anak = cursor.fetchall()
         
+        # Tambahkan informasi tambahan untuk setiap anak (Jumlah Kelas & Kelas Mendatang)
+        for anak in daftar_anak:
+            # 1. Hitung jumlah kelas aktif
+            cursor.execute("""
+                SELECT COUNT(*) as jumlah_kelas 
+                FROM pendaftaran 
+                WHERE id_anak = %s AND status_pendaftaran = 'Aktif'
+            """, (anak['id_anak'],))
+            anak['jumlah_kelas'] = cursor.fetchone()['jumlah_kelas']
+            
+            # 2. Ambil data kelas mendatang
+            cursor.execute("""
+                SELECT k.nama_kelas, k.hari_jadwal, k.jam_mulai, u.username as nama_pengajar
+                FROM pendaftaran p
+                JOIN kelas k ON p.id_kelas = k.id_kelas
+                LEFT JOIN users u ON k.id_pengajar = u.id_users
+                WHERE p.id_anak = %s AND p.status_pendaftaran = 'Aktif'
+            """, (anak['id_anak'],))
+            jadwal = cursor.fetchall()
+            
+            # Format jam mulai
+            for j in jadwal:
+                if j['jam_mulai'] and hasattr(j['jam_mulai'], 'total_seconds'):
+                    ts = int(j['jam_mulai'].total_seconds())
+                    j['jam_mulai'] = f"{ts // 3600:02d}:{(ts % 3600) // 60:02d}"
+            
+            anak['jadwal_mendatang'] = jadwal
+            
         return render_template('orangtua/child_management.html', daftar_anak=daftar_anak)
         
     except Exception as e:
@@ -385,20 +640,135 @@ def tambah_anak():
         
     return redirect('/manajemen_anak')
 
+UPLOAD_FOLDER_FOTO = os.path.join('static', 'img')
+EKSTENSI_FOTO_VALID = {'png', 'jpg', 'jpeg'}
+
+def foto_valid(nama_file):
+    return '.' in nama_file and nama_file.rsplit('.', 1)[1].lower() in EKSTENSI_FOTO_VALID
+
+@orangtua_bp.route('/edit_anak', methods=['POST'])
+def edit_anak():
+    if 'id_users' not in session:
+        return redirect('/login')
+        
+    user_id = session['id_users']
+    id_anak = request.form.get('id_anak')
+    nama_lengkap = request.form.get('nama_lengkap')
+    nama_panggilan = request.form.get('nama_panggilan')
+    sekolah_asal = request.form.get('sekolah_asal')
+    kelas = request.form.get('kelas')
+    tanggal_lahir_raw = request.form.get('tanggal_lahir')
+    jenis_kelamin = request.form.get('jenis_kelamin')
+    
+    if not id_anak or not nama_lengkap:
+        flash('Data wajib tidak lengkap!', 'error')
+        return redirect('/manajemen_anak')
+        
+    # 1. Format tanggal lahir
+    tanggal_lahir = None
+    if tanggal_lahir_raw and tanggal_lahir_raw.strip() != "":
+        try:
+            tanggal_lahir = datetime.strptime(tanggal_lahir_raw, '%Y-%m-%d').date()
+        except ValueError:
+            tanggal_lahir = None
+
+    # 2. Tangani Upload Foto ke Cloudinary
+    foto = request.files.get('foto_profil')
+    url_foto_cloudinary = None
+
+    if foto and foto.filename != '':
+        if foto_valid(foto.filename):
+            try:
+                # Mengunggah ke Cloudinary ke folder khusus
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_anak"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto: {str(e)}', 'error')
+                return redirect('/manajemen_anak')
+        else:
+            flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
+            return redirect('/manajemen_anak')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 3. Jalankan Query Update 
+        if url_foto_cloudinary:
+            # Simpan secure_url dari Cloudinary ke database
+            cursor.execute("""
+                UPDATE anak 
+                SET nama_lengkap = %s, nama_panggilan = %s, sekolah_asal = %s, 
+                    kelas = %s, tanggal_lahir = %s, jenis_kelamin = %s, foto_profil = %s
+                WHERE id_anak = %s AND id_orangtua = %s
+            """, (nama_lengkap, nama_panggilan, sekolah_asal, kelas, tanggal_lahir, jenis_kelamin, url_foto_cloudinary, id_anak, user_id))
+        else:
+            # Jika user TIDAK mengunggah foto
+            cursor.execute("""
+                UPDATE anak 
+                SET nama_lengkap = %s, nama_panggilan = %s, sekolah_asal = %s, 
+                    kelas = %s, tanggal_lahir = %s, jenis_kelamin = %s
+                WHERE id_anak = %s AND id_orangtua = %s
+            """, (nama_lengkap, nama_panggilan, sekolah_asal, kelas, tanggal_lahir, jenis_kelamin, id_anak, user_id))
+        
+        conn.commit()
+        flash('Profil anak berhasil diperbarui!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error update anak: {e}")
+        flash('Gagal memperbarui profil anak.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect('/manajemen_anak')
+        
+    
+
 @orangtua_bp.route('/kelas')
 def halaman_pendaftaran_kelas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
+    user_id = session['id_users']
+
+    # ... (Biarkan query daftar_kelas tetap seperti aslinya) ...
     query = """
         SELECT k.*, u.username AS nama_tutor,
-        (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+        (
+            SELECT COUNT(*)
+            FROM pendaftaran p
+            JOIN pembayaran pay ON pay.id_pendaftaran = p.id_pendaftaran
+            WHERE p.id_kelas = k.id_kelas
+              AND p.status_pendaftaran = 'Aktif'
+              AND pay.status_pembayaran = 'Lunas'
+        ) AS jumlah_siswa
         FROM kelas k
         LEFT JOIN users u ON k.id_pengajar = u.id_users
         WHERE k.status_kelas = 'Aktif'
     """
     cursor.execute(query)
     daftar_kelas = cursor.fetchall()
+    
+    # --- UBAH BAGIAN INI: Tambahkan no_telp dan alamat ke dalam query ---
+    cursor.execute("SELECT foto_profil, no_telp, alamat FROM users WHERE id_users = %s", (user_id,))
+    user_data = cursor.fetchone()
+    
+    # Cek apakah profil sudah lengkap
+    profil_lengkap = True
+    if not user_data or not user_data.get('no_telp') or not user_data.get('alamat'):
+        profil_lengkap = False
+        
+    foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
+    # --------------------------------------------------------------
+
+    # 1. Ambil daftar anak milik orang tua ini
+    cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+    daftar_anak = cursor.fetchall()
     
     # Format waktu jam_mulai dan jam_selesai jadi string HH:MM
     for k in daftar_kelas:
@@ -410,7 +780,12 @@ def halaman_pendaftaran_kelas():
     cursor.close()
     conn.close()
     
-    return render_template('orangtua/kelas.html', daftar_kelas=daftar_kelas, username=session.get('username'))
+    # --- UBAH BAGIAN INI JUGA: Kirim variabel profil_lengkap ke HTML ---
+    return render_template('orangtua/kelas.html', 
+                           foto_profil=foto_profil_user, 
+                           daftar_kelas=daftar_kelas, 
+                           username=session.get('username'),
+                           profil_lengkap=profil_lengkap)
 
 @orangtua_bp.route('/konfirmasi_kelas/<id_kelas>')
 def konfirmasi_kelas(id_kelas):
@@ -444,6 +819,8 @@ def konfirmasi_kelas(id_kelas):
     finally:
         cursor.close()
         conn.close()
+
+
 
 @orangtua_bp.route('/kelas/daftar/<string:id_kelas>', methods=['GET'])
 def konfirmasi_pendaftaran(id_kelas):
@@ -509,6 +886,8 @@ def konfirmasi_pendaftaran(id_kelas):
         cursor.close()
         conn.close()
 
+
+
 @orangtua_bp.route('/pembayaran', methods=['GET', 'POST'])
 def pembayaran():
     # 1. Pastikan user (orang tua) sudah login
@@ -524,23 +903,25 @@ def pembayaran():
         cursor = conn.cursor(dictionary=True)
         
         try:
-            # Ambil data detail kelas yang dipilih
-            cursor.execute("SELECT * FROM kelas WHERE id_kelas = %s", (id_kelas,))
-            detail_kelas = cursor.fetchone()
-            
-            # Ambil data profil anak untuk konfirmasi
+            # Ambil data anak
             cursor.execute("SELECT * FROM anak WHERE id_anak = %s AND id_orangtua = %s", (id_anak, session['id_users']))
             detail_anak = cursor.fetchone()
 
+            # Ambil data kelas
             query_kelas = """
-            SELECT k.*, u.username AS nama_tutor 
-            FROM kelas k
-            LEFT JOIN users u ON k.id_pengajar = u.id_users
-            WHERE k.id_kelas = %s
+                SELECT k.*, u.username AS nama_tutor 
+                FROM kelas k
+                LEFT JOIN users u ON k.id_pengajar = u.id_users
+                WHERE k.id_kelas = %s
             """
             cursor.execute(query_kelas, (id_kelas,))
             kelas_detail = cursor.fetchone()
 
+            if not kelas_detail or not detail_anak:
+                flash('Data kelas atau anak tidak ditemukan.', 'error')
+                return redirect(url_for('orangtua.kelas'))
+
+            # Format jam kelas
             if kelas_detail.get('jam_mulai') and hasattr(kelas_detail['jam_mulai'], 'total_seconds'):
                 total_sec = int(kelas_detail['jam_mulai'].total_seconds())
                 kelas_detail['jam_mulai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
@@ -548,35 +929,538 @@ def pembayaran():
             if kelas_detail.get('jam_selesai') and hasattr(kelas_detail['jam_selesai'], 'total_seconds'):
                 total_sec = int(kelas_detail['jam_selesai'].total_seconds())
                 kelas_detail['jam_selesai'] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
-            # Jika datanya valid, tampilkan halaman pembayaran
-            if kelas_detail and detail_anak:
-                return render_template('orangtua/pembayaran.html', 
-                                       username=session.get('username'),
-                                       kelas=kelas_detail,
-                                       anak=detail_anak)
-            else:
-                flash('Data kelas atau anak tidak ditemukan.', 'error')
-                return redirect(url_for('orangtua.kelas'))
 
+            # ========================================================
+            # LOGIKA PEMBUATAN ID PEMBAYARAN OTOMATIS (AUTO INCREMENT)
+            # ========================================================
             
-   
+            # Langkah A: Cek apakah pendaftaran kelas ini sudah ada
+            cursor.execute("SELECT id_pendaftaran FROM pendaftaran WHERE id_kelas = %s AND id_anak = %s", (id_kelas, id_anak))
+            pendaftaran = cursor.fetchone()
+            
+            if not pendaftaran:
+                # Jika belum ada, buat pendaftaran baru
+                cursor.execute("INSERT INTO pendaftaran (id_kelas, id_anak, status_pendaftaran) VALUES (%s, %s, 'Aktif')", (id_kelas, id_anak))
+                id_pendaftaran = cursor.lastrowid  # Ambil ID Auto Increment
+            else:
+                id_pendaftaran = pendaftaran['id_pendaftaran']
+                
+            # Langkah B: Cek apakah sudah ada tagihan yang 'Pending' untuk pendaftaran ini
+            cursor.execute("SELECT id_pembayaran, tanggal_bayar FROM pembayaran WHERE id_pendaftaran = %s AND status_pembayaran = 'Pending'", (id_pendaftaran,))
+            pembayaran_pending = cursor.fetchone()
+            
+            if not pembayaran_pending:
+                # Jika belum ada tagihan Pending, buat tagihan baru
+                jumlah_bayar = kelas_detail['harga']
+                cursor.execute(
+                    "INSERT INTO pembayaran (id_pendaftaran, jumlah_bayar, status_pembayaran) VALUES (%s, %s, 'Pending')",
+                    (id_pendaftaran, jumlah_bayar)
+                )
+                id_pembayaran_db = cursor.lastrowid  # Ambil ID Auto Increment
+                tanggal_bayar = datetime.now()
+            else:
+                id_pembayaran_db = pembayaran_pending['id_pembayaran']
+                tanggal_bayar = pembayaran_pending['tanggal_bayar']
+                
+            # Simpan perubahan ke Database
+            conn.commit()
+            
+            # Langkah C: Kode unik diturunkan otomatis dari id_pembayaran (lihat generate_kode_pembayaran)
+            kode_pembayaran = generate_kode_pembayaran(id_pembayaran_db, tanggal_bayar)
+            invoice_id = kode_pembayaran
+
+            # Tampilkan ke halaman pembayaran
+            return render_template('orangtua/pembayaran.html', 
+                                   username=session.get('username'),
+                                   kelas=kelas_detail,
+                                   anak=detail_anak,
+                                   id_pembayaran=id_pembayaran_db,
+                                   kode_pembayaran=kode_pembayaran,
+                                   invoice_id=invoice_id)
+
         except Exception as e:
+            conn.rollback() # Batalkan transaksi jika terjadi error
             print(f"Error memuat halaman pembayaran: {e}")
             return "Terjadi kesalahan pada server", 500
         finally:
             cursor.close()
             conn.close()
             
-    # 3. Jika halaman pembayaran diakses langsung (Metode GET) tanpa membawa ID kelas
+    # 3. Jika diakses langsung tanpa lewat form kelas
     return render_template('orangtua/pembayaran.html', username=session.get('username'))
 
 @orangtua_bp.route('/riwayat_pembayaran')
 def riwayat_pembayaran():
-    return render_template('orangtua/riwayat_transaksi.html')
+    # 1. Pastikan user (orang tua) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    user_id = session['id_users']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 1b. Ambil daftar anak & foto profil orang tua untuk topbar (konsisten dengan index.html)
+        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan, kelas FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        daftar_anak = cursor.fetchall()
+
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (user_id,))
+        user_row = cursor.fetchone()
+        foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else 'default_parent.png'
+
+        # 2. Ambil SELURUH riwayat transaksi milik anak-anak dari orang tua yang login.
+        #    Filter periode/status TIDAK dilakukan di sini lagi — semua data dikirim
+        #    sekaligus ke halaman, lalu difilter di sisi browser (JS) agar mengganti
+        #    dropdown tidak perlu reload halaman.
+        query = """
+            SELECT
+                p.id_pembayaran,
+                p.jumlah_bayar,
+                p.tanggal_bayar,
+                p.status_pembayaran,
+                p.bukti_bayar,
+                k.nama_kelas,
+                a.nama_panggilan,
+                a.nama_lengkap
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            WHERE a.id_orangtua = %s
+            ORDER BY p.tanggal_bayar DESC
+        """
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+
+        # 3. Normalisasi status & siapkan data untuk ditampilkan di tabel
+        # `status_pembayaran` di DB cuma ENUM('Pending','Lunas','Ditolak'), tapi status yang
+        # ditampilkan ke user dibagi jadi 4 berdasarkan kombinasi status_pembayaran + bukti_bayar:
+        #   - Ditolak                       -> Gagal
+        #   - Lunas                         -> Sukses (sudah divalidasi admin)
+        #   - Pending + ada bukti_bayar     -> Pending (sudah kirim bukti, menunggu validasi admin)
+        #   - Pending + bukti_bayar kosong  -> Menunggu Pembayaran (belum kirim bukti sama sekali)
+        daftar_transaksi = []
+        total_tahun_ini = 0
+        total_pending = 0
+        pending_count = 0
+        jumlah_sukses = 0
+
+        tahun_sekarang = datetime.now().year
+
+        for row in rows:
+            status_db = row.get('status_pembayaran') or 'Pending'
+            ada_bukti_bayar = bool(row.get('bukti_bayar'))
+
+            if status_db == 'Lunas':
+                status_kategori = 'sukses'
+                status_label = 'Sukses'
+                jumlah_sukses += 1
+                if row.get('tanggal_bayar') and row['tanggal_bayar'].year == tahun_sekarang:
+                    total_tahun_ini += float(row['jumlah_bayar'] or 0)
+            elif status_db == 'Ditolak':
+                status_kategori = 'gagal'
+                status_label = 'Gagal'
+            elif status_db == 'Pending' and ada_bukti_bayar:
+                status_kategori = 'pending'
+                status_label = 'Pending'
+                total_pending += float(row['jumlah_bayar'] or 0)
+                pending_count += 1
+            else:  # 'Pending' tanpa bukti_bayar sama sekali
+                status_kategori = 'menunggu'
+                status_label = 'Menunggu Pembayaran'
+                total_pending += float(row['jumlah_bayar'] or 0)
+                pending_count += 1
+
+            daftar_transaksi.append({
+                'id_pembayaran': row['id_pembayaran'],
+                'kode_pembayaran': generate_kode_pembayaran(row['id_pembayaran'], row.get('tanggal_bayar')),
+                'nama_kelas': row.get('nama_kelas'),
+                'nama_anak': row.get('nama_panggilan') or row.get('nama_lengkap'),
+                'jumlah_bayar': row.get('jumlah_bayar') or 0,
+                'tanggal': row['tanggal_bayar'].strftime('%d %b %Y') if row.get('tanggal_bayar') else '-',
+                'tanggal_iso': row['tanggal_bayar'].strftime('%Y-%m-%d') if row.get('tanggal_bayar') else '',
+                'status_asli': status_label,
+                'status_kategori': status_kategori,
+            })
+
+        total_transaksi = len(daftar_transaksi)
+        success_rate = round((jumlah_sukses / total_transaksi) * 100, 1) if total_transaksi else 0
+
+        return render_template('orangtua/riwayat_transaksi.html',
+                               username=session.get('username'),
+                               daftar_anak=daftar_anak,
+                               foto_profil=foto_profil_user,
+                               daftar_transaksi=daftar_transaksi,
+                               total_tahun_ini=total_tahun_ini,
+                               total_pending=total_pending,
+                               pending_count=pending_count,
+                               success_rate=success_rate,
+                               total_transaksi=total_transaksi)
+
+    except Exception as e:
+        print(f"Error memuat riwayat transaksi: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@orangtua_bp.route('/riwayat_pembayaran/detail/<int:id_pembayaran>', methods=['GET', 'POST'])
+def detail_pembayaran(id_pembayaran):
+    # 1. Pastikan user (orang tua) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    user_id = session['id_users']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil detail transaksi, PASTIKAN transaksi ini memang milik anak dari
+        #    orang tua yang sedang login (supaya tidak bisa lihat/upload punya orang lain)
+        query = """
+            SELECT
+                p.id_pembayaran, p.jumlah_bayar, p.tanggal_bayar,
+                p.status_pembayaran, p.bukti_bayar, p.keterangan,
+                k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai,
+                a.nama_panggilan, a.nama_lengkap
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            WHERE p.id_pembayaran = %s AND a.id_orangtua = %s
+        """
+        cursor.execute(query, (id_pembayaran, user_id))
+        trx = cursor.fetchone()
+
+        if not trx:
+            flash('Transaksi tidak ditemukan.', 'error')
+            return redirect(url_for('orangtua.riwayat_pembayaran'))
+
+        # 3. Tentukan kategori status (logika sama persis dengan halaman riwayat)
+        status_db = trx.get('status_pembayaran') or 'Pending'
+        ada_bukti_bayar = bool(trx.get('bukti_bayar'))
+
+        if status_db == 'Lunas':
+            status_kategori = 'sukses'
+        elif status_db == 'Ditolak':
+            status_kategori = 'gagal'
+        elif status_db == 'Pending' and ada_bukti_bayar:
+            status_kategori = 'pending'
+        else:
+            status_kategori = 'menunggu'
+
+        # 4. Proses upload bukti bayar (hanya berlaku saat status masih "menunggu")
+        if request.method == 'POST':
+            if status_kategori != 'menunggu':
+                flash('Bukti pembayaran untuk transaksi ini sudah tidak bisa diupload lagi.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            file = request.files.get('bukti_bayar')
+            if not file or file.filename == '':
+                flash('Silakan pilih file bukti pembayaran terlebih dahulu.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            if not ekstensi_valid(file.filename):
+                flash('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.', 'error')
+                return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+            try:
+                # Mengunggah ke Cloudinary
+                # resource_type="auto" sangat penting karena file bisa berupa PDF!
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder="tec_portal/bukti_bayar",
+                    resource_type="auto" 
+                )
+                url_bukti = upload_result.get('secure_url')
+                
+                cursor.execute(
+                    "UPDATE pembayaran SET bukti_bayar = %s WHERE id_pembayaran = %s",
+                    (url_bukti, id_pembayaran)
+                )
+                conn.commit()
+
+                flash('Bukti pembayaran berhasil dikirim! Menunggu validasi dari admin.', 'success')
+            except Exception as e:
+                conn.rollback()
+                flash(f'Gagal mengunggah bukti pembayaran: {str(e)}', 'error')
+
+            return redirect(url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran))
+
+        # 5. Siapkan data untuk ditampilkan (GET)
+        jam_mulai = trx.get('jam_mulai')
+        jam_selesai = trx.get('jam_selesai')
+
+        data_trx = {
+            'id_pembayaran': trx['id_pembayaran'],
+            'kode_pembayaran': generate_kode_pembayaran(trx['id_pembayaran'], trx.get('tanggal_bayar')),
+            'nama_kelas': trx.get('nama_kelas'),
+            'hari_jadwal': trx.get('hari_jadwal'),
+            'jam_mulai': str(jam_mulai)[:5] if jam_mulai else '',
+            'jam_selesai': str(jam_selesai)[:5] if jam_selesai else '',
+            'nama_anak': trx.get('nama_panggilan') or trx.get('nama_lengkap'),
+            'jumlah_bayar': trx.get('jumlah_bayar') or 0,
+            'tanggal': trx['tanggal_bayar'].strftime('%d %B %Y, %H:%M') if trx.get('tanggal_bayar') else '-',
+            'bukti_bayar': trx.get('bukti_bayar'),
+            'keterangan': trx.get('keterangan') or 'Admin tidak menyertakan alasan spesifik untuk penolakan ini. Silakan hubungi customer service TEC Portal untuk informasi lebih lanjut.',
+        }
+
+        return render_template('orangtua/detail_pembayaran.html',
+                               username=session.get('username'),
+                               trx=data_trx,
+                               status_kategori=status_kategori)
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error memuat detail pembayaran: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _gabung_tanggal_jam(tanggal, jam):
+    """
+    Menggabungkan kolom `date` (tanggal) dan `time` (jam_mulai/jam_selesai) dari MySQL
+    menjadi satu objek datetime. Driver MySQL biasanya mengembalikan kolom TIME
+    sebagai timedelta, jadi kita tangani dua kemungkinan tipe sekaligus.
+    """
+    if isinstance(jam, timedelta):
+        return datetime.combine(tanggal, datetime.min.time()) + jam
+    return datetime.combine(tanggal, jam)
+
+
+def _format_jam(jam):
+    """Format kolom TIME (timedelta ATAU time) menjadi string 'HH:MM'."""
+    if isinstance(jam, timedelta):
+        total_menit = jam.seconds // 60
+        return f"{total_menit // 60:02d}:{total_menit % 60:02d}"
+    return jam.strftime('%H:%M')
+
+
+def _ambil_daftar_jadwal(cursor, id_anak):
+    """
+    Ambil semua kelas yang diikuti seorang anak beserta sesi_kelas-nya
+    (dipakai bersama oleh halaman Jadwal Belajar dan sinkronisasi Google
+    Calendar, supaya logikanya tidak dobel).
+    """
+    query_jadwal = """
+        SELECT
+            sk.id_sesi, sk.tanggal, sk.topik_pembahasan,
+            k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, k.status_kelas,
+            u.username AS nama_pengajar
+        FROM pendaftaran pd
+        JOIN kelas k ON pd.id_kelas = k.id_kelas
+        JOIN users u ON k.id_pengajar = u.id_users
+        LEFT JOIN sesi_kelas sk ON sk.id_kelas = k.id_kelas
+        WHERE pd.id_anak = %s AND pd.status_pendaftaran = 'Aktif'
+        ORDER BY (sk.tanggal IS NULL) ASC, sk.tanggal ASC, k.jam_mulai ASC
+    """
+    cursor.execute(query_jadwal, (id_anak,))
+    rows = cursor.fetchall()
+
+    hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
+    bulan_map = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
+                 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'}
+    sekarang = datetime.now()
+
+    daftar_jadwal = []
+    for row in rows:
+        tanggal = row['tanggal']
+
+        if tanggal is not None:
+            # Kelas ini sudah punya sesi terjadwal dengan tanggal pasti (tabel sesi_kelas)
+            mulai_dt = _gabung_tanggal_jam(tanggal, row['jam_mulai'])
+            selesai_dt = _gabung_tanggal_jam(tanggal, row['jam_selesai'])
+
+            # Tentukan status sesi (Akan Datang / Sedang Berlangsung / Selesai) secara dinamis
+            if sekarang < mulai_dt:
+                status_sesi = 'Akan Datang'
+            elif mulai_dt <= sekarang <= selesai_dt:
+                status_sesi = 'Sedang Berlangsung'
+            else:
+                status_sesi = 'Selesai'
+
+            hari_display = hari_map[tanggal.weekday()]
+            tanggal_display = f"{tanggal.day:02d} {bulan_map[tanggal.month]}"
+        else:
+            # Kelas sudah terdaftar (pendaftaran Aktif) tapi belum ada sesi_kelas
+            # spesifik yang diinput -> tampilkan sebagai jadwal rutin mingguan
+            status_sesi = 'Terjadwal Rutin'
+            hari_display = row['hari_jadwal']
+            tanggal_display = None
+
+        daftar_jadwal.append({
+            'id_sesi': row['id_sesi'],
+            'id_kelas': row['id_kelas'],
+            'hari': hari_display,
+            'tanggal_display': tanggal_display,
+            'tanggal_iso': tanggal.isoformat() if tanggal is not None else None,
+            'jam_mulai': _format_jam(row['jam_mulai']),
+            'jam_selesai': _format_jam(row['jam_selesai']),
+            'nama_kelas': row['nama_kelas'],
+            'nama_pengajar': row['nama_pengajar'],
+            'topik': row['topik_pembahasan'],
+            'status_kelas': row['status_kelas'],
+            'status_sesi': status_sesi,
+        })
+
+    return daftar_jadwal
+
 
 @orangtua_bp.route('/jadwal_belajar')
 def jadwal_belajar():
-    return render_template('orangtua/jadwal_belajar.html')
+    # 1. Pastikan user (orang tua/murid) sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    id_orangtua = session['id_users']
+    selected_anak_id = request.args.get('anak_id')  # dikirim dari dropdown pilih anak
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil semua anak milik orang tua yang sedang login (untuk mengisi dropdown)
+        cursor.execute(
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            (id_orangtua,)
+        )
+        daftar_anak = cursor.fetchall()
+
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (id_orangtua,))
+        user_row = cursor.fetchone()
+        foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else 'default_parent.png'
+
+        anak_aktif = None
+        daftar_jadwal = []
+
+        if daftar_anak:
+            # 3. Tentukan anak mana yang datanya mau ditampilkan
+            if selected_anak_id:
+                anak_aktif = next(
+                    (a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)),
+                    None
+                )
+            if not anak_aktif:
+                # Default: anak pertama (baru pertama kali buka halaman / anak_id tidak valid)
+                anak_aktif = daftar_anak[0]
+
+            # 4. Ambil semua kelas + sesi milik anak yang aktif dipilih
+            daftar_jadwal = _ambil_daftar_jadwal(cursor, anak_aktif['id_anak'])
+
+        return render_template('orangtua/jadwal_belajar.html',
+                               username=session.get('username'),
+                               daftar_anak=daftar_anak,
+                               anak_aktif=anak_aktif,
+                               foto_profil=foto_profil_user,
+                               daftar_jadwal=daftar_jadwal,
+                               google_calendar_connected=is_connected(id_orangtua))
+
+    except Exception as e:
+        print(f"Error memuat jadwal belajar: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@orangtua_bp.route('/google_calendar/connect')
+def google_calendar_connect():
+    """Mulai alur OAuth: redirect orang tua ke consent screen Google."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    try:
+        auth_url, state = get_authorization_url()
+    except GoogleCalendarNotConfigured as e:
+        flash(str(e), 'error')
+        return redirect(url_for('orangtua.jadwal_belajar'))
+
+    session['gcal_oauth_state'] = state
+    session['gcal_return_to'] = request.args.get('next') or url_for('orangtua.jadwal_belajar')
+    return redirect(auth_url)
+
+
+@orangtua_bp.route('/google_calendar/oauth2callback')
+def google_calendar_callback():
+    """Google redirect ke sini setelah orang tua menyetujui/menolak akses."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    return_to = session.pop('gcal_return_to', None) or url_for('orangtua.jadwal_belajar')
+    state = session.pop('gcal_oauth_state', None)
+
+    if request.args.get('error'):
+        flash('Menghubungkan Google Calendar dibatalkan.', 'error')
+        return redirect(return_to)
+
+    try:
+        creds = exchange_code_for_credentials(state, request.url)
+        save_credentials(session['id_users'], creds)
+        flash('Google Calendar berhasil terhubung.', 'success')
+    except Exception as e:
+        print(f"Gagal menghubungkan Google Calendar: {e}")
+        flash('Gagal menghubungkan Google Calendar. Silakan coba lagi.', 'error')
+
+    return redirect(return_to)
+
+
+@orangtua_bp.route('/google_calendar/disconnect', methods=['POST'])
+def google_calendar_disconnect():
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    disconnect(session['id_users'])
+    return jsonify({'success': True})
+
+
+@orangtua_bp.route('/google_calendar/sync', methods=['POST'])
+def google_calendar_sync():
+    """Dipanggil oleh tombol 'Sinkronisasi Kalender' di halaman Jadwal Belajar."""
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    id_orangtua = session['id_users']
+    selected_anak_id = request.args.get('anak_id')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            (id_orangtua,)
+        )
+        daftar_anak = cursor.fetchall()
+        if not daftar_anak:
+            return jsonify({'success': False, 'message': 'Belum ada data anak terdaftar.'}), 400
+
+        anak_aktif = next(
+            (a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)),
+            daftar_anak[0]
+        )
+
+        daftar_jadwal = _ambil_daftar_jadwal(cursor, anak_aktif['id_anak'])
+
+        hasil = sync_jadwal_to_calendar(
+            id_orangtua, daftar_jadwal,
+            nama_anak=anak_aktif['nama_panggilan'] or anak_aktif['nama_lengkap']
+        )
+        return jsonify({'success': True, **hasil})
+
+    except GoogleCalendarNotConnected:
+        return jsonify({'success': False, 'code': 'NOT_CONNECTED', 'message': 'Belum terhubung ke Google Calendar.'}), 409
+    except GoogleCalendarNotConfigured as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    except Exception as e:
+        print(f"Error sinkronisasi Google Calendar: {e}")
+        return jsonify({'success': False, 'message': 'Terjadi kesalahan pada server.'}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @orangtua_bp.route('/presensi')
 def presensi():
@@ -636,3 +1520,103 @@ def reports():
     finally:
         cursor.close()
         conn.close()
+
+@orangtua_bp.route('/pengaturan')
+def pengaturan():
+    # Pastikan user sudah login
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+        
+    user_id = session['id_users']
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # 1. Ambil data user yang sedang login
+        cursor.execute("SELECT * FROM users WHERE id_users = %s", (user_id,))
+        user_data = cursor.fetchone()
+        
+        # 2. Ambil data anak untuk mengisi dropdown di Topbar (agar konsisten dengan index)
+        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan, kelas FROM anak WHERE id_orangtua = %s", (user_id,))
+        daftar_anak = cursor.fetchall()
+        
+        # Tampilkan ke halaman HTML
+        return render_template('orangtua/pengaturan.html', 
+                               username=session.get('username'),
+                               user=user_data,
+                               daftar_anak=daftar_anak)
+                               
+    except Exception as e:
+        print(f"Error memuat halaman pengaturan: {e}")
+        return "Terjadi kesalahan pada server", 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@orangtua_bp.route('/update_pengaturan', methods=['POST'])
+def update_pengaturan():
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+        
+    user_id = session['id_users']
+    
+    # Ambil data dari form input
+    nama_lengkap = request.form.get('nama_lengkap')
+    no_telp = request.form.get('no_telp')
+    alamat = request.form.get('alamat')
+    
+    # Checkbox Toggle
+    notif_tagihan = 1 if request.form.get('notif_tagihan') == '1' else 0
+    
+    # Tangani Upload Foto Profil ke Cloudinary
+    foto = request.files.get('foto_profil')
+    url_foto_cloudinary = None
+    
+    if foto and foto.filename != '':
+        if foto_valid(foto.filename):
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_user"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto profil: {str(e)}', 'error')
+                return redirect(url_for('orangtua.pengaturan'))
+        else:
+            flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
+            return redirect(url_for('orangtua.pengaturan'))
+            
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if url_foto_cloudinary:
+            # Update data user beserta foto baru (sekarang berupa URL)
+            cursor.execute("""
+                UPDATE users 
+                SET nama_lengkap = %s, no_telp = %s, alamat = %s, notif_tagihan = %s, foto_profil = %s
+                WHERE id_users = %s
+            """, (nama_lengkap, no_telp, alamat, notif_tagihan, url_foto_cloudinary, user_id))
+        else:
+            # Update data user tanpa mengubah foto profil lama
+            cursor.execute("""
+                UPDATE users 
+                SET nama_lengkap = %s, no_telp = %s, alamat = %s, notif_tagihan = %s
+                WHERE id_users = %s
+            """, (nama_lengkap, no_telp, alamat, notif_tagihan, user_id))
+            
+        conn.commit()
+        flash('Pengaturan akun berhasil disimpan!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error update pengaturan: {e}")
+        flash('Terjadi kesalahan saat menyimpan pengaturan.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('orangtua.pengaturan'))

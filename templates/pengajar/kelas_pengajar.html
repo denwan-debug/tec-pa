@@ -401,6 +401,102 @@
             color: var(--text-light-gray);
         }
 
+        /* --- MODAL LOGOUT STYLES --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+        }
+
+        .modal-content-box {
+            background-color: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content-box {
+            transform: translateY(0);
+        }
+
+        .modal-icon-logout {
+            width: 64px;
+            height: 64px;
+            background-color: #ed6494; /* Warna pink ikon */
+            color: #0a2540; /* Warna biru gelap untuk logo */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 24px auto;
+        }
+
+        .modal-content-box h2 {
+            color: #0a2540; /* Warna judul biru gelap */
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .modal-content-box p {
+            color: #4a5568; /* Warna abu-abu teks deskripsi */
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-confirm, .btn-cancel {
+            flex: 1;
+            padding: 14px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-confirm {
+            background-color: #ed6494; /* Tombol Logout Pink */
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background-color: #d84b7a;
+        }
+
+        .btn-cancel {
+            background-color: #f0f4fb; /* Tombol Cancel Biru Terang */
+            color: #0a2540;
+            border: 1px solid #d8e2f0;
+        }
+
+        .btn-cancel:hover {
+            background-color: #e2eaf6;
+        }
     </style>
 </head>
 <body>
@@ -421,7 +517,7 @@
             </nav>
 
             <div class="logout-area">
-                <a href="{{ url_for('pengajar.logout_pengajar') }}" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>
+                <a href="#" onclick="tampilkanModalLogout(event)" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>            
             </div>
         </aside>
 
@@ -469,12 +565,12 @@
                         {% set kategori = 'sd' %}
                         {% set tag_class = 'tag-sd' %}
                         {% set icon_theme = 'icon-blue' %}
-                        {% set label_tag = 'SD (Sekolah Dasar)' %}
+                        {% set label_tag = 'SD' %}
                     {% elif 'smp' in nama_lower or 'junior' in nama_lower %}
                         {% set kategori = 'smp' %}
                         {% set tag_class = 'tag-smp' %}
                         {% set icon_theme = 'icon-orange' %}
-                        {% set label_tag = 'SMP (Junior High)' %}
+                        {% set label_tag = 'SMP' %}
                     {% else %}
                         {% set kategori = 'sma' %}
                         {% set tag_class = 'tag-sma' %}
@@ -532,7 +628,50 @@
             </div>
         </main>
     </div>
+<!-- HTML Modal Logout -->
+<div id="modalLogout" class="modal-overlay">
+    <div class="modal-content-box">
+        <div class="modal-icon-logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </div>
+        <h2>Konfirmasi Logout</h2>
+        <p>Apakah Anda yakin ingin keluar dari akun TEC Anda?</p>
+        <div class="modal-buttons">
+            <!-- Tombol Logout yang sesungguhnya (akan memanggil route Flask) -->
+            <a href="{{ url_for('pengajar.logout_pengajar') }}" class="btn-confirm">Logout</a>
+            <!-- Tombol Batal -->
+            <button onclick="sembunyikanModalLogout()" class="btn-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
 
+<!-- Script untuk mengontrol Modal -->
+<script>
+    function tampilkanModalLogout(event) {
+        // Mencegah link dari mengubah halaman secara langsung
+        event.preventDefault(); 
+        
+        const modal = document.getElementById('modalLogout');
+        // Ubah display menjadi flex agar muncul
+        modal.style.display = 'flex'; 
+        
+        // Sedikit delay agar efek animasi CSS (fade in & slide up) bisa berjalan
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+    }
+
+    function sembunyikanModalLogout() {
+        const modal = document.getElementById('modalLogout');
+        // Hapus class show untuk memutar animasi kebalikan (fade out)
+        modal.classList.remove('show');
+        
+        // Tunggu animasi selesai selama 0.3 detik (300ms) sebelum menghilangkan display-nya
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+</script>
     <script>
         let currentCategory = 'all';
 

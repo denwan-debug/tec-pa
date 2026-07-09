@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verifikasi OTP - TEC Pembimbing</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif; }
+
+body {
+    height: 100vh;
+    display: flex;
+    background: #fdfbfb;
+    overflow: hidden;
+}
+
+.left-panel {
+    width: 55%;
+    background: #f4f6f8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.left-panel img {
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+.right-panel {
+    width: 45%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 45px 50px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #757575;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    transition: 0.2s;
+}
+
+.back-link:hover { color: #ed5a8b; }
+
+.title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #212121;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.subtitle {
+    color: #757575;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 35px;
+}
+
+.subtitle b { color: #424242; }
+
+.form-group { margin-bottom: 10px; }
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #424242;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* ==== Kotak Input OTP (6 digit terpisah) ==== */
+.otp-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 12px 0 25px 0;
+}
+
+.otp-input {
+    width: 48px;
+    height: 56px;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #424242;
+    background: #fcf4f6;
+    border: 1px solid #f4d9df;
+    border-radius: 12px;
+    outline: none;
+    transition: 0.2s;
+}
+
+.otp-input:focus {
+    border-color: #ed5a8b;
+    background: #ffffff;
+}
+
+.btn-login {
+    width: 100%;
+    height: 52px;
+    margin-top: 5px;
+    border: none;
+    border-radius: 12px;
+    background: #ed5a8b;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-login:hover { background: #d44876; }
+.btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Info Timer */
+.info-text {
+    font-size: 0.85rem;
+    color: #757575;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.info-text span {
+    font-weight: 600;
+    color: #ed5a8b;
+}
+
+.resend-text {
+    text-align: center;
+    font-size: 13px;
+    color: #757575;
+    margin-top: 12px;
+}
+
+.resend-text a {
+    color: #ed5a8b;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.resend-text a:hover { text-decoration: underline; }
+
+.alert { display: none; padding: 12px; margin-bottom: 15px; border-radius: 10px; font-size: 13px; text-align: center; font-weight: 500; }
+.alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+
+@media(max-width:1100px){
+    .left-panel { display: none; }
+    .right-panel { width: 100%; background: #f4f6f8; }
+}
+
+@media(max-width:500px){
+    .otp-input { width: 40px; height: 48px; font-size: 1.1rem; }
+    .otp-container { gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="left-panel">
+    <img src="{{ url_for('static', filename='images/ilustrasi-pembimbing.png') }}" alt="Ilustrasi Kelas">
+</div>
+
+<div class="right-panel">
+    <div class="login-card">
+
+        <a href="{{ url_for('pengajar.forgot_password_pengajar') }}" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </a>
+
+        <h1 class="title">Verifikasi OTP</h1>
+
+        <p class="subtitle">Masukkan 6 digit kode OTP yang telah dikirimkan ke email <b>{{ email }}</b>.</p>
+
+        <div id="alertBox" class="alert"></div>
+
+        <form id="otpForm">
+            <input type="hidden" id="emailInput" value="{{ email }}">
+
+            <div class="form-group">
+                <label>Kode OTP</label>
+                <div class="otp-container">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                    <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*">
+                </div>
+            </div>
+
+            <button type="submit" id="verifyBtn" class="btn-login">
+                Verifikasi Kode <i class="fa-solid fa-check"></i>
+            </button>
+
+            <p class="info-text">OTP kedaluwarsa dalam: <span id="timerDisplay">05:00</span></p>
+        </form>
+
+        <p class="resend-text">
+            Tidak menerima kode? <a href="{{ url_for('pengajar.forgot_password_pengajar') }}">Kirim ulang</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    const inputs = document.querySelectorAll('.otp-input');
+
+    // 1. Auto-focus pindah kotak + deteksi Backspace
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', () => {
+            if (input.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !input.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+    });
+
+    function getOTP() {
+        return Array.from(inputs).map(i => i.value).join('');
+    }
+
+    function clearOTPInputs() {
+        inputs.forEach(input => input.value = '');
+        inputs[0].focus();
+    }
+
+    // 2. Timer mundur anti-reset saat refresh (pakai sessionStorage)
+    let otpInterval;
+    function startOTPTimer() {
+        const display = document.getElementById('timerDisplay');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        let endTime = sessionStorage.getItem("otp_pengajar_timeout");
+
+        if (!endTime) {
+            endTime = Date.now() + (5 * 60 * 1000);
+            sessionStorage.setItem("otp_pengajar_timeout", endTime);
+        } else {
+            endTime = parseInt(endTime);
+        }
+
+        clearInterval(otpInterval);
+
+        otpInterval = setInterval(function () {
+            const now = Date.now();
+            const remainingTime = endTime - now;
+
+            if (remainingTime <= 0) {
+                clearInterval(otpInterval);
+                display.textContent = "00:00 (Waktu Habis!)";
+                display.style.color = "red";
+
+                verifyBtn.disabled = true;
+                verifyBtn.innerHTML = "OTP Kedaluwarsa";
+
+                sessionStorage.removeItem("otp_pengajar_timeout");
+                return;
+            }
+
+            const secondsLeft = Math.ceil(remainingTime / 1000);
+            let minutes = Math.floor(secondsLeft / 60);
+            let seconds = secondsLeft % 60;
+
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+
+            display.textContent = minutes + ":" + seconds;
+        }, 1000);
+    }
+
+    window.onload = function() {
+        inputs[0].focus();
+        startOTPTimer();
+    };
+
+    // 3. Submit form ke backend
+    document.getElementById('otpForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const otpValue = getOTP();
+        const emailValue = document.getElementById('emailInput').value;
+        const alertBox = document.getElementById('alertBox');
+        const btn = document.getElementById('verifyBtn');
+
+        if (otpValue.length < 6) {
+            alertBox.className = 'alert alert-error';
+            alertBox.innerText = 'OTP belum lengkap.';
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        btn.innerHTML = "Memverifikasi... <i class=\"fa-solid fa-spinner fa-spin\"></i>";
+        btn.disabled = true;
+        alertBox.style.display = 'none';
+
+        try {
+            const response = await fetch('{{ url_for("pengajar.verify_reset_otp_pengajar") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailValue, otp: otpValue })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alertBox.className = 'alert alert-success';
+                alertBox.innerText = data.message || 'OTP valid, mengalihkan...';
+                alertBox.style.display = 'block';
+
+                clearInterval(otpInterval);
+                sessionStorage.removeItem("otp_pengajar_timeout");
+
+                setTimeout(() => { window.location.href = data.redirect; }, 1000);
+            } else {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = data.message || 'Kode OTP salah atau kadaluarsa.';
+                alertBox.style.display = 'block';
+                btn.innerHTML = "Verifikasi Kode <i class=\"fa-solid fa-check\"></i>";
+                btn.disabled = false;
+
+                clearOTPInputs();
+            }
+        } catch (error) {
+            alertBox.className = 'alert alert-error';
+            alertBox.innerText = "Terjadi kesalahan pada server.";
+            alertBox.style.display = 'block';
+            btn.innerHTML = "Verifikasi Kode <i class=\"fa-solid fa-check\"></i>";
+            btn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
