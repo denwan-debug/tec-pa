@@ -126,16 +126,20 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow-y: auto; /* Mengaktifkan scroll untuk seluruh konten kanan */
         }
 
         .topbar {
-            background-color: #FCF9F9; /* Warna latar sedikit pink pucat/off-white sesuai gambar */
+            background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #edf2f7;
+            border-bottom: 1px solid var(--border-light);
+            min-height: 70px;
+            
+            position: relative; /* Wajib ada untuk mengikat .user-profile-header */
+            /* Pastikan TIDAK ADA position: sticky; atau top: 0; atau z-index; */
         }
 
         .child-selector {
@@ -177,6 +181,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            /* Pastikan tidak ada properti 'flex: 1;' atau 'overflow-y: auto;' di sini */
         }
 
         /* Cards Base */
@@ -357,14 +362,13 @@
         .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
     
         /* Kontainer di pojok kanan atas */
-        .user-profile-header {
+         .user-profile-header {
             display: flex;
             align-items: center;
-            gap: 15px; /* Jarak antara teks dan foto */
+            gap: 15px;
             position: absolute; 
             top: 20px;
             right: 30px;
-            /* Background dan padding dihapus agar terlihat bersih seperti referensi */
         }
 
         /* Wrapper baru untuk mengatur orientasi teks */

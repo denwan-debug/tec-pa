@@ -62,9 +62,6 @@
             </div>
             
             <div class="flex items-center gap-6">
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
                     <div class="text-right">
                         <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ username }}</h4>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
@@ -86,7 +83,7 @@
                             <i class="fa-solid fa-arrow-trend-up text-emerald-500 text-sm"></i>
                         </div>
                         <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Murid</p>
-                        <h2 class="text-3xl font-black text-gray-800">{{ murid if murid else '1,240' }}</h2>
+                        <h2 class="text-3xl font-black text-gray-800">{{ murid }}</h2>
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl border border-rose-50 card-shadow">
@@ -127,66 +124,25 @@
                                 </tr>
                             </thead>
                             <tbody class="text-sm font-semibold text-gray-700">
+                                {% for kelas in kelas_favorit %}
+                                {% set persen = (kelas.jumlah_siswa / kelas.kapasitas_maksimal * 100) | round(0, 'floor') | int if kelas.kapasitas_maksimal else 0 %}
                                 <tr class="border-b border-gray-50">
-                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">1</span></td>
-                                    <td>Kelas Grammar (SMA)</td>
+                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">{{ loop.index }}</span></td>
+                                    <td>{{ kelas.nama_kelas }} ({{ kelas.tingkat }})</td>
                                     <td>
                                         <div class="flex items-center gap-4">
-                                            <span class="w-16">28 / 30</span>
+                                            <span class="w-16">{{ kelas.jumlah_siswa }} / {{ kelas.kapasitas_maksimal }}</span>
                                             <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-emerald-500" style="width: 93%"></div>
+                                                <div class="h-full {% if persen >= 80 %}bg-emerald-500{% elif persen >= 50 %}bg-[#A22754]{% else %}bg-blue-300{% endif %}" style="width: {{ persen }}%"></div>
                                             </div>
                                         </div>
                                     </td>
                                 </tr>
-                                <tr class="border-b border-gray-50">
-                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">2</span></td>
-                                    <td>Kelas Speaking (SMP)</td>
-                                    <td>
-                                        <div class="flex items-center gap-4">
-                                            <span class="w-16">24 / 25</span>
-                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-emerald-500" style="width: 96%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-gray-50">
-                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">3</span></td>
-                                    <td>Kelas Reading (SD)</td>
-                                    <td>
-                                        <div class="flex items-center gap-4">
-                                            <span class="w-16">20 / 25</span>
-                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-rose-400" style="width: 80%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-gray-50">
-                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">4</span></td>
-                                    <td>Kelas Listening (SMA)</td>
-                                    <td>
-                                        <div class="flex items-center gap-4">
-                                            <span class="w-16">18 / 30</span>
-                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-[#8E1F47]" style="width: 60%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
+                                {% else %}
                                 <tr>
-                                    <td class="py-5 text-center"><span class="w-8 h-8 bg-rose-50 text-[#A22754] rounded-lg inline-flex items-center justify-center">5</span></td>
-                                    <td>Kelas Writing (SMP)</td>
-                                    <td>
-                                        <div class="flex items-center gap-4">
-                                            <span class="w-16">15 / 25</span>
-                                            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div class="h-full bg-blue-300" style="width: 60%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
+                                    <td colspan="3" class="py-8 text-center text-gray-400 italic">Belum ada data kelas.</td>
                                 </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -197,28 +153,28 @@
                             <div>
                                 <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
                                     <span>SD (Sekolah Dasar)</span>
-                                    <span class="text-gray-400">420 Siswa</span>
+                                    <span class="text-gray-400">{{ murid_jenjang.sd }} Siswa</span>
                                 </div>
                                 <div class="w-full h-3 bg-rose-50 rounded-full">
-                                    <div class="h-full bg-[#A22754] rounded-full" style="width: 70%"></div>
+                                    <div class="h-full bg-[#A22754] rounded-full" style="width: {{ (murid_jenjang.sd / murid_jenjang.max * 100) | round(0, 'floor') | int }}%"></div>
                                 </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
                                     <span>SMP (M. Pertama)</span>
-                                    <span class="text-gray-400">380 Siswa</span>
+                                    <span class="text-gray-400">{{ murid_jenjang.smp }} Siswa</span>
                                 </div>
                                 <div class="w-full h-3 bg-blue-50 rounded-full">
-                                    <div class="h-full bg-blue-200 rounded-full" style="width: 60%"></div>
+                                    <div class="h-full bg-blue-200 rounded-full" style="width: {{ (murid_jenjang.smp / murid_jenjang.max * 100) | round(0, 'floor') | int }}%"></div>
                                 </div>
                             </div>
                             <div>
                                 <div class="flex justify-between text-xs font-bold text-gray-500 mb-2">
                                     <span>SMA (M. Atas)</span>
-                                    <span class="text-gray-400">440 Siswa</span>
+                                    <span class="text-gray-400">{{ murid_jenjang.sma }} Siswa</span>
                                 </div>
                                 <div class="w-full h-3 bg-emerald-50 rounded-full">
-                                    <div class="h-full bg-emerald-500 rounded-full" style="width: 75%"></div>
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: {{ (murid_jenjang.sma / murid_jenjang.max * 100) | round(0, 'floor') | int }}%"></div>
                                 </div>
                             </div>
                         </div>

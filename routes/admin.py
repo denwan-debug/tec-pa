@@ -62,16 +62,53 @@ def dashboard_admin():
         """)
         pending = cursor.fetchone()['total'] or 0 
 
+        # 5. Kelas Favorit: kelas dengan jumlah murid aktif terbanyak
+        cursor.execute("""
+            SELECT 
+                k.nama_kelas,
+                k.tingkat,
+                k.kapasitas_maksimal,
+                COUNT(p.id_pendaftaran) AS jumlah_siswa
+            FROM kelas k
+            LEFT JOIN pendaftaran p ON k.id_kelas = p.id_kelas AND p.status_pendaftaran = 'Aktif'
+            GROUP BY k.id_kelas
+            ORDER BY jumlah_siswa DESC
+            LIMIT 5
+        """)
+        kelas_favorit = cursor.fetchall()
+
+        # 6. Breakdown Total Murid per jenjang (SD/SMP/SMA) dari kolom anak.kelas.
+        # Pakai LIKE supaya tetap kena walau formatnya bervariasi (mis. "SD",
+        # "Kelas 5 SD", dst) -- kalau di database kamu formatnya ternyata beda,
+        # kasih tahu saya biar pattern-nya disesuaikan.
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN kelas LIKE '%SD%' THEN 1 ELSE 0 END) AS total_sd,
+                SUM(CASE WHEN kelas LIKE '%SMP%' THEN 1 ELSE 0 END) AS total_smp,
+                SUM(CASE WHEN kelas LIKE '%SMA%' THEN 1 ELSE 0 END) AS total_sma
+            FROM anak
+        """)
+        jenjang_row = cursor.fetchone() or {}
+        murid_jenjang = {
+            'sd': jenjang_row.get('total_sd') or 0,
+            'smp': jenjang_row.get('total_smp') or 0,
+            'sma': jenjang_row.get('total_sma') or 0,
+        }
+        murid_jenjang['max'] = max(murid_jenjang['sd'], murid_jenjang['smp'], murid_jenjang['sma'], 1)
+
         return render_template('admin/dashboard_admin.html', 
                                murid=murid, 
                                pengajar=pengajar,
                                kelas_aktif=kelas_aktif,
                                pending=pending,
+                               kelas_favorit=kelas_favorit,
+                               murid_jenjang=murid_jenjang,
                                username=session.get('username', 'Admin Dennis'))
                                
     except Exception as e:
         print(f"\n[ERROR DASHBOARD]: {e}\n")
-        return render_template('admin/dashboard_admin.html', murid=0, pengajar=0, kelas_aktif=0, pending=0, username="Admin")
+        return render_template('admin/dashboard_admin.html', murid=0, pengajar=0, kelas_aktif=0, pending=0, kelas_favorit=[], 
+                               murid_jenjang={'sd': 0, 'smp': 0, 'sma': 0, 'max': 1}, username="Admin")
     finally:
         cursor.close()
         conn.close()
@@ -403,7 +440,7 @@ def detail_pengajar_admin(id_pengajar):
     try:
         # 1. Query Data Utama Pengajar dari tabel users
         cursor.execute("""
-            SELECT id_users, nama_lengkap, email, no_telp, foto_profil, created_at 
+            SELECT id_users, nama_lengkap, email, no_telp, foto_profil 
             FROM users 
             WHERE id_users = %s AND role_id_role = 'R02'
         """, (id_pengajar,))
@@ -419,8 +456,8 @@ def detail_pengajar_admin(id_pengajar):
                 k.id_kelas, 
                 k.nama_kelas, 
                 k.tingkat, 
-                k.kuota, 
-                k.hari, 
+                k.kapasitas_maksimal AS kuota, 
+                k.hari_jadwal AS hari, 
                 k.harga,
                 COUNT(p.id_pendaftaran) AS jumlah_siswa
             FROM kelas k
@@ -442,11 +479,12 @@ def detail_pengajar_admin(id_pengajar):
         
         # 4. Query Jadwal Sesi Kelas Terdekat dari tabel sesi_kelas
         cursor.execute("""
-            SELECT sk.pertemuan_ke, sk.topik, k.nama_kelas, k.hari, k.jam_mulai
+            SELECT sk.sesi_ke AS pertemuan_ke, sk.topik_pembahasan AS topik, 
+                   k.nama_kelas, k.hari_jadwal AS hari, k.jam_mulai, sk.tanggal
             FROM sesi_kelas sk
             JOIN kelas k ON sk.id_kelas = k.id_kelas
-            WHERE k.id_pengajar = %s AND sk.status_sesi = 'Aktif'
-            ORDER BY k.hari ASC, k.jam_mulai ASC
+            WHERE k.id_pengajar = %s AND sk.tanggal >= CURDATE()
+            ORDER BY sk.tanggal ASC, k.jam_mulai ASC
             LIMIT 5
         """, (id_pengajar,))
         daftar_jadwal = cursor.fetchall()
@@ -460,7 +498,7 @@ def detail_pengajar_admin(id_pengajar):
         conn.close()
         
     # Render ke halaman template baru dengan membawa variabel data dari DB
-    return render_template('detail_pengajar_admin.html', 
+    return render_template('admin/detail_pengajar_admin.html', 
                            pengajar=pengajar, 
                            daftar_kelas=daftar_kelas, 
                            total_siswa=total_siswa, 
