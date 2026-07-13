@@ -3,8 +3,7 @@ from db import get_db_connection
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 import random
-from extensions import mail
-from flask_mail import Message
+from extensions import send_email
 
 # Membuat blueprint untuk pengajar
 pengajar_bp = Blueprint('pengajar', __name__)
@@ -487,9 +486,11 @@ def forgot_password_pengajar():
         conn.commit()
 
         try:
-            msg = Message('Kode OTP Reset Password - TEC Pengajar', recipients=[email])
-            msg.body = f"Kode OTP untuk mereset kata sandi akun Pengajar Anda adalah: {otp}\nBerlaku selama 5 menit."
-            mail.send(msg)
+            send_email(
+                to=email,
+                subject='Kode OTP Reset Password - TEC Pengajar',
+                body=f"Kode OTP untuk mereset kata sandi akun Pengajar Anda adalah: {otp}\nBerlaku selama 5 menit."
+            )
             print(f"[DEBUG] OTP Lupa Password Pengajar {otp} dikirim ke {email}")
         except Exception as e:
             print(f"Gagal mengirim email: {e}")
