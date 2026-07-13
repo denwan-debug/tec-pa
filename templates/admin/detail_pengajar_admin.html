@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEC Admin - Profil Pengajar</title>
+    <title>TEC Admin - Profil {{ pengajar.nama_lengkap }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #FFF5F5; }
         .sidebar-active { background-color: #DCEEFF; color: #2D3748; font-weight: 600; }
         .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        
-        /* Custom scrollbar for webkit */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -20,7 +18,6 @@
 </head>
 <body class="font-sans antialiased flex h-screen overflow-hidden text-gray-800">
 
-   <!-- Sidebar -->
    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div>
             <div class="flex items-center gap-3 mb-10">
@@ -34,7 +31,7 @@
             </div>
 
             <nav class="space-y-2">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-border-all w-5"></i> Beranda
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
@@ -43,11 +40,10 @@
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
                 </a>
-                <!-- Active Menu -->
                 <a href="#" class="flex items-center gap-3 px-4 py-3 sidebar-active rounded-xl text-sm">
-                    <i class="fa-solid fa-user-tie w-5"></i> Manajamen Pengajar
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="{{ url_for('admin.validasi_pembayaran_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
                 </a>
             </nav>
@@ -61,12 +57,9 @@
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 flex flex-col overflow-hidden">
         
-        <!-- Header -->
         <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
-            <!-- Search Bar -->
             <div class="relative w-[400px]">
                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-400"></i>
                 <input type="text" placeholder="Search Pengajar, Kelas, Siswa..." class="w-full bg-rose-50/60 border-none rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition text-gray-600 placeholder-gray-400 font-medium">
@@ -74,110 +67,94 @@
             
             <div class="flex items-center gap-6">
                 <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
                 <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
                     <div class="text-right">
-                        <h4 class="text-sm font-bold text-gray-800 leading-tight">Alex Rivera</h4>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Admin Level 4</p>
+                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('nama_lengkap', 'Admin') }}</h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{{ session.get('role', 'Kepala') }}</p>
                     </div>
-                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+                    <img src="{{ url_for('static', filename='img/default_admin.png') }}" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover">
                 </div>
             </div>
         </header>
 
-        <!-- Body Section -->
         <section class="flex-1 p-10 overflow-y-auto">
             <div class="max-w-7xl mx-auto space-y-6">
                 
-                <!-- Breadcrumb & Title -->
                 <div>
                     <div class="text-xs font-semibold text-gray-500 mb-1">
                         Manajemen Pengajar > <span class="text-[#A22754]">Profil Detail</span>
                     </div>
                     <div class="flex justify-between items-end">
                         <h1 class="text-3xl font-black text-gray-900">Profil Pengajar</h1>
-                        <button class="bg-[#A22754] hover:bg-[#8e1f47] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2">
+                        <a href="/admin/pengajar/edit/{{ pengajar.id_users }}" class="bg-[#A22754] hover:bg-[#8e1f47] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2">
                             <i class="fa-solid fa-pen"></i> Edit Pengajar Detail
-                        </button>
+                        </a>
                     </div>
                 </div>
 
-                <!-- Top Section: Profile & Stats Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    <!-- Teacher Profile Card -->
                     <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-rose-50 card-shadow flex flex-col md:flex-row gap-8 items-center md:items-start">
-                        <!-- Profile Image -->
                         <div class="relative w-44 h-44 shrink-0">
-                            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80" alt="Dr. Sarah Jenkins" class="w-full h-full object-cover rounded-2xl shadow-sm">
+                            <img src="{{ url_for('static', filename='uploads/' ~ pengajar.foto_profil) if pengajar.foto_profil else url_for('static', filename='img/default_pengajar.png') }}" alt="{{ pengajar.nama_lengkap }}" class="w-full h-full object-cover rounded-2xl shadow-sm">
                             <div class="absolute bottom-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full border-2 border-white flex items-center gap-1.5 shadow-sm">
                                 <span class="w-1.5 h-1.5 bg-white rounded-full"></span> AKTIF
                             </div>
                         </div>
 
-                        <!-- Profile Info -->
                         <div class="flex-1">
-                            <h2 class="text-2xl font-black text-gray-900">Dr. Sarah Jenkins</h2>
-                            <p class="text-[11px] font-bold text-[#A22754] uppercase tracking-[0.15em] mt-1 mb-4">Spesialis Matematika Senior</p>
+                            <h2 class="text-2xl font-black text-gray-900">{{ pengajar.nama_lengkap }}</h2>
+                            <p class="text-[11px] font-bold text-[#A22754] uppercase tracking-[0.15em] mt-1 mb-4">{{ pengajar.email }}</p>
                             
                             <p class="text-sm text-gray-500 leading-relaxed mb-6 font-medium">
-                                Dengan pengalaman lebih dari 12 tahun dalam pedagogi lanjutan, Dr. Jenkins mengkhususkan diri dalam menjembatani kesenjangan antara kalkulus teoretis dan aplikasi rekayasa dunia nyata. Dia secara konsisten mempertahankan tingkat retensi mahasiswa tertinggi dalam ekosistem TEC.
+                                No. Telepon: {{ pengajar.no_telp or '-' }}<br>
+                                Terdaftar sejak: {{ pengajar.created_at.strftime('%d %B %Y') if pengajar.created_at else '-' }}
                             </p>
 
-                            <!-- Tags -->
                             <div class="flex flex-wrap gap-2">
-                                <span class="bg-[#DCEEFF] text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold">Matematika</span>
-                                <span class="bg-[#DCEEFF] text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold">Fisika II</span>
-                                <span class="bg-[#DCEEFF] text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold">Persiapan Ujian</span>
+                                <span class="bg-[#DCEEFF] text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold">English Instructor</span>
+                                <span class="bg-[#DCEEFF] text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold">TEC Staff</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Statistics Cards -->
                     <div class="lg:col-span-1 grid grid-cols-2 gap-4">
-                        <!-- Stat 1 -->
                         <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
                             <div class="text-[#A22754] text-xl mb-2"><i class="fa-regular fa-star"></i></div>
                             <div>
-                                <h3 class="text-3xl font-black text-gray-900">4.95</h3>
-                                <p class="text-xs font-semibold text-gray-500 mt-1">Rating Rata-rata</p>
+                                <h3 class="text-3xl font-black text-gray-900">4.9</h3>
+                                <p class="text-xs font-semibold text-gray-500 mt-1">Rating Pengajar</p>
                             </div>
                         </div>
-                        <!-- Stat 2 -->
-                        <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
-                            <div class="text-emerald-600 text-xl mb-2"><i class="fa-solid fa-arrow-trend-up"></i></div>
-                            <div>
-                                <h3 class="text-3xl font-black text-gray-900">+22%</h3>
-                                <p class="text-xs font-semibold text-gray-500 mt-1">Tingkat Pertumbuhan</p>
-                            </div>
-                        </div>
-                        <!-- Stat 3 -->
                         <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
                             <div class="text-slate-600 text-xl mb-2"><i class="fa-solid fa-user-group"></i></div>
                             <div>
-                                <h3 class="text-3xl font-black text-gray-900">142</h3>
-                                <p class="text-xs font-semibold text-gray-500 mt-1">Siswa</p>
+                                <h3 class="text-3xl font-black text-gray-900">{{ total_siswa }}</h3>
+                                <p class="text-xs font-semibold text-gray-500 mt-1">Total Siswa Didik</p>
                             </div>
                         </div>
-                        <!-- Stat 4 -->
+                        <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
+                            <div class="text-emerald-600 text-xl mb-2"><i class="fa-solid fa-book-open"></i></div>
+                            <div>
+                                <h3 class="text-3xl font-black text-gray-900">{{ daftar_kelas|length }}</h3>
+                                <p class="text-xs font-semibold text-gray-500 mt-1">Kelas Aktif</p>
+                            </div>
+                        </div>
                         <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
                             <div class="text-[#A22754] text-xl mb-2"><i class="fa-solid fa-person-chalkboard"></i></div>
                             <div>
-                                <h3 class="text-3xl font-black text-gray-900">850</h3>
-                                <p class="text-xs font-semibold text-gray-500 mt-1">Jam Mengajar</p>
+                                <h3 class="text-3xl font-black text-gray-900">M02</h3>
+                                <p class="text-xs font-semibold text-gray-500 mt-1">ID Role Pengajar</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Bottom Section: Classes Table & Schedule -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    <!-- Assigned Classes Table -->
                     <div class="lg:col-span-2 bg-white rounded-3xl p-8 border border-rose-50 card-shadow">
                         <div class="flex justify-between items-center mb-8">
                             <h3 class="text-lg font-bold text-gray-900">Kelas yang Ditugaskan</h3>
-                            <a href="#" class="text-sm font-bold text-[#A22754] hover:underline">Lihat Semua</a>
                         </div>
                         
                         <div class="overflow-x-auto">
@@ -185,157 +162,69 @@
                                 <thead class="text-[10px] text-gray-400 uppercase tracking-[0.15em]">
                                     <tr class="border-b border-gray-50">
                                         <th class="pb-4 font-bold w-1/3">Nama Kelas</th>
-                                        <th class="pb-4 font-bold">Pendaftaran</th>
-                                        <th class="pb-4 font-bold">Status</th>
-                                        <th class="pb-4 font-bold text-right">Kelas</th>
+                                        <th class="pb-4 font-bold">Kapasitas Pendaftaran</th>
+                                        <th class="pb-4 font-bold">Hari</th>
+                                        <th class="pb-4 font-bold text-right">Harga</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-sm font-medium text-gray-700">
-                                    <!-- Row 1 -->
+                                    {% for kelas in daftar_kelas %}
                                     <tr class="border-b border-gray-50">
                                         <td class="py-5 pr-4">
-                                            <p class="font-bold text-gray-900 text-[15px]">Advanced Calculus A</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">Ruang 402 • Senin</p>
+                                            <p class="font-bold text-gray-900 text-[15px]">{{ kelas.nama_kelas }}</p>
+                                            <p class="text-xs text-gray-400 mt-0.5">Tingkat: {{ kelas.tingkat }}</p>
                                         </td>
                                         <td class="py-5">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-16 h-2 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                                                    <div class="h-full bg-[#A22754]" style="width: 80%"></div>
+                                                    <div class="h-full bg-[#A22754]" style="width: {{ (kelas.jumlah_siswa / kelas.kuota * 100)|int if kelas.kuota else 0 }}%"></div>
                                                 </div>
-                                                <span class="text-xs font-bold text-gray-600">24/30</span>
+                                                <span class="text-xs font-bold text-gray-600">{{ kelas.jumlah_siswa }}/{{ kelas.kuota }}</span>
                                             </div>
                                         </td>
                                         <td class="py-5">
-                                            <span class="bg-[#86efac] text-green-900 text-[10px] font-bold px-3 py-1 rounded-md uppercase tracking-wider">Berlangsung</span>
+                                            <span class="bg-[#DCEEFF] text-blue-900 text-[10px] font-bold px-3 py-1 rounded-md uppercase tracking-wider">{{ kelas.hari }}</span>
                                         </td>
                                         <td class="py-5 text-right font-bold text-gray-800">
-                                            12 Tahun
-                                        </td>
-                                        </tr>
-                                    <!-- Row 2 -->
-                                    <tr class="border-b border-gray-50">
-                                        <td class="py-5 pr-4">
-                                            <p class="font-bold text-gray-900 text-[15px]">Quantum Physics Intro</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">Lab 02 • Selasa</p>
-                                        </td>
-                                        <td class="py-5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-16 h-2 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                                                    <div class="h-full bg-[#A22754]" style="width: 40%"></div>
-                                                </div>
-                                                <span class="text-xs font-bold text-gray-600">12/30</span>
-                                            </div>
-                                        </td>
-                                        <td class="py-5">
-                                            <span class="bg-[#DCEEFF] text-blue-900 text-[10px] font-bold px-3 py-1 rounded-md uppercase tracking-wider">Dimulai</span>
-                                        </td>
-                                        <td class="py-5 text-right font-bold text-gray-800">
-                                            13 Tahun
+                                            {{ kelas.harga | rupiah }}
                                         </td>
                                     </tr>
-                                    <!-- Row 3 -->
+                                    {% else %}
                                     <tr>
-                                        <td class="py-5 pr-4">
-                                            <p class="font-bold text-gray-900 text-[15px]">SAT Math Prep Intensive</p>
-                                            <p class="text-xs text-gray-400 mt-0.5">Remote • Jumat</p>
-                                        </td>
-                                        <td class="py-5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-16 h-2 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                                                    <div class="h-full bg-[#A22754]" style="width: 100%"></div>
-                                                </div>
-                                                <span class="text-xs font-bold text-gray-600">15/15</span>
-                                            </div>
-                                        </td>
-                                        <td class="py-5">
-                                            <span class="bg-red-200 text-red-900 text-[10px] font-bold px-3 py-1 rounded-md uppercase tracking-wider">Penuh</span>
-                                        </td>
-                                        <td class="py-5 text-right font-bold text-gray-800">
-                                            Semua<br>Kelas
-                                        </td>
+                                        <td colspan="4" class="py-8 text-center text-gray-400 italic">Belum ada kelas yang ditugaskan untuk pengajar ini.</td>
                                     </tr>
+                                    {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- Weekly Schedule -->
                     <div class="lg:col-span-1 bg-white rounded-3xl p-8 border border-rose-50 card-shadow flex flex-col">
                         <div class="flex justify-between items-center mb-8">
-                            <h3 class="text-lg font-bold text-gray-900">Jadwal Mingguan</h3>
-                            <div class="flex items-center gap-2 text-xs font-bold text-gray-600">
-                                <button class="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
-                                <span>Minggu 42</span>
-                                <button class="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
-                            </div>
+                            <h3 class="text-lg font-bold text-gray-900">Agenda Sesi Terdekat</h3>
                         </div>
 
-                        <div class="flex-1 space-y-0 relative">
-                            <!-- Mon -->
+                        <div class="flex-1 space-y-4 overflow-y-auto max-h-[350px] pr-2">
+                            {% for sesi in daftar_jadwal %}
                             <div class="flex gap-4 relative">
-                                <div class="w-12 text-right pt-3">
-                                    <span class="text-xs font-bold text-[#A22754]">Senin</span>
+                                <div class="w-14 text-right pt-2 shrink-0">
+                                    <span class="text-xs font-bold text-[#A22754] block leading-tight">{{ sesi.hari }}</span>
+                                    <span class="text-[10px] text-gray-400 font-semibold">{{ sesi.jam_mulai }}</span>
                                 </div>
-                                <div class="relative flex-1 pb-4 border-l border-gray-100 pl-4">
+                                <div class="relative flex-1 pb-2 border-l border-gray-100 pl-4">
                                     <div class="bg-rose-50/70 rounded-xl p-4 border border-rose-100/50">
-                                        <h4 class="font-bold text-gray-800 text-[13px] mb-1">Advanced Calculus A</h4>
-                                        <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
-                                            <span><i class="fa-regular fa-clock mr-1"></i> 09:00 - 11:30</span>
-                                            <span>Ruang 402</span>
+                                        <h4 class="font-bold text-gray-800 text-[13px] mb-1">{{ sesi.nama_kelas }}</h4>
+                                        <p class="text-[11px] text-[#A22754] font-semibold mb-1">Sesi ke-{{ sesi.pertemuan_ke }}</p>
+                                        <div class="flex justify-between items-center text-[10px] text-gray-500 font-medium">
+                                            <span>Topik: {{ sesi.topik or 'Belum ditentukan' }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Tue -->
-                            <div class="flex gap-4 relative">
-                                <div class="w-12 text-right pt-3">
-                                    <span class="text-xs font-bold text-gray-600">Selasa</span>
-                                </div>
-                                <div class="relative flex-1 pb-4 border-l border-gray-100 pl-4">
-                                    <div class="bg-rose-50/70 rounded-xl p-4 border border-rose-100/50">
-                                        <h4 class="font-bold text-gray-800 text-[13px] mb-1">Quantum Physics Intro</h4>
-                                        <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
-                                            <span><i class="fa-regular fa-clock mr-1"></i> 14:00 - 16:00</span>
-                                            <span>Lab 02</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Wed -->
-                            <div class="flex gap-4 relative">
-                                <div class="w-12 text-right pt-3">
-                                    <span class="text-xs font-bold text-gray-600">Rabu</span>
-                                </div>
-                                <div class="relative flex-1 pb-4 border-l border-gray-100 pl-4">
-                                    <div class="bg-rose-50/70 rounded-xl p-4 border border-rose-100/50">
-                                        <h4 class="font-bold text-gray-800 text-[13px] mb-1">Advanced Calculus A</h4>
-                                        <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
-                                            <span><i class="fa-regular fa-clock mr-1"></i> 09:00 - 11:30</span>
-                                            <span>Ruang 402</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Thu -->
-                            <div class="flex gap-4 relative">
-                                <div class="w-12 text-right pt-3">
-                                    <span class="text-xs font-bold text-gray-600">Kamis</span>
-                                </div>
-                                <div class="relative flex-1 border-l border-gray-100 pl-4">
-                                    <div class="bg-rose-50/70 rounded-xl p-4 border border-rose-100/50">
-                                        <h4 class="font-bold text-gray-800 text-[13px] mb-1">Quantum Physics Intro</h4>
-                                        <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
-                                            <span><i class="fa-regular fa-clock mr-1"></i> 14:00 - 16:00</span>
-                                            <span>Lab 02</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            {% else %}
+                            <div class="text-center text-gray-400 italic py-10 text-sm">Tidak ada jadwal sesi aktif minggu ini.</div>
+                            {% endfor %}
                         </div>
-
                     </div>
                 </div>
 
@@ -343,39 +232,26 @@
         </section>
     </main>
 
-    <!-- Modal Logout (Retained from original code) -->
     <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
         <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
-            
             <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
-                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
-                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
-                </svg>
+                <i class="fa-solid fa-arrow-right-from-bracket text-red-500 text-3xl"></i>
             </div>
-            
             <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
             <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
-            
             <div class="flex gap-4 w-full">
-                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
-                    Batal
-                </button>
-                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
-                    Keluar
-                </a>
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">Batal</button>
+                <a href="{{ url_for('admin.logout_admin') }}" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">Keluar</a>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
     <script>
         const logoutBtn = document.getElementById('btnTriggerLogout');
         const modal = document.getElementById('logoutModal');
         const modalInner = document.getElementById('modalInner');
         const cancelBtn = document.getElementById('cancelLogout');
 
-        // Modal triggers
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             modal.classList.remove('hidden');
@@ -396,11 +272,7 @@
         };
 
         cancelBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     </script>
 </body>
 </html>
