@@ -6,6 +6,52 @@
     <title>TEC Admin - Manajemen Kelas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* === Toast Notification === */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+            background-color: #dcfce7; color: #16a34a;
+        }
+        .toast.error .toast-icon { background-color: #fee2e2; color: #dc2626; }
+        .toast-message { font-size: 14px; font-weight: 600; color: #202020; }
+        .toast-close {
+            margin-left: auto; background: none; border: none;
+            color: #a0a0a0; cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        @media (max-width: 768px) {
+            .toast-container { right: 12px; left: 12px; top: 12px; }
+            .toast { min-width: unset; width: 100%; }
+        }
+    </style>
 </head>
 <body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
 
@@ -65,39 +111,78 @@
     <main class="flex-1 flex flex-col overflow-hidden relative">
         
         <!-- Ubah h-16 menjadi h-24 dan px-8 menjadi px-10 -->
-        <header class="bg-white h-24 border-b border-rose-100 px-10 flex items-center justify-between shrink-0 z-10 shadow-sm">
-            <div class="text-sm font-semibold text-gray-700">Manajemen Kelas Bimbel</div> 
-            <div class="flex items-center gap-3">
-                <div class="text-right hidden md:block">
-                    <p class="text-xs font-bold text-gray-800">Admin Utama</p>
-                    <p class="text-[10px] text-gray-400">Kepala Bimbel</p>
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <!-- Bagian Kiri -->
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Manajemen Kelas Bimbel</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Kelola seluruh kelas bimbel dan jadwalnya.</p>
+            </div> 
+            
+            <!-- Bagian Kanan -->
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <!-- Menampilkan nama user yang login menggunakan variabel Jinja2 -->
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ username }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
                 </div>
-                <img src="https://ui-avatars.com/api/?name=Admin&background=A22754&color=fff" alt="Admin Avatar" class="w-8 h-8 rounded-full border border-gray-200">
+                
+                <img src="https://ui-avatars.com/api/?name={{ username }}&background=A22754&color=fff" 
+                     alt="Avatar {{ username }}" 
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
             </div>
         </header>
 
         <section class="flex-1 p-8 overflow-y-auto pb-24">
             
+            <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
+            <div class="toast-container" id="toastContainer"></div>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="p-4 mb-5 text-sm rounded-xl border flex items-center justify-between transition-all duration-300 {% if category == 'error' %}bg-red-100 text-red-700 border-red-200{% else %}bg-green-100 text-green-700 border-green-200{% endif %}">
-                            
-                            <div class="flex items-center gap-2">
-                                {% if category == 'error' %}
-                                    <i class="fa-solid fa-circle-exclamation text-red-500"></i>
-                                {% else %}
-                                    <i class="fa-solid fa-circle-check text-green-500"></i>
-                                {% endif %}
-                                <span class="font-medium">{{ message }}</span>
-                            </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const flashMessages = [
+                            {% for category, message in messages %}
+                                { message: {{ message|tojson }}, category: "{{ category }}" }{{ "," if not loop.last }}
+                            {% endfor %}
+                        ];
+                        flashMessages.forEach(function (item) {
+                            showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                        });
+                    });
 
-                            <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-black/5 transition cursor-pointer flex items-center justify-center" title="Tutup">
-                                <i class="fa-solid fa-xmark text-base"></i>
+                    function showToast(message, type = 'success') {
+                        const container = document.getElementById('toastContainer');
+                        if (!container) return;
+
+                        const toast = document.createElement('div');
+                        toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                        const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                        toast.innerHTML = `
+                            <div class="toast-icon">
+                                <i class="fa-solid ${iconClass}"></i>
+                            </div>
+                            <span class="toast-message">${message}</span>
+                            <button type="button" class="toast-close">
+                                <i class="fa-solid fa-xmark"></i>
                             </button>
-                            
-                        </div>
-                    {% endfor %}
+                        `;
+
+                        toast.querySelector('.toast-close').addEventListener('click', function () {
+                            this.parentElement.remove();
+                        });
+
+                        container.appendChild(toast);
+
+                        setTimeout(() => toast.classList.add('show'), 10);
+
+                        setTimeout(() => {
+                            toast.classList.remove('show');
+                            setTimeout(() => toast.remove(), 350);
+                        }, 4000);
+                    }
+                </script>
                 {% endif %}
             {% endwith %} 
 

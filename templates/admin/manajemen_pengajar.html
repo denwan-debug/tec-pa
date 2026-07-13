@@ -12,6 +12,51 @@
             --maroon-primary: #A22754;
             --maroon-text: #8E1F47;
         }
+
+        /* === Toast Notification === */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+            background-color: #dcfce7; color: #16a34a;
+        }
+        .toast.error .toast-icon { background-color: #fee2e2; color: #dc2626; }
+        .toast-message { font-size: 14px; font-weight: 600; color: #202020; }
+        .toast-close {
+            margin-left: auto; background: none; border: none;
+            color: #a0a0a0; cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        @media (max-width: 768px) {
+            .toast-container { right: 12px; left: 12px; top: 12px; }
+            .toast { min-width: unset; width: 100%; }
+        }
     </style>
 </head>
 <body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
@@ -69,47 +114,80 @@
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
-        <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0">
-            <div class="text-sm font-medium text-gray-400"></div> 
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Manajemen Pengajar</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Kelola staf pendidikan Anda, lacak beban kerja, dan verifikasi kredensial.</p>
+            </div>
             
-            <div class="flex items-center gap-4">
-                <button class="text-gray-600 hover:text-gray-900 relative transition">
-                    <i class="fa-regular fa-bell text-lg"></i>
-                    <span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-[#A22754] rounded-full"></span>
-                </button>
-                <button class="text-gray-600 hover:text-gray-900 transition">
-                    <i class="fa-regular fa-circle-question text-lg"></i>
-                </button>
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-4">
-                    <div class="text-right">
-                        <h4 class="text-xs font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
-                        <p class="text-[10px] text-gray-400 font-semibold">{{ session.get('role', 'Super Admin') }}</p>
-                    </div>
-                    <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff" alt="Admin Avatar" class="w-8 h-8 rounded-full object-cover">
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
                 </div>
+                <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff" 
+                     alt="Avatar {{ session.get('username', 'Admin') }}" 
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
             </div>
         </header>
 
         <section class="flex-1 p-8 overflow-y-auto">
             
+            <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
+            <div class="toast-container" id="toastContainer"></div>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="p-4 mb-4 text-sm rounded-xl flex items-center justify-between {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                            <span class="font-medium">{{ message }}</span>
-                            <button onclick="this.parentElement.remove()" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    {% endfor %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const flashMessages = [
+                            {% for category, message in messages %}
+                                { message: {{ message|tojson }}, category: "{{ category }}" }{{ "," if not loop.last }}
+                            {% endfor %}
+                        ];
+                        flashMessages.forEach(function (item) {
+                            showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                        });
+                    });
+
+                    function showToast(message, type = 'success') {
+                        const container = document.getElementById('toastContainer');
+                        if (!container) return;
+
+                        const toast = document.createElement('div');
+                        toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                        const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                        toast.innerHTML = `
+                            <div class="toast-icon">
+                                <i class="fa-solid ${iconClass}"></i>
+                            </div>
+                            <span class="toast-message">${message}</span>
+                            <button type="button" class="toast-close">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        `;
+
+                        toast.querySelector('.toast-close').addEventListener('click', function () {
+                            this.parentElement.remove();
+                        });
+
+                        container.appendChild(toast);
+
+                        setTimeout(() => toast.classList.add('show'), 10);
+
+                        setTimeout(() => {
+                            toast.classList.remove('show');
+                            setTimeout(() => toast.remove(), 350);
+                        }, 4000);
+                    }
+                </script>
                 {% endif %}
             {% endwith %}
 
             <div class="max-w-7xl mx-auto space-y-6">
                 
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Manajemen Pengajar</h1>
-                        <p class="text-sm text-gray-500 mt-0.5">Kelola staf pendidikan Anda, lacak beban kerja, dan verifikasi kredensial.</p>
-                    </div>
+                <div class="flex items-start justify-end">
                     <button id="btnTriggerAddTeacher" class="px-5 py-2.5 bg-[#A22754] hover:bg-[#851E43] text-white font-semibold text-sm rounded-xl shadow-xs flex items-center gap-2 transition">
                         <i class="fa-solid fa-plus text-xs"></i> Tambah Pengajar
                     </button>

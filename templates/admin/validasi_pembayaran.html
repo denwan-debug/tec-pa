@@ -9,6 +9,51 @@
     <style>
         body { background-color: #FFF5F5; }
         .card-shadow { box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+
+        /* === Toast Notification === */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+            background-color: #dcfce7; color: #16a34a;
+        }
+        .toast.error .toast-icon { background-color: #fee2e2; color: #dc2626; }
+        .toast-message { font-size: 14px; font-weight: 600; color: #202020; }
+        .toast-close {
+            margin-left: auto; background: none; border: none;
+            color: #a0a0a0; cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        @media (max-width: 768px) {
+            .toast-container { right: 12px; left: 12px; top: 12px; }
+            .toast { min-width: unset; width: 100%; }
+        }
     </style>
 </head>
 <body class="font-sans antialiased flex h-screen overflow-hidden">
@@ -55,61 +100,95 @@
     <main class="flex-1 flex flex-col overflow-hidden">
 
         <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
-            <div class="flex-1 max-w-md">
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
-                    <form action="{{ url_for('admin.validasi_pembayaran_admin') }}" method="GET">
-                        <input type="text" name="search" value="{{ search }}" placeholder="Cari transaksi, siswa, atau orang tua..."
-                               class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-rose-200">
-                    </form>
-                </div>
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Validasi Pembayaran</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Verifikasi pembayaran uang kuliah untuk semester mendatang.</p>
             </div>
 
-            <div class="flex items-center gap-6 pl-6">
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-circle-question text-xl"></i></button>
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
-                    <div class="text-right">
-                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
-                    </div>
-                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
                 </div>
+                <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff" 
+                     alt="Avatar {{ session.get('username', 'Admin') }}" 
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
             </div>
         </header>
 
         <section class="flex-1 p-10 overflow-y-auto">
             <div class="max-w-7xl mx-auto space-y-8">
 
+                <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
+                <div class="toast-container" id="toastContainer"></div>
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="px-5 py-3 rounded-xl text-sm font-semibold
-                                {% if category == 'success' %} bg-emerald-50 text-emerald-600 border border-emerald-100
-                                {% else %} bg-red-50 text-red-600 border border-red-100 {% endif %}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const flashMessages = [
+                                {% for category, message in messages %}
+                                    { message: {{ message|tojson }}, category: "{{ category }}" }{{ "," if not loop.last }}
+                                {% endfor %}
+                            ];
+                            flashMessages.forEach(function (item) {
+                                showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                            });
+                        });
+
+                        function showToast(message, type = 'success') {
+                            const container = document.getElementById('toastContainer');
+                            if (!container) return;
+
+                            const toast = document.createElement('div');
+                            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                            const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                            toast.innerHTML = `
+                                <div class="toast-icon">
+                                    <i class="fa-solid ${iconClass}"></i>
+                                </div>
+                                <span class="toast-message">${message}</span>
+                                <button type="button" class="toast-close">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            `;
+
+                            toast.querySelector('.toast-close').addEventListener('click', function () {
+                                this.parentElement.remove();
+                            });
+
+                            container.appendChild(toast);
+
+                            setTimeout(() => toast.classList.add('show'), 10);
+
+                            setTimeout(() => {
+                                toast.classList.remove('show');
+                                setTimeout(() => toast.remove(), 350);
+                            }, 4000);
+                        }
+                    </script>
                     {% endif %}
                 {% endwith %}
 
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-3xl font-black text-[#A22754]">Validasi Pembayaran</h1>
-                        <p class="text-sm text-gray-400 mt-1">Verifikasi pembayaran uang kuliah untuk semester mendatang.</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <form action="{{ url_for('admin.validasi_pembayaran_admin') }}" method="GET">
-                            <input type="hidden" name="search" value="{{ search }}">
-                            <select name="status" onchange="this.form.submit()"
-                                    class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-rose-200">
-                                <option value="" {% if not status_filter %}selected{% endif %}>Semua Status</option>
-                                <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
-                                <option value="Lunas" {% if status_filter == 'Lunas' %}selected{% endif %}>Lunas</option>
-                                <option value="Ditolak" {% if status_filter == 'Ditolak' %}selected{% endif %}>Ditolak</option>
-                            </select>
-                        </form>
-                    </div>
+                <div class="flex items-center justify-end">
+                    <form action="{{ url_for('admin.validasi_pembayaran_admin') }}" method="GET" class="flex items-center gap-3">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-sm"></i>
+                            <input type="text" name="search" value="{{ search }}" placeholder="Cari transaksi, siswa, atau orang tua..."
+                                   class="pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-sm w-72 focus:outline-none focus:ring-2 focus:ring-rose-200">
+                        </div>
+                        <select name="status" onchange="this.form.submit()"
+                                class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-rose-200">
+                            <option value="" {% if not status_filter %}selected{% endif %}>Semua Status</option>
+                            <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                            <option value="Lunas" {% if status_filter == 'Lunas' %}selected{% endif %}>Lunas</option>
+                            <option value="Ditolak" {% if status_filter == 'Ditolak' %}selected{% endif %}>Ditolak</option>
+                        </select>
+                        <button type="submit" class="px-4 py-2.5 bg-[#A22754] text-white rounded-xl text-sm font-semibold hover:bg-[#8E1F47] transition">
+                            Cari
+                        </button>
+                    </form>
                 </div>
 
                 <!-- KARTU STATISTIK -->

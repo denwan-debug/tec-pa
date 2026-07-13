@@ -246,7 +246,8 @@ def manajemen_kelas_admin():
             daftar_kelas=daftar_kelas,
             total_kelas=total_kelas,
             kelas_aktif=kelas_aktif,
-            total_slot=total_slot
+            total_slot=total_slot,
+            username=session.get('username', 'Admin')  
         )
         
     except Exception as e:
@@ -440,7 +441,7 @@ def detail_pengajar_admin(id_pengajar):
     try:
         # 1. Query Data Utama Pengajar dari tabel users
         cursor.execute("""
-            SELECT id_users, nama_lengkap, email, no_telp, foto_profil 
+            SELECT id_users, nama_lengkap, email, no_telp, foto_profil, status_akun 
             FROM users 
             WHERE id_users = %s AND role_id_role = 'R02'
         """, (id_pengajar,))
@@ -692,6 +693,39 @@ def suspend_akun_orangtua(id_users):
         conn.close()
         
     return redirect(url_for('admin.detail_orangtua', id_users=id_users))
+
+@admin_bp.route('/manajemen_pengajar_admin/suspend/<id_users>', methods=['POST'])
+def suspend_akun_pengajar(id_users):
+    # Route untuk membekukan akun pengajar (mengubah status dari verified menjadi suspended)
+    if 'user_id' not in session or session.get('role') != 'Kepala':
+        return redirect(url_for('admin.login_admin'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Cek status saat ini
+        cursor.execute("SELECT status_akun FROM users WHERE id_users = %s", (id_users,))
+        current_status = cursor.fetchone()[0]
+
+        # Toggle Status (Jika verified jadi suspended, jika suspended jadi verified)
+        new_status = 'suspended' if current_status == 'verified' else 'verified'
+
+        cursor.execute("UPDATE users SET status_akun = %s WHERE id_users = %s", (new_status, id_users))
+        conn.commit()
+
+        status_msg = 'dibekukan' if new_status == 'suspended' else 'diaktifkan kembali'
+        flash(f'Akun pengajar berhasil {status_msg}.', 'success')
+
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERROR SUSPEND AKUN PENGAJAR]: {e}")
+        flash('Gagal mengubah status akun pengajar.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('admin.detail_pengajar_admin', id_pengajar=id_users))
 
 @admin_bp.route('/tambah_pengajar', methods=['POST'])
 def tambah_pengajar():

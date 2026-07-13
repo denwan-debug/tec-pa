@@ -70,25 +70,24 @@
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
-        <header class="bg-white h-16 border-b border-rose-100 px-8 flex items-center justify-between shrink-0">
-            <form action="{{ url_for('admin.manajemen_orangtua_admin') }}" method="GET" class="relative w-96">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                <input type="text" name="search" value="{{ search }}" placeholder="Cari nama orang tua atau email..." class="w-full bg-[#FFF5F5] border-0 rounded-full pl-11 pr-4 py-2 text-sm focus:outline-none text-gray-700 placeholder-gray-400">
-            </form> 
+       <!-- Ubah h-16 menjadi h-24, dan px-8 menjadi px-10 -->
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <!-- Bagian Kiri: Judul Halaman -->
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Manajemen Orang Tua & Siswa</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Kelola akun orang tua beserta data siswa terdaftar.</p>
+            </div> 
             
+            <!-- Bagian Kanan -->
             <div class="flex items-center gap-6">
-                <div class="flex items-center gap-3 border-l border-gray-200 pl-4">
-                    {% set nama_admin = session.get('username', 'Admin') %}
-                    {% set kata_nama = nama_admin.split() %}
-                    {% set inisial = (kata_nama[0][0] + (kata_nama[1][0] if kata_nama|length > 1 else '')) | upper %}
-                    <div class="text-right">
-                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ nama_admin }}</h4>
-                        <p class="text-xs text-gray-400 font-medium">Kepala Admin</p>
-                    </div>
-                    <div class="w-9 h-9 rounded-full bg-[#A22754] text-white flex items-center justify-center text-xs font-bold border border-gray-200 shrink-0">
-                        {{ inisial }}
-                    </div>
+                <div class="text-right">
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
                 </div>
+                
+                <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff" 
+                     alt="Avatar {{ session.get('username', 'Admin') }}" 
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
             </div>
         </header>
 

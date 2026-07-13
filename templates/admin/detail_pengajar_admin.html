@@ -14,6 +14,51 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* === Toast Notification === */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+            background-color: #dcfce7; color: #16a34a;
+        }
+        .toast.error .toast-icon { background-color: #fee2e2; color: #dc2626; }
+        .toast-message { font-size: 14px; font-weight: 600; color: #202020; }
+        .toast-close {
+            margin-left: auto; background: none; border: none;
+            color: #a0a0a0; cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        @media (max-width: 768px) {
+            .toast-container { right: 12px; left: 12px; top: 12px; }
+            .toast { min-width: unset; width: 100%; }
+        }
     </style>
 </head>
 <body class="font-sans antialiased flex h-screen overflow-hidden text-gray-800">
@@ -60,53 +105,144 @@
     <main class="flex-1 flex flex-col overflow-hidden">
         
         <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
-            <div class="relative w-[400px]">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-400"></i>
-                <input type="text" placeholder="Search Pengajar, Kelas, Siswa..." class="w-full bg-rose-50/60 border-none rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition text-gray-600 placeholder-gray-400 font-medium">
-            </div>
-            
-            <div class="flex items-center gap-6">
-                <button class="text-gray-400 hover:text-gray-600 transition"><i class="fa-regular fa-bell text-xl"></i></button>
-                <div class="flex items-center gap-3 border-l border-gray-100 pl-6">
-                    <div class="text-right">
-                        <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('nama_lengkap', 'Admin') }}</h4>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{{ session.get('role', 'Kepala') }}</p>
-                    </div>
-                    <img src="{{ url_for('static', filename='img/default_admin.png') }}" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-200 object-cover">
+            <div class="flex items-center gap-4">
+                <!-- TOMBOL KEMBALI -->
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-rose-50 hover:text-[#A22754] transition shrink-0">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900">Profil Pengajar</h1>
+                    <p class="text-xs text-gray-400 mt-0.5">Informasi lengkap dan pengelolaan akun pengajar.</p>
                 </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                </div>
+                <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff" 
+                     alt="Avatar {{ session.get('username', 'Admin') }}" 
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
             </div>
         </header>
 
         <section class="flex-1 p-10 overflow-y-auto">
             <div class="max-w-7xl mx-auto space-y-6">
-                
+
+                <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
+                <div class="toast-container" id="toastContainer"></div>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const flashMessages = [
+                                {% for category, message in messages %}
+                                    { message: {{ message|tojson }}, category: "{{ category }}" }{{ "," if not loop.last }}
+                                {% endfor %}
+                            ];
+                            flashMessages.forEach(function (item) {
+                                showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                            });
+                        });
+
+                        function showToast(message, type = 'success') {
+                            const container = document.getElementById('toastContainer');
+                            if (!container) return;
+
+                            const toast = document.createElement('div');
+                            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                            const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                            toast.innerHTML = `
+                                <div class="toast-icon">
+                                    <i class="fa-solid ${iconClass}"></i>
+                                </div>
+                                <span class="toast-message">${message}</span>
+                                <button type="button" class="toast-close">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            `;
+
+                            toast.querySelector('.toast-close').addEventListener('click', function () {
+                                this.parentElement.remove();
+                            });
+
+                            container.appendChild(toast);
+
+                            setTimeout(() => toast.classList.add('show'), 10);
+
+                            setTimeout(() => {
+                                toast.classList.remove('show');
+                                setTimeout(() => toast.remove(), 350);
+                            }, 4000);
+                        }
+                    </script>
+                    {% endif %}
+                {% endwith %}
+
                 <div>
                     <div class="text-xs font-semibold text-gray-500 mb-1">
                         Manajemen Pengajar > <span class="text-[#A22754]">Profil Detail</span>
                     </div>
-                    <div class="flex justify-between items-end">
-                        <h1 class="text-3xl font-black text-gray-900">Profil Pengajar</h1>
-                        <a href="/admin/pengajar/edit/{{ pengajar.id_users }}" class="bg-[#A22754] hover:bg-[#8e1f47] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2">
-                            <i class="fa-solid fa-pen"></i> Edit Pengajar Detail
-                        </a>
-                    </div>
+                    <h1 class="text-3xl font-black text-gray-900">Profil Pengajar</h1>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
                     <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-rose-50 card-shadow flex flex-col md:flex-row gap-8 items-center md:items-start">
+                        {% set nama_sumber = pengajar.nama_lengkap if pengajar.nama_lengkap else pengajar.email %}
+                        {% set kata_nama = nama_sumber.split() %}
+                        {% set inisial_pengajar = (kata_nama[0][0] + (kata_nama[1][0] if kata_nama|length > 1 else '')) | upper %}
                         <div class="relative w-44 h-44 shrink-0">
-                            <img src="{{ url_for('static', filename='uploads/' ~ pengajar.foto_profil) if pengajar.foto_profil else url_for('static', filename='img/default_pengajar.png') }}" alt="{{ pengajar.nama_lengkap }}" class="w-full h-full object-cover rounded-2xl shadow-sm">
+                            {% if pengajar.foto_profil %}
+                            <img src="{{ url_for('static', filename='img/' ~ pengajar.foto_profil) }}" alt="{{ pengajar.nama_lengkap }}" class="w-full h-full object-cover rounded-2xl shadow-sm"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="w-full h-full rounded-2xl shadow-sm bg-[#A22754] text-white items-center justify-center text-5xl font-black" style="display:none;">{{ inisial_pengajar }}</div>
+                            {% else %}
+                            <div class="w-full h-full rounded-2xl shadow-sm bg-[#A22754] text-white flex items-center justify-center text-5xl font-black">{{ inisial_pengajar }}</div>
+                            {% endif %}
+                            {% if pengajar.status_akun == 'verified' %}
                             <div class="absolute bottom-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full border-2 border-white flex items-center gap-1.5 shadow-sm">
                                 <span class="w-1.5 h-1.5 bg-white rounded-full"></span> AKTIF
                             </div>
+                            {% else %}
+                            <div class="absolute bottom-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full border-2 border-white flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-ban text-[9px]"></i> SUSPENDED
+                            </div>
+                            {% endif %}
                         </div>
 
                         <div class="flex-1">
-                            <h2 class="text-2xl font-black text-gray-900">{{ pengajar.nama_lengkap }}</h2>
-                            <p class="text-[11px] font-bold text-[#A22754] uppercase tracking-[0.15em] mt-1 mb-4">{{ pengajar.email }}</p>
-                            
-                            <p class="text-sm text-gray-500 leading-relaxed mb-6 font-medium">
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div>
+                                    <div class="flex items-center gap-3">
+                                        <h2 class="text-2xl font-black text-gray-900">{{ pengajar.nama_lengkap }}</h2>
+                                        {% if pengajar.status_akun == 'verified' %}
+                                            <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Terverifikasi</span>
+                                        {% else %}
+                                            <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Dibekukan (Suspended)</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="text-[11px] font-bold text-[#A22754] uppercase tracking-[0.15em] mt-1">{{ pengajar.email }}</p>
+                                </div>
+
+                                <!-- TOMBOL SUSPEND AKUN PENGAJAR -->
+                                <div class="flex items-center gap-2">
+                                    {% if pengajar.status_akun == 'verified' %}
+                                        <button type="button" id="btnTriggerSuspend" class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
+                                            <i class="fa-solid fa-ban"></i> Suspend Akun
+                                        </button>
+                                    {% else %}
+                                        <button type="button" id="btnTriggerActivate" class="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
+                                            <i class="fa-solid fa-check"></i> Aktifkan Akun
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <p class="text-sm text-gray-500 leading-relaxed mb-6 mt-4 font-medium">
                                 No. Telepon: {{ pengajar.no_telp or '-' }}<br>
                                 Terdaftar sejak: {{ pengajar.created_at.strftime('%d %B %Y') if pengajar.created_at else '-' }}
                             </p>
@@ -246,6 +382,50 @@
         </div>
     </div>
 
+    <!-- Suspend Modal (Dengan Hitung Mundur) -->
+    <div id="suspendModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="suspendModalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5 text-red-500 text-4xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Peringatan Keras!</h3>
+            <p class="text-[14px] text-gray-500 mb-8 font-medium">Anda akan membekukan akun <strong>{{ pengajar.nama_lengkap }}</strong>. Mereka tidak akan bisa mengakses layanan aplikasi ini.</p>
+
+            <form action="{{ url_for('admin.suspend_akun_pengajar', id_users=pengajar.id_users) }}" method="POST" class="flex gap-4 w-full">
+                <button type="button" id="cancelSuspend" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <button type="submit" id="confirmSuspend" disabled class="flex-1 bg-[#EF4444] disabled:bg-red-300 text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px] disabled:cursor-not-allowed">
+                    Tunggu 5s
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Activate Modal (Dengan Hitung Mundur) -->
+    <div id="activateModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="activateModalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+
+            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5 text-emerald-500 text-4xl">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Aktifkan Kembali Akun?</h3>
+            <p class="text-[14px] text-gray-500 mb-8 font-medium">Anda akan mengaktifkan kembali akun <strong>{{ pengajar.nama_lengkap }}</strong>. Mereka akan bisa mengakses layanan aplikasi ini kembali.</p>
+
+            <form action="{{ url_for('admin.suspend_akun_pengajar', id_users=pengajar.id_users) }}" method="POST" class="flex gap-4 w-full">
+                <button type="button" id="cancelActivate" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <button type="submit" id="confirmActivate" disabled class="flex-1 bg-emerald-500 disabled:bg-emerald-300 text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px] disabled:cursor-not-allowed">
+                    Tunggu 5s
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script>
         const logoutBtn = document.getElementById('btnTriggerLogout');
         const modal = document.getElementById('logoutModal');
@@ -273,6 +453,132 @@
 
         cancelBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        // --- LOGIKA MODAL SUSPEND DENGAN COUNTDOWN 5 DETIK ---
+        const suspendBtn = document.getElementById('btnTriggerSuspend');
+        const suspendModal = document.getElementById('suspendModal');
+        const suspendModalInner = document.getElementById('suspendModalInner');
+        const cancelSuspendBtn = document.getElementById('cancelSuspend');
+        const confirmSuspendBtn = document.getElementById('confirmSuspend');
+
+        let suspendInterval; // Variabel untuk menyimpan timer
+
+        // Cek apakah tombol suspend ada (hanya muncul jika status verified)
+        if (suspendBtn) {
+            suspendBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // 1. Buka Modal
+                suspendModal.classList.remove('hidden');
+                setTimeout(() => {
+                    suspendModal.classList.remove('opacity-0');
+                    suspendModalInner.classList.remove('scale-95');
+                    suspendModalInner.classList.add('scale-100');
+                }, 10);
+
+                // 2. Setel ulang tombol & timer ke 5 detik
+                let timeLeft = 5;
+                confirmSuspendBtn.disabled = true; // Nonaktifkan tombol
+                confirmSuspendBtn.innerText = `Tunggu ${timeLeft}s`;
+
+                // 3. Jalankan Interval
+                suspendInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        confirmSuspendBtn.innerText = `Tunggu ${timeLeft}s`;
+                    } else {
+                        // Waktu habis, aktifkan tombol
+                        clearInterval(suspendInterval);
+                        confirmSuspendBtn.disabled = false;
+                        confirmSuspendBtn.innerText = 'Ya, Bekukan';
+                    }
+                }, 1000); // Jalan setiap 1000 milidetik (1 detik)
+            });
+        }
+
+        // Fungsi untuk menutup modal suspend & membatalkan timer jika admin klik "Batal"
+        const closeSuspendModal = () => {
+            clearInterval(suspendInterval); // Hentikan hitung mundur
+
+            suspendModal.classList.add('opacity-0');
+            suspendModalInner.classList.remove('scale-100');
+            suspendModalInner.classList.add('scale-95');
+
+            setTimeout(() => {
+                suspendModal.classList.add('hidden');
+            }, 300);
+        };
+
+        if (cancelSuspendBtn) {
+            cancelSuspendBtn.addEventListener('click', closeSuspendModal);
+        }
+
+        // --- LOGIKA MODAL AKTIVASI DENGAN COUNTDOWN 5 DETIK ---
+        const activateBtn = document.getElementById('btnTriggerActivate');
+        const activateModal = document.getElementById('activateModal');
+        const activateModalInner = document.getElementById('activateModalInner');
+        const cancelActivateBtn = document.getElementById('cancelActivate');
+        const confirmActivateBtn = document.getElementById('confirmActivate');
+
+        let activateInterval; // Variabel untuk menyimpan timer
+
+        // Cek apakah tombol aktivasi ada (hanya muncul jika status suspended)
+        if (activateBtn) {
+            activateBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // 1. Buka Modal
+                activateModal.classList.remove('hidden');
+                setTimeout(() => {
+                    activateModal.classList.remove('opacity-0');
+                    activateModalInner.classList.remove('scale-95');
+                    activateModalInner.classList.add('scale-100');
+                }, 10);
+
+                // 2. Setel ulang tombol & timer ke 5 detik
+                let timeLeft = 5;
+                confirmActivateBtn.disabled = true; // Nonaktifkan tombol
+                confirmActivateBtn.innerText = `Tunggu ${timeLeft}s`;
+
+                // 3. Jalankan Interval
+                activateInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        confirmActivateBtn.innerText = `Tunggu ${timeLeft}s`;
+                    } else {
+                        // Waktu habis, aktifkan tombol
+                        clearInterval(activateInterval);
+                        confirmActivateBtn.disabled = false;
+                        confirmActivateBtn.innerText = 'Ya, Aktifkan';
+                    }
+                }, 1000); // Jalan setiap 1000 milidetik (1 detik)
+            });
+        }
+
+        // Fungsi untuk menutup modal aktivasi & membatalkan timer jika admin klik "Batal"
+        const closeActivateModal = () => {
+            clearInterval(activateInterval); // Hentikan hitung mundur
+
+            activateModal.classList.add('opacity-0');
+            activateModalInner.classList.remove('scale-100');
+            activateModalInner.classList.add('scale-95');
+
+            setTimeout(() => {
+                activateModal.classList.add('hidden');
+            }, 300);
+        };
+
+        if (cancelActivateBtn) {
+            cancelActivateBtn.addEventListener('click', closeActivateModal);
+        }
+
+        if (activateModal) {
+            activateModal.addEventListener('click', (e) => {
+                if (e.target === activateModal) {
+                    closeActivateModal();
+                }
+            });
+        }
     </script>
 </body>
 </html>

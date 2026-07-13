@@ -181,6 +181,10 @@ def proses_login_orangtua():
         if user.get('status_akun') == 'unverified':
             return jsonify({"message": "Akun belum diverifikasi. Silakan cek email Anda."}), 403
 
+        # Mencegah login jika akun dibekukan (suspended) oleh admin
+        if user.get('status_akun') == 'suspended':
+            return jsonify({"message": "Akun Anda telah dibekukan (suspended). Silakan hubungi admin."}), 403
+
         if user['nama_role'].lower() == 'murid':
             session['id_users'] = user['id_users'] 
             session['username'] = user['username']

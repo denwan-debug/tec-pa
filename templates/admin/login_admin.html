@@ -69,15 +69,88 @@ body { min-height:100vh; display:flex; background:#f8f9fa; overflow: hidden; }
 .btn-login { width:100%; height:48px; margin-top:25px; border:none; border-radius:12px; background:var(--primary-color); color:white; font-size:15px; font-weight:600; cursor:pointer; transition:.3s; display:flex; justify-content:center; align-items:center; gap: 10px; }
 .btn-login:hover { background:var(--primary-hover); }
 
-/* Alert box dikecilkan sedikit */
-.alert { display: none; padding: 12px; margin-top: 15px; border-radius: 10px; font-size: 13px; text-align: center; font-weight: 500; }
-.alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+/* === Flash Message / Toast Notification === */
+.toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: white;
+    border-radius: 12px;
+    padding: 16px 20px;
+    min-width: 300px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    border-left: 4px solid #22c55e;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+    pointer-events: auto;
+}
+
+.toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast.error {
+    border-left-color: #ef4444;
+}
+
+.toast-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.toast.error .toast-icon {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.toast-message {
+    font-size: 14px;
+    font-weight: 600;
+    color: #202020;
+}
+
+.toast-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #a0a0a0;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+}
+
+@media (max-width: 480px) {
+    .toast-container { top: 12px; right: 12px; left: 12px; }
+    .toast { min-width: 0; }
+}
 
 @media(max-width:1200px){ .left-panel{ display:none; } .right-panel{ width:100%; } .login-card { padding: 40px; } }
 </style>
 </head>
 <body>
+
+<div class="toast-container" id="toastContainer"></div>
 
 <div class="left-panel">
     <img src="{{ url_for('static', filename='images/dashboard-preview.png') }}" alt="Dashboard Admin">
@@ -95,8 +168,6 @@ body { min-height:100vh; display:flex; background:#f8f9fa; overflow: hidden; }
         <p class="subtitle">
             Masuk untuk mengelola kelas, tutor, siswa, dan<br>pembayaran.
         </p>
-
-        <div id="alertBox" class="alert"></div>
 
         <form id="loginForm">
             <div class="form-group">
@@ -142,19 +213,53 @@ body { min-height:100vh; display:flex; background:#f8f9fa; overflow: hidden; }
         }
     }
 
-    // 2. Logika Pengiriman Form ke Backend Flask (Biarkan utuh atau sesuaikan URL rute)
+    // 2. Toast Notification (gaya sama seperti login.html)
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+        const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+        toast.innerHTML = `
+            <div class="toast-icon">
+                <i class="fa-solid ${iconClass}"></i>
+            </div>
+            <span class="toast-message">${message}</span>
+            <button type="button" class="toast-close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+
+        toast.querySelector('.toast-close').addEventListener('click', function() {
+            this.parentElement.remove();
+        });
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 350);
+        }, 4000);
+    }
+
+    // 3. Logika Pengiriman Form ke Backend Flask
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault(); 
         
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const btnLogin = document.getElementById('loginBtn');
-        const alertBox = document.getElementById('alertBox');
         
         btnLogin.disabled = true;
         btnLogin.innerHTML = 'Memproses... <i class="fa-solid fa-spinner fa-spin"></i>';
-        alertBox.style.display = 'none';
-        alertBox.className = 'alert';
 
         try {
             // Sesuaikan endpoint '/login_admin_action' ini jika ini menjadi login admin
@@ -167,25 +272,19 @@ body { min-height:100vh; display:flex; background:#f8f9fa; overflow: hidden; }
             const data = await response.json();
 
             if (response.ok) {
-                alertBox.classList.add('alert-success');
-                alertBox.innerText = 'Login berhasil! Mengalihkan...';
-                alertBox.style.display = 'block';
+                showToast(data.message || 'Login berhasil! Mengalihkan...', 'success');
                 
                 setTimeout(() => {
                     window.location.href = data.redirect || '/dashboard_admin';
                 }, 1000);
             } else {
-                alertBox.classList.add('alert-error');
-                alertBox.innerText = data.message || 'Email atau kata sandi salah.';
-                alertBox.style.display = 'block';
+                showToast(data.message || 'Email atau kata sandi salah.', 'error');
                 
                 btnLogin.disabled = false;
                 btnLogin.innerHTML = 'Masuk <i class="fa-solid fa-arrow-right-to-bracket"></i>';
             }
         } catch (error) {
-            alertBox.classList.add('alert-error');
-            alertBox.innerText = 'Gagal terhubung ke server.';
-            alertBox.style.display = 'block';
+            showToast('Gagal terhubung ke server.', 'error');
             
             btnLogin.disabled = false;
             btnLogin.innerHTML = 'Masuk <i class="fa-solid fa-arrow-right-to-bracket"></i>';

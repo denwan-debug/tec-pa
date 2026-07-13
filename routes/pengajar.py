@@ -54,7 +54,11 @@ def login_pengajar_action():
                 password_valid = (stored_password == password)
 
             if password_valid:
-                
+
+                # 3b. Cegah login jika akun pengajar telah dibekukan (suspended) oleh admin
+                if pembimbing_data.get('status_akun') == 'suspended':
+                    return jsonify({"message": "Akun Anda telah dibekukan (suspended). Silakan hubungi admin."}), 403
+
                 # 4. Simpan data pengguna ke dalam session Flask
                 session['user_id'] = pembimbing_data['id_users'] 
                 session['role'] = pembimbing_data['nama_role']     # Berisi 'Pengajar'
