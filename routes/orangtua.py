@@ -4,8 +4,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
-from extensions import mail
-from flask_mail import Message
+from extensions import send_email
 from google_calendar import (
     get_authorization_url, exchange_code_for_credentials, save_credentials,
     is_connected, disconnect, sync_jadwal_to_calendar,
@@ -239,11 +238,13 @@ def send_otp():
         """, (user_id,))
         expired_ms = cursor.fetchone()['expired_ms']
 
-        # 4. PROSES PENGIRIMAN EMAIL
+        # 4. PROSES PENGIRIMAN EMAIL (via Resend API)
         try:
-            msg = Message('Kode Verifikasi TEC Portal', recipients=[email])
-            msg.body = f"Halo {username},\n\nKode OTP Anda adalah: {otp}\nBerlaku selama 5 menit."
-            mail.send(msg)
+            send_email(
+                to=email,
+                subject='Kode Verifikasi TEC Portal',
+                body=f"Halo {username},\n\nKode OTP Anda adalah: {otp}\nBerlaku selama 5 menit."
+            )
             print(f"[DEBUG] OTP {otp} dikirim ke {email}")
         except Exception as email_err:
             print(f"[ERROR] Email gagal: {email_err}")
@@ -355,10 +356,12 @@ def resend_otp():
         """, (user_id,))
         expired_ms = cursor.fetchone()['expired_ms']
 
-        # Kirim Ulang Email
-        msg = Message('Kode Verifikasi TEC Portal (Baru)', recipients=[email])
-        msg.body = f"Halo,\n\nIni kode verifikasi OTP baru Anda: {otp}\nBerlaku 5 menit."
-        mail.send(msg)
+        # Kirim Ulang Email (via Resend API)
+        send_email(
+            to=email,
+            subject='Kode Verifikasi TEC Portal (Baru)',
+            body=f"Halo,\n\nIni kode verifikasi OTP baru Anda: {otp}\nBerlaku 5 menit."
+        )
 
         return jsonify({"message": "OTP baru berhasil dikirim!", "expired_ms": expired_ms}), 200
 
@@ -415,11 +418,13 @@ def forgot_password():
             """, (user_id, email, otp))
             conn.commit()
             
-            # 3. Kirim email
+            # 3. Kirim email (via Resend API)
             try:
-                msg = Message('Kode OTP Reset Password', recipients=[email])
-                msg.body = f"Kode OTP untuk mereset kata sandi Anda adalah: {otp}\nBerlaku selama 5 menit."
-                mail.send(msg)
+                send_email(
+                    to=email,
+                    subject='Kode OTP Reset Password',
+                    body=f"Kode OTP untuk mereset kata sandi Anda adalah: {otp}\nBerlaku selama 5 menit."
+                )
                 print(f"[DEBUG] OTP Lupa Password {otp} dikirim ke {email}")
             except Exception as e:
                 print(f"Gagal mengirim email: {e}")
@@ -616,16 +621,42 @@ def tambah_anak():
     if not nama_lengkap:
         flash('Nama lengkap wajib diisi!', 'error')
         return redirect('/manajemen_anak')
-        
+
+    # Tangani Upload Foto ke Cloudinary (kalau orang tua mengisi foto saat menambah anak)
+    foto = request.files.get('foto_profil')
+    url_foto_cloudinary = None
+
+    if foto and foto.filename != '':
+        if foto_valid(foto.filename):
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    foto,
+                    folder="tec_portal/foto_anak"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                flash(f'Gagal mengunggah foto: {str(e)}', 'error')
+                return redirect('/manajemen_anak')
+        else:
+            flash('Format foto tidak valid. Gunakan JPG atau PNG.', 'error')
+            return redirect('/manajemen_anak')
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        # Insert data anak baru ke database
-        cursor.execute("""
-            INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas)
-            VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
-        """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas))
+        if url_foto_cloudinary:
+            # Insert data anak baru berikut URL foto dari Cloudinary
+            cursor.execute("""
+                INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas, foto_profil)
+                VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
+            """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas, url_foto_cloudinary))
+        else:
+            # Insert data anak baru tanpa foto (biarkan pakai default_anak.png dari DB)
+            cursor.execute("""
+                INSERT INTO anak (id_orangtua, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, status_anak, sekolah_asal, kelas)
+                VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s)
+            """, (user_id, nama_lengkap, nama_panggilan, tanggal_lahir, jenis_kelamin, sekolah_asal, kelas))
         
         conn.commit()
         flash('Data anak berhasil ditambahkan!', 'success')
