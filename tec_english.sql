@@ -175,5 +175,8 @@ ALTER TABLE `kelas` ADD COLUMN `jumlah_sesi` INT DEFAULT NULL AFTER `jam_selesai
 ALTER TABLE `kelas`    ADD COLUMN `tanggal_mulai` DATE DEFAULT NULL AFTER `jumlah_sesi`;
 ALTER TABLE `kelas`    ADD COLUMN `tanggal_berakhir` DATE DEFAULT NULL AFTER `tanggal_mulai`;i;
 
+ALTER TABLE `kelas`
+    MODIFY COLUMN `status_kelas` enum('Aktif','Nonaktif','Penuh','Selesai') DEFAULT 'Aktif';
+
 -- Mengaktifkan kembali pengecekan Foreign Key
 SET FOREIGN_KEY_CHECKS = 1;

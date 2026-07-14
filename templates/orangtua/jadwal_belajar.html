@@ -720,13 +720,15 @@
 
         // Kelas "Terjadwal Rutin" (belum ada sesi_kelas spesifik) TIDAK boleh
         // muncul terus tanpa batas -- hanya tampil:
-        //  1) pada/​setelah tanggal anak terdaftar di kelas itu (tanggal_daftar_iso), dan
-        //  2) selama kelasnya belum berstatus 'Selesai'.
+        //  1) pada/​setelah tanggal anak terdaftar di kelas itu (tanggal_daftar_iso),
+        //  2) sebelum/pada tanggal berakhir kelas (tanggal_berakhir_iso), kalau ada, dan
+        //  3) selama kelasnya belum berstatus 'Selesai'.
         function isRutinAktifPadaTanggal(j, iso, hariNama) {
             if (j.tanggal_iso) return false; // ini sesi dgn tanggal pasti, bukan "rutin"
             if (j.status_sesi !== 'Terjadwal Rutin' || j.hari !== hariNama) return false;
             if (j.status_kelas === 'Selesai') return false;
             if (j.tanggal_daftar_iso && iso < j.tanggal_daftar_iso) return false;
+            if (j.tanggal_berakhir_iso && iso > j.tanggal_berakhir_iso) return false;
             return true;
         }
 

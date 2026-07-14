@@ -30,6 +30,12 @@
             --bg-light: #ffffff;
             --green-badge: #c6f6d5;
             --green-text: #22c55e;
+            --green-bg: #dcfce7;
+            --gray-bg: #f1f5f9;
+            --red-bg: #fee2e2;
+            --red-text: #dc2626;
+            --amber-bg: #fef3c7;
+            --amber-text: #b45309;
             --blue-badge-bg: #e0f2fe;
             --blue-badge-text: #0369a1;
             --pink-badge-bg: #ffe4e6;
@@ -114,11 +120,15 @@
             background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #edf2f7;
             min-height: 70px;
         }
+
+        .topbar-title { font-size: 1.3rem; font-weight: 700; color: #1a202c; }
+
+        .topbar-right { display: flex; align-items: center; }
 
         .user-profile-header {
             display: flex;
@@ -185,6 +195,7 @@
         .stat-icon { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; font-size: 14px;}
         .icon-green { background-color: var(--green-bg); color: var(--green-text); }
         .icon-gray { background-color: var(--gray-bg); color: #64748b; }
+        .icon-amber { background-color: var(--amber-bg); color: var(--amber-text); }
         .icon-red { background-color: var(--red-bg); color: var(--red-text); }
         .stat-card h3 { font-size: 0.85rem; color: #4a5568; font-weight: 500; margin-bottom: 5px; }
         .stat-card .value { font-size: 2rem; font-weight: bold; color: #1a202c; }
@@ -203,6 +214,17 @@
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
         .status-hadir { background-color: var(--green-bg); color: #15803d; }
         .status-izin { background-color: #e0f2fe; color: #0369a1; }
+        .status-sakit { background-color: var(--amber-bg); color: var(--amber-text); }
+        .status-alpa { background-color: var(--red-bg); color: var(--red-text); }
+
+        /* Pilih Anak Dropdown */
+        .anak-selector { display: flex; align-items: center; gap: 10px; margin-right: 20px; }
+        .anak-selector label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .anak-selector select {
+            padding: 8px 14px; border-radius: 8px; border: 1px solid #edf2f7;
+            font-size: 0.9rem; font-weight: 600; color: #1a202c; background-color: #fff;
+            cursor: pointer;
+        }
         
         .action-link { color: var(--primary-accent); text-decoration: none; font-weight: 500; font-size: 0.85rem;}
         .action-link:hover { text-decoration: underline; }
@@ -308,7 +330,22 @@
 
         <main class="main-content">
             <header class="topbar">
-                <div class="user-profile-header">
+                <h1 class="topbar-title">Presensi</h1>
+
+                <div class="topbar-right">
+                    {% if daftar_anak|length > 1 %}
+                    <form method="GET" class="anak-selector" id="formPilihAnak">
+                        <label for="anak_id">Anak:</label>
+                        <select name="anak_id" id="anak_id" onchange="document.getElementById('formPilihAnak').submit()">
+                            {% for anak in daftar_anak %}
+                            <option value="{{ anak.id_anak }}" {{ 'selected' if anak_aktif and anak.id_anak == anak_aktif.id_anak }}>
+                                {{ anak.nama_panggilan or anak.nama_lengkap }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    {% endif %}
+                    <div class="user-profile-header">
                     <div class="user-info">
                         <span class="username-text">{{ username if username else 'Wali Murid' }}</span>
                         <span class="user-role">Orang Tua</span>
@@ -318,17 +355,27 @@
                     {% else %}
                         <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
                     {% endif %}
+                    </div>
                 </div>
             </header>
 
             <div class="presensi-content">
+            {% if not daftar_anak %}
+            <div class="card" style="text-align:center; padding: 60px 25px; color: var(--text-muted);">
+                Kamu belum mendaftarkan anak. Tambahkan data anak terlebih dahulu untuk melihat presensi.
+            </div>
+            {% else %}
             <div class="card banner-card">
                 <h4>PERKEMBANGAN AKADEMIK</h4>
                 <div class="percentage-container">
-                    <h1>98%</h1>
+                    <h1>{{ persentase_kehadiran }}%</h1>
                     <span class="status-text">Presentase Kehadiran</span>
                 </div>
-                <p>Ariel menghadiri 48 dari 49 total kelas semester ini. Konsistensi yang hebat!</p>
+                {% if total_sesi_tercatat > 0 %}
+                <p>{{ nama_anak_aktif }} menghadiri {{ total_hadir }} dari {{ total_sesi_tercatat }} total kelas yang tercatat semester ini.</p>
+                {% else %}
+                <p>Belum ada data presensi yang tercatat untuk {{ nama_anak_aktif }}.</p>
+                {% endif %}
             </div>
 
             <div class="stats-grid">
@@ -337,26 +384,23 @@
                         <div class="stat-icon icon-green">✔</div>
                         <h3>Total Hadir</h3>
                     </div>
-                    <div class="value">48</div>
+                    <div class="value">{{ '%02d' | format(total_hadir) }}</div>
                 </div>
 
                 <div class="stat-card">
                     <div>
-                        <div class="stat-icon icon-gray">📅</div>
-                        <h3>Total Izin</h3>
+                        <div class="stat-icon icon-amber">🩹</div>
+                        <h3>Total Izin / Sakit</h3>
                     </div>
-                    <div>
-                        <div class="value">01</div>
-                        <span class="badge-small">Doctor's Appointment</span>
-                    </div>
+                    <div class="value">{{ '%02d' | format(total_izin + total_sakit) }}</div>
                 </div>
 
                 <div class="stat-card">
                     <div>
                         <div class="stat-icon icon-red">✖</div>
-                        <h3>Total Absen</h3>
+                        <h3>Total Alpa</h3>
                     </div>
-                    <div class="value">00</div>
+                    <div class="value">{{ '%02d' | format(total_alpa) }}</div>
                 </div>
             </div>
 
@@ -375,41 +419,40 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% for p in daftar_presensi %}
                         <tr>
                             <td>
-                                <strong>Oct 25, 2023</strong><br>
-                                <span style="color: var(--text-muted); font-size: 0.8rem;">14:00 - 15:30 WIB</span>
+                                <strong>{{ p.tanggal.strftime('%d %b %Y') if p.tanggal else '-' }}</strong><br>
+                                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                                    {{ p.jam_mulai or '--:--' }} - {{ p.jam_selesai or '--:--' }} WIB
+                                </span>
                             </td>
-                            <td>Intermediate Grammar B1</td>
-                            <td><span class="status-badge status-hadir">Hadir</span></td>
-                            <td style="color: var(--text-muted); font-size: 0.85rem;">Sangat aktif dalam sesi tanya jawab.</td>
-                            <td><a href="#" class="action-link">Detail Kelas</a></td>
-                        </tr>
-
-                        <tr>
+                            <td>{{ p.nama_kelas }}</td>
                             <td>
-                                <strong>Oct 23, 2023</strong><br>
-                                <span style="color: var(--text-muted); font-size: 0.8rem;">16:00 - 17:30 WIB</span>
+                                {% if p.status_kehadiran == 'Hadir' %}
+                                    <span class="status-badge status-hadir">Hadir</span>
+                                {% elif p.status_kehadiran == 'Izin' %}
+                                    <span class="status-badge status-izin">Izin</span>
+                                {% elif p.status_kehadiran == 'Sakit' %}
+                                    <span class="status-badge status-sakit">Sakit</span>
+                                {% else %}
+                                    <span class="status-badge status-alpa">Alpa</span>
+                                {% endif %}
                             </td>
-                            <td>Speaking & Phonics Stage 2</td>
-                            <td><span class="status-badge status-izin">Izin</span></td>
-                            <td style="color: var(--text-muted); font-size: 0.85rem;">Izin sakit (surat dokter terlampir).</td>
-                            <td><a href="#" class="action-link">Lihat Surat</a></td>
+                            <td style="color: var(--text-muted); font-size: 0.85rem;">{{ p.catatan or '-' }}</td>
+                            <td><a href="{{ url_for('orangtua.detail_kelas', id_kelas=p.id_kelas) }}" class="action-link">Detail Kelas</a></td>
                         </tr>
-
+                        {% else %}
                         <tr>
-                            <td>
-                                <strong>Oct 18, 2023</strong><br>
-                                <span style="color: var(--text-muted); font-size: 0.8rem;">14:00 - 15:30 WIB</span>
+                            <td colspan="5" style="text-align:center; color: var(--text-muted); padding: 30px;">
+                                Belum ada riwayat presensi yang tercatat.
                             </td>
-                            <td>Intermediate Grammar B1</td>
-                            <td><span class="status-badge status-hadir">Hadir</span></td>
-                            <td style="color: var(--text-muted); font-size: 0.85rem;">-</td>
-                            <td><a href="#" class="action-link">Detail Kelas</a></td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% endif %}
             </div>
         </main>
     </div>

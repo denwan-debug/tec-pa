@@ -380,14 +380,16 @@ def simpan_kelas_baru():
             INSERT INTO kelas (
                 id_kelas, nama_kelas, tingkat, id_pengajar, 
                 hari_jadwal, jam_mulai, jam_selesai, 
-                kapasitas_maksimal, harga, deskripsi, status_kelas
+                kapasitas_maksimal, harga, deskripsi,
+                jumlah_sesi, tanggal_mulai, tanggal_berakhir, status_kelas
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')
         """
         values = (
             id_kelas_baru, nama_kelas, tingkat, id_pengajar, 
             hari_jadwal, jam_mulai, jam_selesai, 
-            kapasitas_maksimal, harga, deskripsi
+            kapasitas_maksimal, harga, deskripsi,
+            jumlah_sesi, tanggal_mulai_obj, tanggal_berakhir_obj
         )
         cursor.execute(query, values)
 
@@ -414,6 +416,299 @@ def simpan_kelas_baru():
         flash('Terjadi kegagalan sistem saat menyimpan data kelas baru.', 'error')
         return redirect(url_for('admin.buat_kelas_baru'))
         
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@admin_bp.route('/edit_kelas/<id_kelas>')
+def edit_kelas(id_kelas):
+    # 1. Proteksi Sesi Admin
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil data kelas + jumlah siswa yang sudah terdaftar (dipakai untuk
+        # menentukan field mana yang boleh diedit dan mana yang harus dikunci)
+        cursor.execute("""
+            SELECT k.*,
+                (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+            FROM kelas k
+            WHERE k.id_kelas = %s
+        """, (id_kelas,))
+        kelas = cursor.fetchone()
+
+        if not kelas:
+            flash('Kelas tidak ditemukan.', 'error')
+            return redirect(url_for('admin.manajemen_kelas_admin'))
+
+        # 3. Format jam (TIME/timedelta -> "HH:MM") supaya aman dipakai sebagai
+        # value input time/date di form, sama seperti di manajemen_kelas_admin
+        for field in ('jam_mulai', 'jam_selesai'):
+            nilai = kelas.get(field)
+            if nilai:
+                if hasattr(nilai, 'total_seconds'):
+                    total_sec = int(nilai.total_seconds())
+                    kelas[field] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+                elif hasattr(nilai, 'strftime'):
+                    kelas[field] = nilai.strftime('%H:%M')
+
+        kelas['harga'] = int(kelas['harga']) if kelas['harga'] else 0
+        kelas['tanggal_mulai_str'] = kelas['tanggal_mulai'].strftime('%Y-%m-%d') if kelas.get('tanggal_mulai') else ''
+
+        # 4. Hitung ulang durasi kelas (jam + menit) dari selisih jam_mulai & jam_selesai,
+        # supaya dropdown durasi di form ter-preselect sesuai data lama
+        durasi_jam, durasi_menit = 1, 0
+        if kelas['jam_mulai'] and kelas['jam_selesai']:
+            h1, m1 = map(int, kelas['jam_mulai'].split(':'))
+            h2, m2 = map(int, kelas['jam_selesai'].split(':'))
+            total_menit = (h2 * 60 + m2) - (h1 * 60 + m1)
+            if total_menit < 0:
+                total_menit += 24 * 60
+            durasi_jam, durasi_menit = divmod(total_menit, 60)
+
+        # 5. Daftar tutor untuk dropdown "Pilih Pengajar"
+        cursor.execute("SELECT id_users, username, email, foto_profil FROM users WHERE role_id_role = 'R02'")
+        daftar_tutor = cursor.fetchall()
+
+        # 6. Daftar siswa yang sudah terdaftar di kelas ini, untuk widget referensi admin
+        cursor.execute("""
+            SELECT a.nama_lengkap, a.nama_panggilan, p.status_pendaftaran, p.tanggal_daftar
+            FROM pendaftaran p
+            JOIN anak a ON p.id_anak = a.id_anak
+            WHERE p.id_kelas = %s
+            ORDER BY p.tanggal_daftar ASC
+        """, (id_kelas,))
+        daftar_siswa = cursor.fetchall()
+
+        return render_template('admin/edit_kelas.html',
+                               kelas=kelas,
+                               daftar_tutor=daftar_tutor,
+                               daftar_siswa=daftar_siswa,
+                               kelas_kosong=(kelas['jumlah_siswa'] == 0),
+                               durasi_jam=durasi_jam,
+                               durasi_menit=durasi_menit)
+
+    except Exception as e:
+        print(f"\n[ERROR EDIT KELAS]: {e}\n")
+        flash('Gagal memuat data kelas untuk diedit.', 'error')
+        return redirect(url_for('admin.manajemen_kelas_admin'))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@admin_bp.route('/update_kelas/<id_kelas>', methods=['POST'])
+def update_kelas(id_kelas):
+    # 1. Proteksi Sesi Admin
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Ambil ulang data kelas + jumlah siswa LANGSUNG DARI DATABASE (bukan
+        # percaya nilai yang (mungkin) ikut terkirim dari form). Ini kunci utama
+        # supaya field yang seharusnya terkunci tetap aman walau ada yang coba
+        # mengakalinya lewat DevTools/request manual.
+        cursor.execute("""
+            SELECT k.*,
+                (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+            FROM kelas k
+            WHERE k.id_kelas = %s
+        """, (id_kelas,))
+        kelas_lama = cursor.fetchone()
+
+        if not kelas_lama:
+            flash('Kelas tidak ditemukan.', 'error')
+            return redirect(url_for('admin.manajemen_kelas_admin'))
+
+        kelas_kosong = kelas_lama['jumlah_siswa'] == 0
+
+        # 3. Field yang SELALU boleh diedit (kosong ataupun sudah ada siswa)
+        nama_kelas = request.form.get('nama_kelas')
+        # `tingkat` SENGAJA tidak diambil dari form -- field ini dikunci permanen
+        # di halaman edit (tingkat kelas tidak boleh berubah setelah dibuat),
+        # jadi nilai lama dari database yang selalu dipakai apapun yang terkirim.
+        tingkat = kelas_lama['tingkat']
+        id_pengajar = request.form.get('id_pengajar')
+        deskripsi = request.form.get('deskripsi')
+        kapasitas_maksimal = request.form.get('kapasitas_maksimal')
+        status_kelas = request.form.get('status_kelas')
+
+        if not all([nama_kelas, id_pengajar, deskripsi, kapasitas_maksimal, status_kelas]):
+            flash('Nama kelas, pengajar, deskripsi, kapasitas, dan status wajib diisi!', 'error')
+            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+        if status_kelas not in ('Aktif', 'Nonaktif', 'Selesai', 'Penuh'):
+            flash('Status kelas tidak valid.', 'error')
+            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+        try:
+            kapasitas_maksimal = int(kapasitas_maksimal)
+            if kapasitas_maksimal < 1:
+                raise ValueError
+        except ValueError:
+            flash('Kapasitas maksimal harus berupa angka yang valid!', 'error')
+            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+        # Kapasitas tidak boleh diturunkan sampai di bawah jumlah siswa yang
+        # sudah terdaftar -- ini dicek terhadap angka ASLI dari database, bukan
+        # dari form, supaya tidak bisa dibobol.
+        if kapasitas_maksimal < kelas_lama['jumlah_siswa']:
+            flash(
+                f'Kapasitas maksimal tidak boleh lebih kecil dari jumlah siswa yang sudah '
+                f'terdaftar saat ini ({kelas_lama["jumlah_siswa"]} siswa).',
+                'error'
+            )
+            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+        # 4. Field yang HANYA boleh diedit selama kelas masih kosong (belum ada
+        # siswa) -- harga, jadwal/jam, tanggal mulai & jumlah sesi. Kalau kelas
+        # sudah ada siswa, field ini diabaikan sepenuhnya dan nilai LAMA dari
+        # database yang tetap dipakai, apapun yang terkirim dari form.
+        regenerasi_sesi = False
+        tanggal_sesi_list = []
+
+        if kelas_kosong:
+            hari_jadwal = request.form.get('hari_jadwal')
+            jam_mulai = request.form.get('jam_mulai')
+            durasi_menit_input = request.form.get('durasi_menit')
+            tanggal_mulai = request.form.get('tanggal_mulai')
+            jumlah_sesi = request.form.get('jumlah_sesi')
+            harga = request.form.get('harga')
+
+            if not all([hari_jadwal, jam_mulai, durasi_menit_input, tanggal_mulai, jumlah_sesi, harga]):
+                flash('Semua kolom jadwal, tanggal, dan harga wajib diisi!', 'error')
+                return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+            try:
+                durasi_menit_input = int(durasi_menit_input)
+                jumlah_sesi = int(jumlah_sesi)
+                if durasi_menit_input <= 0 or jumlah_sesi <= 0:
+                    raise ValueError
+            except ValueError:
+                flash('Durasi kelas dan jumlah sesi harus berupa angka yang valid!', 'error')
+                return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+            waktu_mulai = datetime.strptime(jam_mulai, '%H:%M')
+            waktu_selesai = waktu_mulai + timedelta(minutes=durasi_menit_input)
+            jam_selesai = waktu_selesai.strftime('%H:%M')
+
+            try:
+                tanggal_mulai_obj = datetime.strptime(tanggal_mulai, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Format tanggal mulai tidak valid!', 'error')
+                return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+            tanggal_sesi_list = [tanggal_mulai_obj + timedelta(weeks=i) for i in range(jumlah_sesi)]
+            tanggal_berakhir_obj = tanggal_sesi_list[-1]
+            regenerasi_sesi = True
+        else:
+            # Kelas sudah jalan -> pakai nilai lama apa adanya, field terkait
+            # dianggap terkunci walau form (seharusnya) sudah men-disable-nya.
+            hari_jadwal = kelas_lama['hari_jadwal']
+            jam_mulai = kelas_lama['jam_mulai']
+            jam_selesai = kelas_lama['jam_selesai']
+            tanggal_mulai_obj = kelas_lama['tanggal_mulai']
+            tanggal_berakhir_obj = kelas_lama['tanggal_berakhir']
+            jumlah_sesi = kelas_lama['jumlah_sesi']
+            harga = kelas_lama['harga']
+
+            if hasattr(jam_mulai, 'total_seconds'):
+                jam_mulai = (datetime.min + jam_mulai).time()
+            if hasattr(jam_selesai, 'total_seconds'):
+                jam_selesai = (datetime.min + jam_selesai).time()
+
+        # 5. Simpan perubahan ke tabel kelas
+        query = """
+            UPDATE kelas SET
+                nama_kelas = %s, tingkat = %s, id_pengajar = %s, deskripsi = %s,
+                kapasitas_maksimal = %s, status_kelas = %s,
+                hari_jadwal = %s, jam_mulai = %s, jam_selesai = %s,
+                tanggal_mulai = %s, tanggal_berakhir = %s, jumlah_sesi = %s, harga = %s
+            WHERE id_kelas = %s
+        """
+        cursor.execute(query, (
+            nama_kelas, tingkat, id_pengajar, deskripsi,
+            kapasitas_maksimal, status_kelas,
+            hari_jadwal, jam_mulai, jam_selesai,
+            tanggal_mulai_obj, tanggal_berakhir_obj, jumlah_sesi, harga,
+            id_kelas
+        ))
+
+        # 6. Kalau jadwal/tanggal/jumlah sesi ikut berubah (hanya mungkin saat
+        # kelas masih kosong), generate ulang baris sesi_kelas dari awal. Aman
+        # dihapus karena kelas kosong = belum ada siswa = belum ada presensi.
+        if regenerasi_sesi:
+            cursor.execute("DELETE FROM sesi_kelas WHERE id_kelas = %s", (id_kelas,))
+            for i, tanggal_sesi in enumerate(tanggal_sesi_list, start=1):
+                cursor.execute("""
+                    INSERT INTO sesi_kelas (id_kelas, sesi_ke, tanggal)
+                    VALUES (%s, %s, %s)
+                """, (id_kelas, i, tanggal_sesi))
+
+        conn.commit()
+        flash(f'Kelas "{nama_kelas}" berhasil diperbarui!', 'success')
+        return redirect(url_for('admin.manajemen_kelas_admin'))
+
+    except Exception as e:
+        conn.rollback()
+        print(f"\n[ERROR UPDATE KELAS]: {e}\n")
+        flash('Terjadi kegagalan sistem saat memperbarui data kelas.', 'error')
+        return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@admin_bp.route('/hapus_kelas/<id_kelas>', methods=['POST'])
+def hapus_kelas(id_kelas):
+    # 1. Proteksi Sesi Admin
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 2. Cek ulang langsung dari database: kelas ini benar-benar belum
+        # punya siswa sama sekali? (jangan percaya kondisi apapun dari sisi
+        # frontend/tombol yang mungkin sudah tidak sinkron)
+        cursor.execute("""
+            SELECT k.nama_kelas,
+                (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas) AS jumlah_siswa
+            FROM kelas k
+            WHERE k.id_kelas = %s
+        """, (id_kelas,))
+        row = cursor.fetchone()
+
+        if not row:
+            flash('Kelas tidak ditemukan.', 'error')
+            return redirect(url_for('admin.manajemen_kelas_admin'))
+
+        if row['jumlah_siswa'] > 0:
+            flash('Kelas ini sudah memiliki siswa terdaftar sehingga tidak bisa dihapus.', 'error')
+            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
+
+        cursor.execute("DELETE FROM kelas WHERE id_kelas = %s", (id_kelas,))
+        conn.commit()
+
+        flash(f'Kelas "{row["nama_kelas"]}" berhasil dihapus.', 'success')
+        return redirect(url_for('admin.manajemen_kelas_admin'))
+
+    except Exception as e:
+        conn.rollback()
+        print(f"\n[ERROR HAPUS KELAS]: {e}\n")
+        flash('Terjadi kegagalan sistem saat menghapus kelas.', 'error')
+        return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
     finally:
         cursor.close()
         conn.close()

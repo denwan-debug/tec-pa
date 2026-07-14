@@ -268,14 +268,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="bg-white rounded-xl border border-rose-100 p-4 shadow-xs flex items-center justify-between hover:border-rose-200 transition cursor-pointer">
-                                    <div class="flex items-center gap-4">
-                                        <img src="https://images.unsplash.com/photo-1517677129300-07b130802f46?auto=format&fit=crop&w=100&q=80" alt="Sophie" class="w-12 h-12 rounded-lg object-cover">
-                                        <div>
-                                            <h4 class="text-sm font-bold text-gray-900">Sophie Maxwell</h4>
-                                            <p class="text-xs text-gray-400 font-medium mt-0.5">Tahun 5 • 10 Tahun</p>
-                                        </div>
-                                    </div>
                                 {% else %}
                                 <div class="col-span-2 bg-gray-50 border border-gray-100 p-4 rounded-xl text-center text-sm text-gray-500">
                                     Wali murid ini belum mendaftarkan anak.
@@ -302,11 +294,11 @@
                                     <tbody class="divide-y divide-gray-100 text-xs font-medium text-gray-700">
                                         {% for anak in daftar_anak %}
                                         <tr class="hover:bg-rose-50/10 transition">
-                                            <td class="px-6 py-4 font-bold text-slate-800">{{ anak.nama_lengkap }}</td>
-                                            <td class="px-6 py-4 text-gray-500">{{ anak.sekolah_asal or '-' }}</td>
-                                            <td class="px-6 py-4">
+                                            <td class="px-6 py-5 font-bold text-slate-800">{{ anak.nama_lengkap }}</td>
+                                            <td class="px-6 py-5 text-gray-500">{{ anak.sekolah_asal or '-' }}</td>
+                                            <td class="px-6 py-5">
                                                 {% if anak.kelas_bimbel %}
-                                                    <span class="bg-rose-50 text-rose-600 font-bold px-2 py-1 rounded">{{ anak.kelas_bimbel }}</span>
+                                                    <span class="inline-block bg-rose-50 text-rose-600 font-bold px-2.5 py-1.5 rounded leading-relaxed">{{ anak.kelas_bimbel }}</span>
                                                 {% else %}
                                                     <span class="text-gray-400">Belum terdaftar kelas</span>
                                                 {% endif %}

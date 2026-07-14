@@ -1392,6 +1392,7 @@ def _ambil_daftar_jadwal(cursor, id_anak, nama_anak=None):
         SELECT
             sk.id_sesi, sk.tanggal, sk.topik_pembahasan,
             k.id_kelas, k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai, k.status_kelas,
+            k.tanggal_berakhir,
             u.username AS nama_pengajar, pd.tanggal_daftar
         FROM pendaftaran pd
         JOIN kelas k ON pd.id_kelas = k.id_kelas
@@ -1452,6 +1453,10 @@ def _ambil_daftar_jadwal(cursor, id_anak, nama_anak=None):
             # Dipakai buat membatasi kemunculan kelas "Terjadwal Rutin" -- jangan
             # tampil di tanggal sebelum anak terdaftar di kelas ini.
             'tanggal_daftar_iso': row['tanggal_daftar'].date().isoformat() if row['tanggal_daftar'] else None,
+            # Dipakai buat membatasi kemunculan kelas "Terjadwal Rutin" -- jangan
+            # tampil terus tanpa akhir; berhenti begitu melewati tanggal
+            # berakhir kelas yang sebenarnya (kalau ada).
+            'tanggal_berakhir_iso': row['tanggal_berakhir'].isoformat() if row['tanggal_berakhir'] else None,
         })
 
     return daftar_jadwal
@@ -1857,19 +1862,96 @@ def presensi():
     if 'id_users' not in session or session.get('role') != 'murid':
         return redirect(url_for('orangtua.halaman_portal_orangtua'))
 
+    id_orangtua = session['id_users']
+    selected_anak_id = request.args.get('anak_id')
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
     try:
-        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (session['id_users'],))
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (id_orangtua,))
         user_row = cursor.fetchone()
         foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else None
+
+        # 1. Ambil semua anak milik orang tua ini (untuk dropdown pilih anak)
+        cursor.execute(
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            (id_orangtua,)
+        )
+        daftar_anak = cursor.fetchall()
+
+        anak_aktif = None
+        daftar_presensi = []
+        total_hadir = total_izin = total_sakit = total_alpa = 0
+        persentase_kehadiran = 0
+
+        if daftar_anak:
+            if selected_anak_id:
+                anak_aktif = next((a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)), None)
+            if not anak_aktif:
+                anak_aktif = daftar_anak[0]
+
+            # 2. Ambil seluruh riwayat presensi anak ini, dari semua kelas yang pernah/sedang diikuti
+            cursor.execute("""
+                SELECT 
+                    pr.id_presensi, pr.status_kehadiran, pr.catatan,
+                    sk.tanggal, sk.sesi_ke, sk.topik_pembahasan,
+                    k.id_kelas, k.nama_kelas, k.jam_mulai, k.jam_selesai
+                FROM presensi pr
+                JOIN sesi_kelas sk ON pr.id_sesi = sk.id_sesi
+                JOIN kelas k ON sk.id_kelas = k.id_kelas
+                JOIN pendaftaran pd ON pr.id_pendaftaran = pd.id_pendaftaran
+                WHERE pd.id_anak = %s
+                ORDER BY sk.tanggal DESC, k.jam_mulai DESC
+            """, (anak_aktif['id_anak'],))
+            daftar_presensi = cursor.fetchall()
+
+            # Konversi jam_mulai & jam_selesai dari timedelta (tipe TIME di MySQL) ke string "HH:MM"
+            for p in daftar_presensi:
+                for kolom_jam in ('jam_mulai', 'jam_selesai'):
+                    if p.get(kolom_jam) and hasattr(p[kolom_jam], 'total_seconds'):
+                        total_sec = int(p[kolom_jam].total_seconds())
+                        p[kolom_jam] = f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+
+            # 3. Hitung ringkasan statistik dari data riil di atas
+            for p in daftar_presensi:
+                if p['status_kehadiran'] == 'Hadir':
+                    total_hadir += 1
+                elif p['status_kehadiran'] == 'Izin':
+                    total_izin += 1
+                elif p['status_kehadiran'] == 'Sakit':
+                    total_sakit += 1
+                elif p['status_kehadiran'] == 'Alpa':
+                    total_alpa += 1
+
+            total_sesi_tercatat = len(daftar_presensi)
+            if total_sesi_tercatat > 0:
+                persentase_kehadiran = round((total_hadir / total_sesi_tercatat) * 100)
+
+        nama_anak_aktif = None
+        if anak_aktif:
+            nama_anak_aktif = anak_aktif['nama_panggilan'] or anak_aktif['nama_lengkap']
+
+        return render_template('orangtua/presensi.html',
+                               username=session.get('username'),
+                               foto_profil=foto_profil_user,
+                               daftar_anak=daftar_anak,
+                               anak_aktif=anak_aktif,
+                               nama_anak_aktif=nama_anak_aktif,
+                               daftar_presensi=daftar_presensi,
+                               total_hadir=total_hadir,
+                               total_izin=total_izin,
+                               total_sakit=total_sakit,
+                               total_alpa=total_alpa,
+                               total_sesi_tercatat=len(daftar_presensi),
+                               persentase_kehadiran=persentase_kehadiran)
+
+    except Exception as e:
+        print(f"Error memuat presensi: {e}")
+        return "Terjadi kesalahan pada server", 500
     finally:
         cursor.close()
         conn.close()
-
-    return render_template('orangtua/presensi.html',
-                           username=session.get('username'),
-                           foto_profil=foto_profil_user)
 
 @orangtua_bp.route('/reports')
 def reports():

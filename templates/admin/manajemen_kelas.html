@@ -238,6 +238,7 @@
                                 <th class="px-6 py-3.5">Biaya (Harga)</th>
                                 <th class="px-6 py-3.5 text-center">Kapasitas / Siswa</th>
                                 <th class="px-6 py-3.5 text-center">Status</th>
+                                <th class="px-6 py-3.5 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-xs text-gray-700">
@@ -284,11 +285,19 @@
                                             {{ kelas.status_kelas | upper }}
                                         </span>
                                     </td>
+
+                                    <td class="px-6 py-4 text-center">
+                                        <a href="{{ url_for('admin.edit_kelas', id_kelas=kelas.id_kelas) }}"
+                                           title="Edit Kelas"
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-[#A22754] text-[#A22754] hover:text-white font-bold text-[11px] rounded-lg transition">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-12 text-gray-400 font-medium">
+                                    <td colspan="8" class="text-center py-12 text-gray-400 font-medium">
                                         <i class="fa-solid fa-box-open text-3xl mb-2 block text-gray-300"></i>
                                         Belum ada program kelas yang terdaftar di database.
                                     </td>

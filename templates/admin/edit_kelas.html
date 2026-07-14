@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Admin - Edit Kelas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* === Toast Notification === */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 300px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+            border-left: 4px solid #22c55e;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; flex-shrink: 0;
+            background-color: #dcfce7; color: #16a34a;
+        }
+        .toast.error .toast-icon { background-color: #fee2e2; color: #dc2626; }
+        .toast-message { font-size: 14px; font-weight: 600; color: #202020; }
+        .toast-close {
+            margin-left: auto; background: none; border: none;
+            color: #a0a0a0; cursor: pointer; font-size: 14px; padding: 4px;
+        }
+        @media (max-width: 768px) {
+            .toast-container { right: 12px; left: 12px; top: 12px; }
+            .toast { min-width: unset; width: 100%; }
+        }
+
+        /* === Field terkunci (kelas sudah punya siswa) === */
+        input:disabled, select:disabled, textarea:disabled {
+            background-color: #f3f4f6 !important;
+            color: #9ca3af !important;
+            cursor: not-allowed !important;
+        }
+        .locked-note {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 600; color: #b45309;
+            background: #fffbeb; border: 1px solid #fde68a;
+            padding: 6px 10px; border-radius: 8px; margin-top: 8px;
+        }
+    </style>
+</head>
+<body class="bg-[#FFF5F5] font-sans antialiased flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-rose-100 flex flex-col justify-between p-6 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div>
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 bg-[#A22754] rounded-xl flex items-center justify-center text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-[#A22754] font-bold text-lg leading-tight">TEC Admin</h1>
+                    <p class="text-xs text-gray-400 font-medium">Management Portal</p>
+                </div>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-border-all w-5"></i> Beranda
+                </a>
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
+                </a>
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
+                </a>
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                </a>
+                <a href="{{ url_for('admin.validasi_pembayaran_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                </a>
+            </nav>
+        </div>
+
+        <div>
+            <hr class="border-rose-100 mb-4">
+            <a href="{{ url_for('admin.logout_admin') }}" class="flex items-center gap-3 px-4 py-2 text-gray-500 hover:text-red-600 font-semibold text-sm transition">
+                <i class="fa-solid fa-arrow-right-from-bracket rotate-180"></i> KELUAR
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+
+        <header class="h-24 px-10 flex items-center justify-between border-b border-rose-100 bg-white shrink-0">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Edit Kelas</h1>
+                <p class="text-xs text-gray-400 mt-0.5">{{ kelas.nama_kelas }} <span class="text-gray-300">•</span> {{ kelas.id_kelas }}</p>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <h4 class="text-sm font-bold text-gray-800 leading-tight">{{ session.get('username', 'Admin') }}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Administrator</p>
+                </div>
+                <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Admin') }}&background=A22754&color=fff"
+                     alt="Avatar {{ session.get('username', 'Admin') }}"
+                     class="w-10 h-10 rounded-full border border-gray-200 object-cover shadow-xs">
+            </div>
+        </header>
+
+        <form action="{{ url_for('admin.update_kelas', id_kelas=kelas.id_kelas) }}" method="POST" class="flex-1 flex flex-col overflow-hidden">
+            <section class="flex-1 p-8 overflow-y-auto pb-36">
+                <div class="max-w-4xl mx-auto space-y-5">
+
+                    <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
+                    <div class="toast-container" id="toastContainer"></div>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const flashMessages = [
+                                    {% for category, message in messages %}
+                                        { message: {{ message|tojson }}, category: "{{ category }}" }{{ "," if not loop.last }}
+                                    {% endfor %}
+                                ];
+                                flashMessages.forEach(function (item) {
+                                    showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                                });
+                            });
+
+                            function showToast(message, type = 'success') {
+                                const container = document.getElementById('toastContainer');
+                                if (!container) return;
+
+                                const toast = document.createElement('div');
+                                toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                                const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                                toast.innerHTML = `
+                                    <div class="toast-icon">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                    </div>
+                                    <span class="toast-message">${message}</span>
+                                    <button type="button" class="toast-close">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                `;
+
+                                toast.querySelector('.toast-close').addEventListener('click', function () {
+                                    this.parentElement.remove();
+                                });
+
+                                container.appendChild(toast);
+
+                                setTimeout(() => toast.classList.add('show'), 10);
+
+                                setTimeout(() => {
+                                    toast.classList.remove('show');
+                                    setTimeout(() => toast.remove(), 350);
+                                }, 4000);
+                            }
+                        </script>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- RINGKASAN KUOTA & SISWA -->
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-solid fa-users text-lg"></i>
+                            <span>Ringkasan Kuota & Siswa</span>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 mb-4">
+                            <div>
+                                <p class="text-3xl font-black text-gray-800">
+                                    {{ kelas.jumlah_siswa }} <span class="text-lg font-medium text-gray-400">/ {{ kelas.kapasitas_maksimal }}</span>
+                                </p>
+                                <p class="text-xs text-gray-400 font-medium mt-0.5">Siswa Terdaftar</p>
+                            </div>
+                            <div class="flex-1 w-full">
+                                {% set persentase = (kelas.jumlah_siswa / kelas.kapasitas_maksimal * 100) | int if kelas.kapasitas_maksimal > 0 else 0 %}
+                                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                    <div class="{% if persentase >= 90 %}bg-red-500{% elif persentase >= 50 %}bg-amber-500{% else %}bg-green-500{% endif %} h-2.5 rounded-full transition-all duration-500" style="width: {{ persentase }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if daftar_siswa %}
+                        <div class="border border-gray-100 rounded-xl divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                            {% for siswa in daftar_siswa %}
+                            <div class="flex items-center justify-between px-4 py-2 text-xs">
+                                <span class="font-semibold text-gray-700">{{ siswa.nama_panggilan or siswa.nama_lengkap }}</span>
+                                <span class="px-2 py-0.5 rounded-full font-bold text-[10px]
+                                    {% if siswa.status_pendaftaran == 'Aktif' %} bg-green-100 text-green-700
+                                    {% elif siswa.status_pendaftaran == 'Pending' %} bg-amber-100 text-amber-700
+                                    {% else %} bg-gray-100 text-gray-500 {% endif %}">
+                                    {{ siswa.status_pendaftaran }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-gray-400 italic">Belum ada siswa yang terdaftar di kelas ini.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- STATUS KELAS -->
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-solid fa-toggle-on text-lg"></i>
+                            <span>Status Kelas</span>
+                        </div>
+
+                        <div class="max-w-xs space-y-1.5">
+                            <label class="text-sm font-medium text-gray-600">Status</label>
+                            <div class="relative">
+                                <select name="status_kelas" id="status_kelas" data-status-awal="{{ kelas.status_kelas }}" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition">
+                                    <option value="Aktif" {{ 'selected' if kelas.status_kelas == 'Aktif' }}>Aktif (kelas berjalan, bisa menerima siswa)</option>
+                                    <option value="Nonaktif" {{ 'selected' if kelas.status_kelas == 'Nonaktif' }}>Nonaktif (disembunyikan/diliburkan sementara)</option>
+                                    <option value="Selesai" {{ 'selected' if kelas.status_kelas == 'Selesai' }}>Selesai (seluruh sesi sudah habis)</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <div id="statusWarning" class="locked-note mt-4 hidden">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span id="statusWarningText"></span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-regular fa-circle-info text-lg"></i>
+                            <span>Informasi Dasar</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="md:col-span-2 space-y-1.5">
+                                <label class="text-sm font-medium text-gray-600">Nama Kelas</label>
+                                <input type="text" name="nama_kelas" required value="{{ kelas.nama_kelas }}" placeholder="contoh : Kelas School Curriculum Support (SMA)" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 transition">
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-sm font-medium text-gray-600 flex items-center gap-1.5">Tingkat <i class="fa-solid fa-lock text-[10px] text-gray-400"></i></label>
+                                <div class="relative">
+                                    <select class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition" name="tingkat" disabled>
+                                        <option {{ 'selected' if kelas.tingkat == 'SMA' }}>SMA</option>
+                                        <option {{ 'selected' if kelas.tingkat == 'SMP' }}>SMP</option>
+                                        <option {{ 'selected' if kelas.tingkat == 'SD' }}>SD</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                </div>
+                                <p class="text-[11px] text-gray-400 font-medium">Tingkat tidak bisa diubah setelah kelas dibuat.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-4">
+                            <i class="fa-regular fa-file-lines text-lg"></i>
+                            <span>Deskripsi Kelas</span>
+                        </div>
+
+                        <div class="border border-gray-300 rounded-lg overflow-hidden focus-within:border-rose-400 focus-within:ring-1 focus-within:ring-rose-400 transition">
+                            <textarea rows="3" name="deskripsi" placeholder="Deskripsikan Kelas, Mata Pelajaran, Jadwal, dan Tingkat" class="w-full bg-white px-4 py-3 text-sm focus:outline-none text-gray-700 placeholder-gray-400 resize-none">{{ kelas.deskripsi or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-regular fa-user text-lg"></i>
+                            <span>Pilih Pengajar (Tutor)</span>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row items-end gap-6">
+                            <div class="flex-1 w-full space-y-1.5">
+                                <label class="text-sm font-medium text-gray-600">Pilih Tutor</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                    <select name="id_pengajar" id="id_pengajar" required class="w-full bg-white border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition cursor-pointer">
+                                        <option value="">-- Cari Pengajar --</option>
+                                        {% for pengajar in daftar_tutor %}
+                                            <option value="{{ pengajar.id_users }}" data-nama="{{ pengajar.username }}" data-foto="{{ pengajar.foto_profil or '' }}" {{ 'selected' if pengajar.id_users == kelas.id_pengajar }}>{{ pengajar.username }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-3 min-w-[250px] w-full md:w-auto">
+                                <div id="tutorAvatarWrap" class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden shrink-0">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                    <h5 id="tutorNamaTerpilih" class="text-sm font-bold text-gray-700 leading-tight">Pengajar Dipilih</h5>
+                                    <p class="text-[11px] text-gray-500 font-medium mt-0.5">Tutor Specialist</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-regular fa-calendar text-lg"></i>
+                            <span>Jadwal & Timeline</span>
+                        </div>
+
+                        {% if not kelas_kosong %}
+                        <div class="locked-note mb-4">
+                            <i class="fa-solid fa-lock"></i>
+                            Kelas ini sudah memiliki siswa terdaftar, jadi jadwal, tanggal, dan jumlah sesi tidak bisa diubah lagi (mencegah bentrok jadwal & kekacauan absensi).
+                        </div>
+                        {% endif %}
+
+                        <div class="space-y-5">
+                            <div class="grid grid-cols-2 gap-5">
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-medium text-gray-600">Mulai Tanggal</label>
+                                    <input type="date" name="tanggal_mulai" id="tanggal_mulai" required value="{{ kelas.tanggal_mulai_str }}" {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-medium text-gray-600">Jumlah Sesi</label>
+                                    <input type="number" name="jumlah_sesi" id="jumlah_sesi" required min="1" value="{{ kelas.jumlah_sesi or '' }}" placeholder="contoh: 12" {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                </div>
+                            </div>
+
+                            <div class="bg-rose-50/60 border border-rose-100 rounded-lg px-4 py-2.5 flex items-center gap-2 text-xs text-[#8E1F47] font-medium">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>Kelas akan berakhir otomatis pada: <b id="tanggalBerakhirPreview">{{ kelas.tanggal_berakhir.strftime('%d %B %Y') if kelas.tanggal_berakhir else '-' }}</b> (1 sesi = 1 minggu)</span>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-600 block">Jadwal Mingguan</label>
+                                <div class="flex flex-wrap gap-2 pt-1">
+                                    {% set days = [('Senin', 'Sen'), ('Selasa', 'Sel'), ('Rabu', 'Rab'), ('Kamis', 'Kam'), ('Jumat', 'Jum'), ('Sabtu', 'Sab'), ('Minggu', 'Min')] %}
+                                    {% for full_day, short_day in days %}
+                                    <label class="relative inline-block {{ 'cursor-pointer' if kelas_kosong else 'cursor-not-allowed' }} select-none">
+                                        <input type="radio" name="hari_jadwal" value="{{ full_day }}" required {{ 'checked' if kelas.hari_jadwal == full_day }} {{ 'disabled' if not kelas_kosong }} class="peer absolute opacity-0 w-0 h-0">
+                                        <div class="w-16 h-10 flex items-center justify-center border border-gray-300 text-gray-600 text-sm font-medium rounded-xl transition-all duration-200 {{ 'hover:bg-rose-50/50' if kelas_kosong }} bg-white text-center select-none
+                                            peer-checked:bg-[#A22754] peer-checked:text-white peer-checked:border-[#A22754]
+                                            {{ 'peer-disabled:bg-gray-100 peer-disabled:text-gray-400 peer-disabled:border-gray-200' if not kelas_kosong }}">
+                                            {{ short_day }}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-5 pt-1">
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-medium text-gray-600">Jam Mulai (Start)</label>
+                                    <input type="time" name="jam_mulai" id="jam_mulai" required value="{{ kelas.jam_mulai }}" {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-medium text-gray-600">Durasi Kelas</label>
+                                    <div class="flex gap-2">
+                                        <div class="relative flex-1">
+                                            <select id="durasi_jam" required {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 appearance-none transition">
+                                                {% for j in range(0, 5) %}
+                                                <option value="{{ j }}" {{ 'selected' if j == durasi_jam }}>{{ j }} jam</option>
+                                                {% endfor %}
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                        <div class="relative flex-1">
+                                            <select id="durasi_menit" required {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 appearance-none transition">
+                                                <option value="0" {{ 'selected' if durasi_menit == 0 }}>0 mnt</option>
+                                                <option value="15" {{ 'selected' if durasi_menit == 15 }}>15 mnt</option>
+                                                <option value="30" {{ 'selected' if durasi_menit == 30 }}>30 mnt</option>
+                                                <option value="45" {{ 'selected' if durasi_menit == 45 }}>45 mnt</option>
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="durasi_menit" id="durasi_menit_hidden">
+
+                            <div class="bg-rose-50/60 border border-rose-100 rounded-lg px-4 py-2.5 flex items-center gap-2 text-xs text-[#8E1F47] font-medium">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>Kelas akan berakhir setiap sesi pada pukul: <b id="jamSelesaiPreview">{{ kelas.jam_selesai or '-' }}</b></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-solid fa-money-bill-wave text-lg"></i>
+                            <span>Kapasitas & Harga</span>
+                        </div>
+
+                        {% if not kelas_kosong %}
+                        <div class="locked-note mb-4">
+                            <i class="fa-solid fa-lock"></i>
+                            Harga kelas terkunci karena sudah ada siswa terdaftar (mencegah kekacauan invoice/tagihan yang sudah berjalan).
+                        </div>
+                        {% endif %}
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="hidden md:block"></div>
+                            <div class="space-y-1.5">
+                                <label class="text-sm font-medium text-gray-600">Harga Kelas (Rp)</label>
+                                <input type="number" name="harga" required min="0" value="{{ kelas.harga }}" placeholder="Rp 450.000" {{ 'disabled' if not kelas_kosong }} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition font-medium">
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-sm font-medium text-gray-600">Kapasitas Maksimal Siswa</label>
+                                <input type="number" name="kapasitas_maksimal" required min="{{ kelas.jumlah_siswa }}" value="{{ kelas.kapasitas_maksimal }}" placeholder="15" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                <p class="text-[11px] text-gray-400 font-medium">Tidak boleh kurang dari {{ kelas.jumlah_siswa }} (jumlah siswa saat ini).</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <footer class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-8 py-4 flex items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                <div>
+                    {% if kelas_kosong %}
+                    <button type="button" id="btnHapusKelas" class="px-5 py-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white font-semibold text-sm rounded-lg transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Hapus / Arsipkan Kelas
+                    </button>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold text-sm rounded-lg transition text-center">
+                        Batal
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-[#A22754] hover:bg-[#8E1F47] text-white font-semibold text-sm rounded-lg shadow-sm transition text-center">
+                        Perbarui Kelas
+                    </button>
+                </div>
+            </footer>
+        </form>
+
+        <!-- FORM TERPISAH UNTUK HAPUS KELAS (biar tidak nyampur sama form update) -->
+        <form action="{{ url_for('admin.hapus_kelas', id_kelas=kelas.id_kelas) }}" method="POST" id="formHapusKelas" class="hidden"></form>
+    </main>
+
+    <!-- MODAL KONFIRMASI HAPUS KELAS -->
+    <div id="modalHapusKelas" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalHapusInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <i class="fa-solid fa-trash-can text-3xl text-red-500"></i>
+            </div>
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Hapus Kelas Ini?</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">
+                Kelas "<b>{{ kelas.nama_kelas }}</b>" akan dihapus permanen beserta jadwal sesinya. Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <div class="flex gap-4 w-full">
+                <button id="cancelHapusKelas" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <button id="confirmHapusKelas" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI PERBARUI KELAS -->
+    <div id="modalKonfirmasiUpdate" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalKonfirmasiUpdateInner" class="bg-white w-[90%] max-w-[420px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            <div class="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mb-5">
+                <i class="fa-solid fa-circle-check text-3xl text-[#A22754]"></i>
+            </div>
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Perbarui Kelas Ini?</h3>
+            <p class="text-[15px] text-gray-500 mb-4 font-medium">
+                Periksa kembali seluruh perubahan sebelum menyimpan. Perubahan akan langsung berlaku setelah dikonfirmasi.
+            </p>
+
+            <div id="konfirmasiPeringatanWrap" class="locked-note w-full text-left mb-5 hidden">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span id="konfirmasiPeringatanText"></span>
+            </div>
+
+            <p id="konfirmasiCountdownText" class="text-xs font-bold text-gray-400 mb-4">Mohon tunggu 5 detik...</p>
+
+            <div class="flex gap-4 w-full">
+                <button type="button" id="batalKonfirmasiUpdate" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <button type="button" id="yaKonfirmasiUpdate" disabled class="flex-1 bg-[#A22754] hover:bg-[#8E1F47] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Ya, Perbarui
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
+
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="#EF4444" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                </svg>
+            </div>
+
+            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Konfirmasi Keluar</h3>
+            <p class="text-[15px] text-gray-500 mb-8 font-medium">Apakah Anda yakin ingin meninggalkan halaman dasbor manajemen ini?</p>
+
+            <div class="flex gap-4 w-full">
+                <button id="cancelLogout" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
+                    Batal
+                </button>
+                <a href="/logout_admin" class="flex-1 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px]">
+                    Keluar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== Kalkulasi otomatis Jam Berakhir dari Jam Mulai + Durasi =====
+        function updateJamSelesai() {
+            const jamMulaiEl = document.getElementById('jam_mulai');
+            const durasiJamEl = document.getElementById('durasi_jam');
+            const durasiMenitEl = document.getElementById('durasi_menit');
+            if (!jamMulaiEl || !durasiJamEl || !durasiMenitEl) return;
+
+            const jamMulai = jamMulaiEl.value;
+            const durasiJam = parseInt(durasiJamEl.value || '0', 10);
+            const durasiMenit = parseInt(durasiMenitEl.value || '0', 10);
+            const totalMenit = (durasiJam * 60) + durasiMenit;
+
+            document.getElementById('durasi_menit_hidden').value = totalMenit;
+
+            const preview = document.getElementById('jamSelesaiPreview');
+            if (!jamMulai || totalMenit <= 0) return;
+
+            const [h, m] = jamMulai.split(':').map(Number);
+            const start = new Date();
+            start.setHours(h, m, 0, 0);
+            start.setMinutes(start.getMinutes() + totalMenit);
+
+            const hh = String(start.getHours()).padStart(2, '0');
+            const mm = String(start.getMinutes()).padStart(2, '0');
+            preview.innerText = `${hh}.${mm}`;
+        }
+
+        // ===== Kalkulasi otomatis Tanggal Berakhir dari Tanggal Mulai + Jumlah Sesi =====
+        function updateTanggalBerakhir() {
+            const tglMulaiEl = document.getElementById('tanggal_mulai');
+            const jumlahSesiEl = document.getElementById('jumlah_sesi');
+            if (!tglMulaiEl || !jumlahSesiEl) return;
+
+            const tglMulai = tglMulaiEl.value;
+            const jumlahSesi = parseInt(jumlahSesiEl.value || '0', 10);
+            const preview = document.getElementById('tanggalBerakhirPreview');
+
+            if (!tglMulai || jumlahSesi <= 0) return;
+
+            const start = new Date(tglMulai + 'T00:00:00');
+            start.setDate(start.getDate() + (jumlahSesi - 1) * 7);
+
+            preview.innerText = start.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+
+        ['jam_mulai', 'durasi_jam', 'durasi_menit'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', updateJamSelesai);
+        });
+        ['tanggal_mulai', 'jumlah_sesi'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateTanggalBerakhir);
+        });
+
+        // Set nilai hidden durasi_menit saat halaman dimuat (mengikuti data lama)
+        updateJamSelesai();
+    </script>
+
+    <script>
+        // ===== Update Card "Pengajar Dipilih" (foto/inisial + nama) =====
+        function updateTutorCard() {
+            const select = document.getElementById('id_pengajar');
+            const opt = select.options[select.selectedIndex];
+            const avatarWrap = document.getElementById('tutorAvatarWrap');
+            const namaEl = document.getElementById('tutorNamaTerpilih');
+
+            if (!opt || !opt.value) {
+                avatarWrap.innerHTML = '<i class="fa-solid fa-user"></i>';
+                namaEl.innerText = 'Pengajar Dipilih';
+                return;
+            }
+
+            const nama = opt.getAttribute('data-nama') || 'Pengajar';
+            const foto = opt.getAttribute('data-foto');
+
+            namaEl.innerText = nama;
+
+            const kataNama = nama.trim().split(/\s+/);
+            const inisial = ((kataNama[0][0] || '') + (kataNama[1] ? kataNama[1][0] : '')).toUpperCase();
+
+            if (foto && foto.startsWith('http')) {
+                avatarWrap.innerHTML = `<img src="${foto}" alt="${nama}" class="w-full h-full object-cover"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="w-full h-full rounded-full bg-[#A22754] text-white items-center justify-center text-sm font-bold" style="display:none;">${inisial}</div>`;
+            } else {
+                avatarWrap.innerHTML = `<div class="w-full h-full rounded-full bg-[#A22754] text-white flex items-center justify-center text-sm font-bold">${inisial}</div>`;
+            }
+        }
+
+        document.getElementById('id_pengajar').addEventListener('change', updateTutorCard);
+        // Tampilkan kartu tutor yang sudah terpilih begitu halaman dimuat (data prefilled)
+        document.addEventListener('DOMContentLoaded', updateTutorCard);
+    </script>
+
+    <script>
+        const logoutBtn = document.getElementById('btnTriggerLogout');
+        const modal = document.getElementById('logoutModal');
+        const modalInner = document.getElementById('modalInner');
+        const cancelBtn = document.getElementById('cancelLogout');
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modalInner.classList.remove('scale-95');
+                    modalInner.classList.add('scale-100');
+                }, 10);
+            });
+        }
+
+        const closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalInner.classList.remove('scale-100');
+            modalInner.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    </script>
+
+    <script>
+        // ===== Modal konfirmasi hapus kelas =====
+        const btnHapusKelas = document.getElementById('btnHapusKelas');
+        const modalHapus = document.getElementById('modalHapusKelas');
+        const modalHapusInner = document.getElementById('modalHapusInner');
+        const cancelHapus = document.getElementById('cancelHapusKelas');
+        const confirmHapus = document.getElementById('confirmHapusKelas');
+        const formHapus = document.getElementById('formHapusKelas');
+
+        if (btnHapusKelas) {
+            btnHapusKelas.addEventListener('click', () => {
+                modalHapus.classList.remove('hidden');
+                setTimeout(() => {
+                    modalHapus.classList.remove('opacity-0');
+                    modalHapusInner.classList.remove('scale-95');
+                    modalHapusInner.classList.add('scale-100');
+                }, 10);
+            });
+
+            const closeModalHapus = () => {
+                modalHapus.classList.add('opacity-0');
+                modalHapusInner.classList.remove('scale-100');
+                modalHapusInner.classList.add('scale-95');
+                setTimeout(() => modalHapus.classList.add('hidden'), 300);
+            };
+
+            cancelHapus.addEventListener('click', closeModalHapus);
+            modalHapus.addEventListener('click', (e) => {
+                if (e.target === modalHapus) closeModalHapus();
+            });
+            confirmHapus.addEventListener('click', () => formHapus.submit());
+        }
+    <script>
+        // ===== Peringatan saat status kelas diganti ke Nonaktif/Selesai
+        // padahal kelas SEKARANG masih berjalan (Aktif) =====
+        const statusSelect = document.getElementById('status_kelas');
+        const statusWarning = document.getElementById('statusWarning');
+        const statusWarningText = document.getElementById('statusWarningText');
+        const statusAwal = statusSelect.getAttribute('data-status-awal');
+
+        function cekPeringatanStatus() {
+            const statusBaru = statusSelect.value;
+            if (statusAwal === 'Aktif' && (statusBaru === 'Nonaktif' || statusBaru === 'Selesai')) {
+                const label = statusBaru === 'Nonaktif' ? 'Nonaktif' : 'Selesai';
+                const dampak = statusBaru === 'Nonaktif'
+                    ? 'kelas akan disembunyikan dan tidak bisa menerima siswa baru'
+                    : 'kelas akan dianggap seluruh sesinya sudah habis';
+                statusWarningText.innerText =
+                    `Kelas ini masih berjalan (Aktif), tapi Anda mengganti status menjadi "${label}" -- ${dampak}. Pastikan ini memang sudah sesuai sebelum menyimpan.`;
+                statusWarning.classList.remove('hidden');
+            } else {
+                statusWarning.classList.add('hidden');
+            }
+        }
+
+        statusSelect.addEventListener('change', cekPeringatanStatus);
+        cekPeringatanStatus(); // cek juga saat halaman baru dimuat
+    </script>
+
+    <script>
+        // ===== Modal konfirmasi sebelum "Perbarui Kelas" -- tombol konfirmasi
+        // baru bisa diklik setelah hitung mundur 5 detik, supaya admin benar-benar
+        // membaca ringkasan perubahan (terutama kalau status kelas berubah) =====
+        const formUpdate = document.querySelector('form[action*="update_kelas"]');
+        const btnSubmitUpdate = formUpdate.querySelector('button[type="submit"]');
+        const modalKonfirmasi = document.getElementById('modalKonfirmasiUpdate');
+        const modalKonfirmasiInner = document.getElementById('modalKonfirmasiUpdateInner');
+        const btnBatalKonfirmasi = document.getElementById('batalKonfirmasiUpdate');
+        const btnYaKonfirmasi = document.getElementById('yaKonfirmasiUpdate');
+        const konfirmasiCountdownText = document.getElementById('konfirmasiCountdownText');
+        const konfirmasiPeringatanWrap = document.getElementById('konfirmasiPeringatanWrap');
+        const konfirmasiPeringatanText = document.getElementById('konfirmasiPeringatanText');
+
+        let countdownTimer = null;
+
+        function bukaModalKonfirmasi() {
+            // Tampilkan juga ringkasan peringatan status di dalam modal, kalau ada
+            if (!statusWarning.classList.contains('hidden')) {
+                konfirmasiPeringatanText.innerText = statusWarningText.innerText;
+                konfirmasiPeringatanWrap.classList.remove('hidden');
+            } else {
+                konfirmasiPeringatanWrap.classList.add('hidden');
+            }
+
+            modalKonfirmasi.classList.remove('hidden');
+            setTimeout(() => {
+                modalKonfirmasi.classList.remove('opacity-0');
+                modalKonfirmasiInner.classList.remove('scale-95');
+                modalKonfirmasiInner.classList.add('scale-100');
+            }, 10);
+
+            // Mulai hitung mundur 5 detik sebelum tombol "Ya, Perbarui" aktif
+            let sisaDetik = 5;
+            btnYaKonfirmasi.disabled = true;
+            konfirmasiCountdownText.innerText = `Mohon tunggu ${sisaDetik} detik...`;
+
+            countdownTimer = setInterval(() => {
+                sisaDetik -= 1;
+                if (sisaDetik <= 0) {
+                    clearInterval(countdownTimer);
+                    btnYaKonfirmasi.disabled = false;
+                    konfirmasiCountdownText.innerText = 'Silakan konfirmasi perubahan di atas.';
+                } else {
+                    konfirmasiCountdownText.innerText = `Mohon tunggu ${sisaDetik} detik...`;
+                }
+            }, 1000);
+        }
+
+        function tutupModalKonfirmasi() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            modalKonfirmasi.classList.add('opacity-0');
+            modalKonfirmasiInner.classList.remove('scale-100');
+            modalKonfirmasiInner.classList.add('scale-95');
+            setTimeout(() => modalKonfirmasi.classList.add('hidden'), 300);
+        }
+
+        // Cegat submit form biasa -> tampilkan modal konfirmasi dulu
+        formUpdate.addEventListener('submit', function (e) {
+            if (!formUpdate.dataset.confirmed) {
+                e.preventDefault();
+                bukaModalKonfirmasi();
+            }
+        });
+
+        btnBatalKonfirmasi.addEventListener('click', tutupModalKonfirmasi);
+        modalKonfirmasi.addEventListener('click', (e) => {
+            if (e.target === modalKonfirmasi) tutupModalKonfirmasi();
+        });
+
+        btnYaKonfirmasi.addEventListener('click', () => {
+            if (btnYaKonfirmasi.disabled) return;
+            formUpdate.dataset.confirmed = 'true';
+            tutupModalKonfirmasi();
+            formUpdate.submit();
+        });
+    </script>
+</body>
+</html>
