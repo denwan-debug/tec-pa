@@ -330,6 +330,86 @@
             font-weight: 500;
         }
 
+        .badge-inactive {
+            background-color: var(--pink-badge-bg);
+            color: var(--pink-badge-text);
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        /* === Tab Filter Status Anak (Aktif / Nonaktif) === */
+        .status-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .status-tabs a.tab-btn,
+        .status-tabs button.tab-btn {
+            border: none;
+            font-family: inherit;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #64748b;
+            background-color: #f1f5f9;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .status-tabs a.tab-btn:hover,
+        .status-tabs button.tab-btn:hover {
+            background-color: #e2e8f0;
+        }
+
+        .status-tabs a.tab-btn.active,
+        .status-tabs button.tab-btn.active {
+            background-color: var(--primary-accent);
+            color: #ffffff;
+        }
+
+        /* === Tombol Nonaktifkan / Aktifkan di bagian bawah modal Edit Profil === */
+        .btn-toggle-status-bottom {
+            display: block;
+            width: 100%;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #f1f5f9;
+            background: transparent;
+            border-left: none;
+            border-right: none;
+            border-bottom: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .btn-toggle-status-bottom.deactivate {
+            color: #b91c1c;
+        }
+
+        .btn-toggle-status-bottom.activate {
+            color: #15803d;
+        }
+
+        .btn-toggle-status-bottom:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state-box {
+            background: var(--bg-light);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            border: 1px solid #edf2f7;
+        }
+
         .child-meta {
             font-size: 0.8rem;
             color: #64748b;
@@ -369,6 +449,11 @@
             padding: 30px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.02);
             border: 1px solid #edf2f7;
+            /* Tinggi minimum tetap, supaya panel tidak "meloncat" ukurannya
+               saat berpindah anak dengan jumlah kelas mendatang yang berbeda-beda */
+            min-height: 460px;
+            display: flex;
+            flex-direction: column;
         }
 
         .panel-header {
@@ -426,6 +511,12 @@
         }
 
         /* Upcoming Classes section inside panel */
+        .upcoming-classes {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
         .upcoming-classes h4 {
             display: flex;
             align-items: center;
@@ -447,6 +538,14 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
+            /* Batas tinggi tetap: kalau kelasnya sedikit, area tetap konsisten
+               (tidak collapse); kalau kelasnya banyak, jadi scroll ke dalam
+               daripada mendorong panel meninggi terus-menerus */
+            min-height: 170px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+            align-content: start;
         }
 
         .class-mini-card {
@@ -803,6 +902,33 @@
                     <button type="button" id="cancelEditBaby" class="btn-cancel">Batal</button>
                     <button type="submit" id="btnSimpanEditAnak" class="btn-tambahin" style="background-color: #b42b51;">Simpan Perubahan</button>
                 </div>
+
+                <!-- Tombol Nonaktifkan / Aktifkan Kembali, diletakkan paling bawah form Edit Profil -->
+                <button type="button" id="btnToggleStatusInEdit" class="btn-toggle-status-bottom deactivate">
+                    Nonaktifkan Akun
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Nonaktifkan / Aktifkan Kembali Akun Anak -->
+    <div id="toggleStatusModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="icon-container" id="toggleStatusIconWrapper">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                </svg>
+            </div>
+            <h2 id="toggleStatusTitle">Konfirmasi Nonaktifkan Akun</h2>
+            <p id="toggleStatusMessage">Apakah Anda yakin ingin menonaktifkan akun anak ini?</p>
+            <form action="/toggle_status_anak" method="POST" id="formToggleStatus">
+                <input type="hidden" name="id_anak" id="toggle_id_anak">
+                <input type="hidden" name="redirect_status" id="toggle_redirect_status">
+                <div class="modal-actions">
+                    <button type="button" id="cancelToggleStatus" class="btn-cancel">Batal</button>
+                    <button type="submit" id="btnConfirmToggleStatus" class="btn-tambahin" style="background-color: #b91c1c;">Ya, Lanjutkan</button>
+                </div>
             </form>
         </div>
     </div>
@@ -890,7 +1016,7 @@
                     <p>Pantau perjalanan akademik dan status pendaftaran anak Anda.</p>
                 </div>
                 <button class="btn-add-child">
-                    <span style="font-size: 1.2rem; font-weight: bold;">+</span> Tambah Anak
+                    <span style="font-size: 1.2rem; font-weight: bold;">+</span> Daftarkan Anak
                 </button>
             </div>
 
@@ -924,9 +1050,15 @@
                             Daftar Anak
                         </div>
 
+                        <!-- Tab Filter: Aktif / Nonaktif (murni JS, tidak reload halaman) -->
+                        <div class="status-tabs">
+                            <button type="button" id="tab-Active" class="tab-btn active" onclick="filterAnakByStatus('Active')">Aktif{% if total_aktif %} ({{ total_aktif }}){% endif %}</button>
+                            <button type="button" id="tab-Inactive" class="tab-btn" onclick="filterAnakByStatus('Inactive')">Nonaktif{% if total_nonaktif %} ({{ total_nonaktif }}){% endif %}</button>
+                        </div>
+
                         {% if daftar_anak %}
                             {% for anak in daftar_anak %}
-                            <div class="child-card child-item" style="cursor: pointer; transition: 0.2s;" 
+                            <div class="child-card child-item" style="cursor: pointer; transition: 0.2s;{{ ' display:none;' if anak.status_anak != 'Active' else '' }}" 
                                 data-id="{{ anak.id_anak }}"
                                 data-nama="{{ anak.nama_lengkap }}"
                                 data-panggilan="{{ anak.nama_panggilan }}"
@@ -948,7 +1080,11 @@
                                 <div class="child-info">
                                     <div class="child-header-row">
                                         <h3>{{ anak.nama_lengkap }}</h3>
-                                        <span class="badge-active">{{ anak.status_anak }}</span>
+                                        {% if anak.status_anak == 'Active' %}
+                                            <span class="badge-active">Aktif</span>
+                                        {% else %}
+                                            <span class="badge-inactive">Nonaktif</span>
+                                        {% endif %}
                                     </div>
                                     <!-- Meta info sesuai gambar rujukan -->
                                 <div class="child-meta">{{ anak.kelas.split(' (')[0]|upper if anak.kelas else 'BELUM ADA KELAS' }} • {{ anak.sekolah_asal|upper if anak.sekolah_asal else 'UMUM' }}</div>                                    
@@ -990,8 +1126,16 @@
                                 {% endif %}
                             </div>
                             {% endfor %}
+
+                            <!-- Pesan kosong per-tab, ditampilkan/disembunyikan oleh JS sesuai tab yang aktif -->
+                            <div id="emptyStateActive" class="empty-state-box" style="{{ 'display:none;' if total_aktif else '' }}">
+                                <p style="color: #7a8b94;">Belum ada anak dengan status aktif.</p>
+                            </div>
+                            <div id="emptyStateInactive" class="empty-state-box" style="display:none;">
+                                <p style="color: #7a8b94;">Belum ada anak dengan status nonaktif.</p>
+                            </div>
                         {% else %}
-                            <div class="child-card" style="justify-content: center; text-align: center; padding: 40px;">
+                            <div class="empty-state-box">
                                 <p style="color: #7a8b94;">Belum ada data anak. Silakan tambah data anak Anda.</p>
                             </div>
                         {% endif %}
@@ -1222,6 +1366,21 @@
                 document.getElementById('edit_jk_hidden').value = '';
             }
 
+            // Set tampilan tombol Nonaktifkan / Aktifkan Kembali di bagian bawah form
+            // sesuai status anak yang sedang diedit saat ini
+            const btnToggleEdit = document.getElementById('btnToggleStatusInEdit');
+            if (btnToggleEdit) {
+                if (selectedChildData.status === 'Active') {
+                    btnToggleEdit.textContent = 'Nonaktifkan Akun';
+                    btnToggleEdit.classList.remove('activate');
+                    btnToggleEdit.classList.add('deactivate');
+                } else {
+                    btnToggleEdit.textContent = 'Aktifkan Kembali Akun';
+                    btnToggleEdit.classList.remove('deactivate');
+                    btnToggleEdit.classList.add('activate');
+                }
+            }
+
             // Tampilkan Modal Edit
             modalEdit.style.display = 'flex';
         });
@@ -1236,12 +1395,116 @@
 
 
     // ==========================================
+    // 6. FILTER TAB AKTIF / NONAKTIF (client-side, TANPA reload halaman)
+    // ==========================================
+    // Menyimpan tab mana yang sedang aktif dilihat oleh orang tua saat ini
+    let currentTabStatus = 'Active';
+
+    function filterAnakByStatus(status) {
+        currentTabStatus = status;
+
+        // Tampilkan/sembunyikan kartu anak sesuai status yang dipilih
+        document.querySelectorAll('.child-item').forEach(function (card) {
+            card.style.display = (card.getAttribute('data-status') === status) ? 'flex' : 'none';
+        });
+
+        // Update tampilan aktif pada tombol tab
+        const tabActive = document.getElementById('tab-Active');
+        const tabInactive = document.getElementById('tab-Inactive');
+        if (tabActive) tabActive.classList.toggle('active', status === 'Active');
+        if (tabInactive) tabInactive.classList.toggle('active', status === 'Inactive');
+
+        // Tampilkan pesan kosong kalau tidak ada kartu untuk status yang dipilih
+        const adaKartu = document.querySelector('.child-item[data-status="' + status + '"]') !== null;
+        const emptyActive = document.getElementById('emptyStateActive');
+        const emptyInactive = document.getElementById('emptyStateInactive');
+        if (emptyActive) emptyActive.style.display = (status === 'Active' && !adaKartu) ? 'block' : 'none';
+        if (emptyInactive) emptyInactive.style.display = (status === 'Inactive' && !adaKartu) ? 'block' : 'none';
+
+        // Reset panel detail di kanan ke kondisi awal saat pindah tab,
+        // supaya tidak menampilkan detail anak dari tab sebelumnya
+        const childCards = document.querySelectorAll('.child-item');
+        childCards.forEach(function (c) {
+            c.style.borderColor = '#edf2f7';
+            c.style.backgroundColor = '#ffffff';
+        });
+        document.getElementById('detail-nama').innerText = 'Pilih Anak dari Daftar';
+        document.getElementById('detail-info').innerText = 'Klik kartu anak di sebelah kiri untuk melihat detail.';
+        if (btnEdit) btnEdit.style.display = 'none';
+        document.getElementById('upcoming-classes-section').style.opacity = '0.4';
+        document.getElementById('upcoming-classes-section').style.pointerEvents = 'none';
+    }
+
+    // Inisialisasi tab default saat halaman pertama kali dimuat
+    document.addEventListener('DOMContentLoaded', function () {
+        filterAnakByStatus('{{ status_filter }}');
+    });
+
+
+    // ==========================================
+    // 7. MODAL KONFIRMASI NONAKTIFKAN / AKTIFKAN AKUN ANAK
+    // ==========================================
+    const modalToggleStatus = document.getElementById('toggleStatusModal');
+    const btnCancelToggleStatus = document.getElementById('cancelToggleStatus');
+    const formToggleStatus = document.getElementById('formToggleStatus');
+    const btnToggleStatusInEdit = document.getElementById('btnToggleStatusInEdit');
+
+    function bukaModalToggleStatus(idAnak, namaAnak, statusSaatIni) {
+        document.getElementById('toggle_id_anak').value = idAnak;
+        // Simpan tab yang sedang dibuka, supaya setelah submit
+        // halaman kembali ke tab yang sama, bukan otomatis pindah tab
+        document.getElementById('toggle_redirect_status').value = currentTabStatus;
+
+        const judul = document.getElementById('toggleStatusTitle');
+        const pesan = document.getElementById('toggleStatusMessage');
+        const btnConfirm = document.getElementById('btnConfirmToggleStatus');
+
+        if (statusSaatIni === 'Active') {
+            judul.innerText = 'Konfirmasi Nonaktifkan Akun';
+            pesan.innerText = 'Apakah Anda yakin ingin menonaktifkan akun "' + namaAnak + '"? Anak yang dinonaktifkan tidak akan tampil di daftar anak aktif.';
+            btnConfirm.innerText = 'Ya, Nonaktifkan';
+            btnConfirm.style.backgroundColor = '#b91c1c';
+        } else {
+            judul.innerText = 'Konfirmasi Aktifkan Kembali';
+            pesan.innerText = 'Apakah Anda yakin ingin mengaktifkan kembali akun "' + namaAnak + '"?';
+            btnConfirm.innerText = 'Ya, Aktifkan';
+            btnConfirm.style.backgroundColor = '#15803d';
+        }
+
+        modalToggleStatus.style.display = 'flex';
+    }
+
+    // Tombol "Nonaktifkan Akun" / "Aktifkan Kembali Akun" di paling bawah modal Edit Profil
+    if (btnToggleStatusInEdit) {
+        btnToggleStatusInEdit.addEventListener('click', () => {
+            // Tutup modal edit dulu, lalu buka modal konfirmasi
+            modalEdit.style.display = 'none';
+            bukaModalToggleStatus(selectedChildData.id, selectedChildData.nama, selectedChildData.status);
+        });
+    }
+
+    if (btnCancelToggleStatus) {
+        btnCancelToggleStatus.addEventListener('click', () => {
+            modalToggleStatus.style.display = 'none';
+        });
+    }
+
+    if (formToggleStatus) {
+        formToggleStatus.addEventListener('submit', function() {
+            const btnConfirm = document.getElementById('btnConfirmToggleStatus');
+            btnConfirm.disabled = true;
+            btnConfirm.innerText = 'Memproses...';
+        });
+    }
+
+    // ==========================================
     // 5. TUTUP SEMUA MODAL JIKA KLIK DI LUAR
     // ==========================================
     window.addEventListener('click', (e) => {
         if (e.target === modalAdd) modalAdd.style.display = 'none';
         if (e.target === modalEdit) modalEdit.style.display = 'none';
         if (e.target === modalLogout) modalLogout.style.display = 'none';
+        if (e.target === modalToggleStatus) modalToggleStatus.style.display = 'none';
     });
     document.addEventListener('DOMContentLoaded', function () {
             const toasts = document.querySelectorAll('.toast');

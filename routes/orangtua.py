@@ -47,8 +47,9 @@ def index():
     cursor = conn.cursor    (dictionary=True)
     
     try:
-        # 1. Ambil daftar anak milik orang tua ini
-        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        # 1. Ambil daftar anak milik orang tua ini (hanya yang aktif -- anak
+        # nonaktif tidak ditampilkan di dropdown maupun jadwal/kelasnya)
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC", (user_id,))
         daftar_anak = cursor.fetchall()
         
         anak_aktif = None
@@ -62,8 +63,8 @@ def index():
         foto_profil_user = user_data['foto_profil'] if user_data and user_data['foto_profil'] else 'default_parent.png'
         # --------------------------------------------------------------
 
-        # 1. Ambil daftar anak milik orang tua ini
-        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
+        # 1. Ambil daftar anak milik orang tua ini (hanya yang aktif)
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC", (user_id,))
         daftar_anak = cursor.fetchall()
 
         if daftar_anak:
@@ -538,17 +539,32 @@ def manajemen_anak():
         return redirect('/login')
         
     user_id = session['id_users']
+
+    # Tab mana yang sebaiknya aktif saat halaman pertama kali dibuka
+    # (dipakai oleh JS di frontend, bukan untuk memfilter query -- karena
+    # data Aktif & Nonaktif sekalian diambil semua di bawah, supaya
+    # perpindahan tab Aktif/Nonaktif di frontend tidak perlu reload halaman).
+    status_filter = request.args.get('status', 'Active')
+    if status_filter not in ('Active', 'Inactive'):
+        status_filter = 'Active'
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
     try:
-        # Ambil data anak berdasarkan ID orang tua yang sedang login
+        # Ambil SEMUA data anak (baik Aktif maupun Nonaktif) sekaligus.
+        # Pemisahan tampilan per status dilakukan di JavaScript (client-side),
+        # supaya switch tab Aktif/Nonaktif instan tanpa perlu request baru ke server.
         cursor.execute("""
             SELECT * FROM anak 
-            WHERE id_orangtua = %s 
+            WHERE id_orangtua = %s
             ORDER BY created_at DESC
         """, (user_id,))
         daftar_anak = cursor.fetchall()
+
+        # Hitung jumlah anak per status untuk ditampilkan sebagai counter di tab
+        total_aktif = sum(1 for a in daftar_anak if a['status_anak'] == 'Active')
+        total_nonaktif = sum(1 for a in daftar_anak if a['status_anak'] == 'Inactive')
         
         # Tambahkan informasi tambahan untuk setiap anak (Jumlah Kelas & Kelas Mendatang)
         for anak in daftar_anak:
@@ -585,6 +601,9 @@ def manajemen_anak():
 
         return render_template('orangtua/child_management.html',
                                daftar_anak=daftar_anak,
+                               status_filter=status_filter,
+                               total_aktif=total_aktif,
+                               total_nonaktif=total_nonaktif,
                                username=session.get('username'),
                                foto_profil=foto_profil_user)
         
@@ -594,6 +613,66 @@ def manajemen_anak():
     finally:
         cursor.close()
         conn.close()
+
+@orangtua_bp.route('/toggle_status_anak', methods=['POST'])
+def toggle_status_anak():
+    """
+    Menonaktifkan atau mengaktifkan kembali akun anak (toggle status_anak
+    antara 'Active' <-> 'Inactive'). Dipanggil dari tombol "Nonaktifkan" /
+    "Aktifkan Kembali" di halaman Manajemen Anak.
+    """
+    if 'id_users' not in session:
+        return redirect('/login')
+
+    user_id = session['id_users']
+    id_anak = request.form.get('id_anak')
+    # Dipakai supaya setelah proses selesai, halaman kembali ke tab (Aktif/Nonaktif)
+    # yang sedang dilihat orang tua saat menekan tombol
+    redirect_status = request.form.get('redirect_status', 'Active')
+    if redirect_status not in ('Active', 'Inactive'):
+        redirect_status = 'Active'
+
+    if not id_anak:
+        flash('Data anak tidak valid.', 'error')
+        return redirect(f'/manajemen_anak?status={redirect_status}')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Pastikan anak ini benar milik orang tua yang sedang login
+        cursor.execute("""
+            SELECT status_anak, nama_lengkap FROM anak 
+            WHERE id_anak = %s AND id_orangtua = %s
+        """, (id_anak, user_id))
+        anak = cursor.fetchone()
+
+        if not anak:
+            flash('Data anak tidak ditemukan.', 'error')
+            return redirect(f'/manajemen_anak?status={redirect_status}')
+
+        status_baru = 'Inactive' if anak['status_anak'] == 'Active' else 'Active'
+
+        cursor.execute("""
+            UPDATE anak SET status_anak = %s 
+            WHERE id_anak = %s AND id_orangtua = %s
+        """, (status_baru, id_anak, user_id))
+        conn.commit()
+
+        if status_baru == 'Inactive':
+            flash(f'Akun anak "{anak["nama_lengkap"]}" berhasil dinonaktifkan.', 'success')
+        else:
+            flash(f'Akun anak "{anak["nama_lengkap"]}" berhasil diaktifkan kembali.', 'success')
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error mengubah status anak: {e}")
+        flash('Gagal mengubah status akun anak.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(f'/manajemen_anak?status={redirect_status}')
 
 @orangtua_bp.route('/tambah_anak', methods=['POST'])
 def tambah_anak():
@@ -849,7 +928,8 @@ def konfirmasi_kelas(id_kelas):
         detail_kelas = cursor.fetchone()
         
         # 2. Ambil daftar anak milik orang tua yang sedang login ini
-        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s", (session['id_users'],))
+        # (hanya yang berstatus aktif -- anak nonaktif tidak boleh didaftarkan ke kelas)
+        cursor.execute("SELECT * FROM anak WHERE id_orangtua = %s AND status_anak = 'Active'", (session['id_users'],))
         daftar_anak = cursor.fetchall()
 
         # 2b. Cek anak mana saja yang SUDAH terdaftar aktif di kelas ini,
@@ -999,6 +1079,46 @@ def pembayaran():
             if not kelas_detail or not detail_anak:
                 flash('Data kelas atau anak tidak ditemukan.', 'error')
                 return redirect(url_for('orangtua.kelas'))
+
+            # Keamanan tambahan: tolak pendaftaran kalau anak berstatus nonaktif,
+            # meskipun request ini tidak lewat dropdown normal di halaman.
+            if detail_anak.get('status_anak') != 'Active':
+                flash('Anak dengan status nonaktif tidak dapat didaftarkan ke kelas.', 'error')
+                return redirect(url_for('orangtua.kelas'))
+
+            # --- VALIDASI BENTROK JADWAL ---
+            # Tolak pendaftaran kalau anak ini sudah punya kelas lain (status Aktif
+            # atau masih Pending menunggu verifikasi) yang jadwalnya bentrok --
+            # hari yang sama DAN jam yang tumpang tindih -- dengan kelas yang mau diambil.
+            # Dilakukan pakai perbandingan langsung nilai TIME dari database (timedelta),
+            # jadi harus dijalankan SEBELUM jam_mulai/jam_selesai diformat jadi string di bawah.
+            cursor.execute("""
+                SELECT k.nama_kelas, k.hari_jadwal, k.jam_mulai, k.jam_selesai
+                FROM pendaftaran pd
+                JOIN kelas k ON pd.id_kelas = k.id_kelas
+                WHERE pd.id_anak = %s
+                  AND pd.status_pendaftaran IN ('Aktif', 'Pending')
+                  AND k.id_kelas != %s
+                  AND k.hari_jadwal = %s
+            """, (id_anak, id_kelas, kelas_detail['hari_jadwal']))
+            kelas_lain_di_hari_sama = cursor.fetchall()
+
+            jam_mulai_baru = kelas_detail['jam_mulai']
+            jam_selesai_baru = kelas_detail['jam_selesai']
+
+            for kl in kelas_lain_di_hari_sama:
+                # Dua rentang waktu tumpang tindih kalau: mulai_baru < selesai_lama DAN mulai_lama < selesai_baru
+                if jam_mulai_baru < kl['jam_selesai'] and kl['jam_mulai'] < jam_selesai_baru:
+                    nama_anak_display = detail_anak.get('nama_panggilan') or detail_anak.get('nama_lengkap')
+                    jam_bentrok_mulai = str(kl['jam_mulai'])[:5] if kl['jam_mulai'] is not None else '-'
+                    jam_bentrok_selesai = str(kl['jam_selesai'])[:5] if kl['jam_selesai'] is not None else '-'
+                    flash(
+                        f"Jadwal bentrok! {nama_anak_display} sudah punya kelas \"{kl['nama_kelas']}\" "
+                        f"pada hari {kl['hari_jadwal']} jam {jam_bentrok_mulai}-{jam_bentrok_selesai} WIB. "
+                        f"Tidak bisa mendaftarkan kelas ini karena jadwalnya bertabrakan.",
+                        'error'
+                    )
+                    return redirect(url_for('orangtua.konfirmasi_kelas', id_kelas=id_kelas))
 
             # Format jam kelas
             if kelas_detail.get('jam_mulai') and hasattr(kelas_detail['jam_mulai'], 'total_seconds'):
@@ -1532,8 +1652,9 @@ def jadwal_belajar():
 
     try:
         # 2. Ambil semua anak milik orang tua yang sedang login (untuk mengisi dropdown)
+        # Hanya anak berstatus aktif -- anak nonaktif tidak bisa dilihat jadwalnya
         cursor.execute(
-            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC",
             (id_orangtua,)
         )
         daftar_anak = cursor.fetchall()
@@ -1613,11 +1734,12 @@ def detail_kelas(id_kelas):
     try:
         # Pastikan salah satu anak dari orang tua ini memang terdaftar aktif
         # di kelas ini, supaya orang tua tidak bisa mengintip kelas anak lain
-        # yang tidak ada hubungannya dengan mereka.
+        # yang tidak ada hubungannya dengan mereka. Anak yang statusnya
+        # dinonaktifkan juga tidak boleh dipakai untuk mengakses jadwal ini.
         cursor.execute("""
             SELECT 1 FROM pendaftaran p
             JOIN anak a ON p.id_anak = a.id_anak
-            WHERE p.id_kelas = %s AND a.id_orangtua = %s AND p.status_pendaftaran = 'Aktif'
+            WHERE p.id_kelas = %s AND a.id_orangtua = %s AND a.status_anak = 'Active' AND p.status_pendaftaran = 'Aktif'
             LIMIT 1
         """, (id_kelas, id_orangtua))
         akses_valid = cursor.fetchone()
@@ -1721,11 +1843,12 @@ def detail_sesi(id_sesi):
             return redirect(url_for('orangtua.jadwal_belajar'))
 
         # Pastikan salah satu anak dari orang tua ini memang terdaftar aktif
-        # di kelas dari sesi ini, sebelum mengizinkan akses.
+        # di kelas dari sesi ini, sebelum mengizinkan akses. Anak yang
+        # dinonaktifkan juga tidak boleh dipakai untuk mengakses sesi ini.
         cursor.execute("""
             SELECT 1 FROM pendaftaran p
             JOIN anak a ON p.id_anak = a.id_anak
-            WHERE p.id_kelas = %s AND a.id_orangtua = %s AND p.status_pendaftaran = 'Aktif'
+            WHERE p.id_kelas = %s AND a.id_orangtua = %s AND a.status_anak = 'Active' AND p.status_pendaftaran = 'Aktif'
             LIMIT 1
         """, (sesi['id_kelas'], id_orangtua))
         akses_valid = cursor.fetchone()
@@ -1830,7 +1953,7 @@ def google_calendar_sync():
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC",
             (id_orangtua,)
         )
         daftar_anak = cursor.fetchall()
@@ -1878,8 +2001,9 @@ def presensi():
         foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else None
 
         # 1. Ambil semua anak milik orang tua ini (untuk dropdown pilih anak)
+        # Hanya yang aktif -- anak nonaktif tidak bisa dilihat presensinya
         cursor.execute(
-            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC",
+            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC",
             (id_orangtua,)
         )
         daftar_anak = cursor.fetchall()
@@ -1970,7 +2094,8 @@ def reports():
     
     try:
         # 2. Ambil semua daftar anak yang dimiliki oleh orang tua yang sedang login
-        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s", (id_orangtua,))
+        # (hanya yang aktif -- anak nonaktif tidak bisa dilihat laporan/jadwalnya)
+        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active'", (id_orangtua,))
         daftar_anak = cursor.fetchall()
 
         # Ambil foto profil user (untuk topbar), sama seperti route lain

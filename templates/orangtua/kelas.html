@@ -269,6 +269,41 @@
             line-height: 1.5;
         }
 
+        /* === Filter Bar (Jenjang) === */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .filter-bar label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .filter-bar select {
+            padding: 9px 34px 9px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: var(--bg-light, #fff);
+            font-size: 0.9rem;
+            color: #1a202c;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            transition: border-color 0.15s;
+        }
+
+        .filter-bar select:hover,
+        .filter-bar select:focus {
+            border-color: var(--primary-accent);
+            outline: none;
+        }
+
         /* === Grid Card Kelas === */
         .class-grid {
             display: grid;
@@ -528,6 +563,16 @@
                     {% endif %}
                 </section>
 
+                <div class="filter-bar">
+                    <label for="filterJenjangSelect">Jenjang:</label>
+                    <select id="filterJenjangSelect" onchange="cariKelas()">
+                        <option value="ALL">Semua Jenjang</option>
+                        <option value="SD">SD</option>
+                        <option value="SMP">SMP</option>
+                        <option value="SMA">SMA</option>
+                    </select>
+                </div>
+
                 <div class="class-grid">
                     {% for kelas in daftar_kelas %}
 
@@ -535,15 +580,19 @@
                     {% set jenjang = kelas.tingkat or 'Umum' %}
                     {% if jenjang|upper == 'SD' %}
                         {% set level_class = 'level-sd' %}
+                        {% set data_jenjang = 'SD' %}
                     {% elif jenjang|upper == 'SMP' %}
                         {% set level_class = 'level-smp' %}
+                        {% set data_jenjang = 'SMP' %}
                     {% elif jenjang|upper in ['SMA', 'SMK'] %}
                         {% set level_class = 'level-sma' %}
+                        {% set data_jenjang = 'SMA' %}
                     {% else %}
                         {% set level_class = 'level-default' %}
+                        {% set data_jenjang = 'LAINNYA' %}
                     {% endif %}
 
-                    <div class="class-card">
+                    <div class="class-card" data-jenjang="{{ data_jenjang }}">
                         <div class="card-image-container">
                             <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80" alt="{{ kelas.nama_kelas }}">
                             <span class="card-badge badge-kelas5">Aktif</span>
@@ -616,15 +665,20 @@
             modal.classList.add('hidden');
         });
 
-        // Pencarian mata pelajaran/kelas secara langsung (client-side, tanpa reload)
+        // Pencarian mata pelajaran/kelas + filter jenjang (SD/SMP/SMA), keduanya
+        // client-side tanpa reload, dan bekerja bersamaan (AND, bukan saling menimpa).
         function cariKelas() {
             const keyword = document.getElementById('searchKelasInput').value.trim().toLowerCase();
+            const jenjangDipilih = document.getElementById('filterJenjangSelect').value;
             const cards = document.querySelectorAll('.class-grid .class-card');
             let jumlahTampil = 0;
 
             cards.forEach(card => {
                 const judul = card.querySelector('h3') ? card.querySelector('h3').textContent.toLowerCase() : '';
-                const cocok = judul.includes(keyword);
+                const cocokKeyword = judul.includes(keyword);
+                const cocokJenjang = (jenjangDipilih === 'ALL') || (card.dataset.jenjang === jenjangDipilih);
+                const cocok = cocokKeyword && cocokJenjang;
+
                 card.style.display = cocok ? '' : 'none';
                 if (cocok) jumlahTampil++;
             });
@@ -632,9 +686,9 @@
             const noResult = document.getElementById('noResultKelas');
             const noResultKeyword = document.getElementById('noResultKeyword');
             if (noResult) {
-                const tampilkanNoResult = jumlahTampil === 0 && cards.length > 0 && keyword !== '';
+                const tampilkanNoResult = jumlahTampil === 0 && cards.length > 0;
                 noResult.style.display = tampilkanNoResult ? 'block' : 'none';
-                if (noResultKeyword) noResultKeyword.textContent = keyword;
+                if (noResultKeyword) noResultKeyword.textContent = keyword || 'jenjang ini';
             }
         }
     </script>

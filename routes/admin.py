@@ -37,6 +37,23 @@ def _wajib_login_admin():
     return None
 
 
+def _ke_menit(t):
+    """
+    Konversi nilai waktu (kolom TIME dari database biasanya balik sebagai
+    datetime.timedelta lewat mysql-connector, atau bisa juga datetime.time
+    kalau hasil dari datetime.strptime(...).time()) jadi total menit sejak
+    00:00. Dipakai supaya perbandingan bentrok jadwal gampang & konsisten,
+    tanpa peduli tipe aslinya timedelta atau time.
+    """
+    if t is None:
+        return None
+    if hasattr(t, 'total_seconds'):  # timedelta (TIME dari database)
+        return int(t.total_seconds() // 60)
+    if hasattr(t, 'hour'):  # datetime.time / datetime.datetime
+        return t.hour * 60 + t.minute
+    return None
+
+
 # --- FILTER JINJA2: Format angka menjadi Rupiah (Rp450.000) ---
 @admin_bp.app_template_filter('rupiah')
 def format_rupiah(value):
@@ -373,10 +390,42 @@ def simpan_kelas_baru():
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # 5. Generate ID kelas secara unik
+        # 5. VALIDASI BENTROK JADWAL PENGAJAR
+        # Tolak pembuatan kelas kalau pengajar yang dipilih sudah punya kelas lain
+        # (kecuali yang berstatus 'Selesai') di hari yang sama dengan jam yang
+        # tumpang tindih -- satu pengajar tidak mungkin mengajar 2 kelas sekaligus.
+        cursor.execute("""
+            SELECT nama_kelas, hari_jadwal, jam_mulai, jam_selesai
+            FROM kelas
+            WHERE id_pengajar = %s
+              AND hari_jadwal = %s
+              AND status_kelas != 'Selesai'
+        """, (id_pengajar, hari_jadwal))
+        kelas_pengajar_di_hari_sama = cursor.fetchall()
+
+        menit_mulai_baru = _ke_menit(waktu_mulai.time())
+        menit_selesai_baru = _ke_menit(waktu_selesai.time())
+
+        for kl in kelas_pengajar_di_hari_sama:
+            menit_mulai_lama = _ke_menit(kl['jam_mulai'])
+            menit_selesai_lama = _ke_menit(kl['jam_selesai'])
+
+            # Dua rentang waktu tumpang tindih kalau: mulai_baru < selesai_lama DAN mulai_lama < selesai_baru
+            if menit_mulai_baru < menit_selesai_lama and menit_mulai_lama < menit_selesai_baru:
+                jam_lama_mulai = str(kl['jam_mulai'])[:5] if kl['jam_mulai'] is not None else '-'
+                jam_lama_selesai = str(kl['jam_selesai'])[:5] if kl['jam_selesai'] is not None else '-'
+                flash(
+                    f"Jadwal bentrok! Pengajar ini sudah mengajar kelas \"{kl['nama_kelas']}\" "
+                    f"pada hari {kl['hari_jadwal']} jam {jam_lama_mulai}-{jam_lama_selesai} WIB. "
+                    f"Tidak bisa membuat kelas baru karena jadwalnya bertabrakan.",
+                    'error'
+                )
+                return redirect(url_for('admin.buat_kelas_baru'))
+
+        # 6. Generate ID kelas secara unik
         id_kelas_baru = f"KLS-{str(uuid.uuid4().hex[:6]).upper()}"
 
-        # 6. Eksekusi query INSERT ke tabel kelas
+        # 7. Eksekusi query INSERT ke tabel kelas
         query = """
             INSERT INTO kelas (
                 id_kelas, nama_kelas, tingkat, id_pengajar, 
@@ -394,7 +443,7 @@ def simpan_kelas_baru():
         )
         cursor.execute(query, values)
 
-        # 7. Generate otomatis baris-baris sesi di tabel sesi_kelas sebanyak jumlah_sesi,
+        # 8. Generate otomatis baris-baris sesi di tabel sesi_kelas sebanyak jumlah_sesi,
         # masing-masing berjarak 1 minggu dari sesi sebelumnya
         for i, tanggal_sesi in enumerate(tanggal_sesi_list, start=1):
             cursor.execute("""
