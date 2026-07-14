@@ -214,7 +214,7 @@
                             <i class="fa-solid fa-sack-dollar"></i>
                         </div>
                         <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Nilai Tertunda</p>
-                        <h2 class="text-3xl font-black text-gray-800">{{ total_nominal_pending|rupiah }}</h2>
+                        <h2 class="text-3xl font-black text-gray-800 truncate" title="{{ total_nominal_pending|rupiah }}">{{ total_nominal_pending|rupiah }}</h2>
                     </div>
 
                     <div class="bg-red-50 p-6 rounded-2xl border border-red-100 card-shadow">
@@ -278,12 +278,10 @@
                                             class="bg-rose-50 hover:bg-rose-100 text-red-500 font-bold text-xs px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">
                                         Tolak
                                     </button>
-                                    <form action="{{ url_for('admin.setujui_pembayaran', id_pembayaran=item.id_pembayaran) }}" method="POST"
-                                          onsubmit="return confirm('Setujui pembayaran {{ item.nama_anak }} sebesar {{ item.jumlah_bayar|rupiah }}?');">
-                                        <button type="submit" class="bg-[#1E3A8A] hover:bg-[#1a3376] text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">
-                                            Setujui
-                                        </button>
-                                    </form>
+                                    <button type="button" onclick="bukaModalSetujui('{{ item.id_pembayaran }}', '{{ item.nama_anak }}', '{{ item.jumlah_bayar|rupiah }}')"
+                                            class="bg-[#1E3A8A] hover:bg-[#1a3376] text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">
+                                        Setujui
+                                    </button>
                                 </div>
 
                             </div>
@@ -383,7 +381,13 @@
         <div class="bg-white w-[90%] max-w-lg rounded-[24px] p-6 shadow-2xl">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-gray-900">Bukti Pembayaran</h3>
-                <button onclick="tutupBukti()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <div class="flex items-center gap-3">
+                    <button id="buktiDownloadBtn" onclick="unduhBukti()" title="Unduh Gambar"
+                            class="flex items-center gap-2 px-3 py-1.5 bg-[#A22754] hover:bg-[#8E1F47] text-white text-xs font-bold rounded-lg transition">
+                        <i class="fa-solid fa-download"></i> Unduh
+                    </button>
+                    <button onclick="tutupBukti()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
             </div>
             <img id="buktiImage" src="" alt="Bukti Pembayaran" class="w-full rounded-xl border border-gray-100 object-contain max-h-[70vh]">
             <div id="buktiError" class="hidden text-center py-10">
@@ -417,6 +421,30 @@
         </div>
     </div>
 
+    <!-- MODAL: SETUJUI PEMBAYARAN -->
+    <div id="setujuiModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden">
+        <div class="bg-white w-[90%] max-w-md rounded-[24px] p-8 shadow-2xl">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-5 mx-auto">
+                <i class="fa-solid fa-circle-check text-2xl text-[#1E3A8A]"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2 text-center">Setujui Pembayaran</h3>
+            <p class="text-sm text-gray-500 mb-6 text-center">
+                Anda akan menyetujui pembayaran <span id="namaAnakSetujui" class="font-bold text-gray-700"></span>
+                sebesar <span id="jumlahSetujui" class="font-bold text-gray-700"></span>.
+            </p>
+            <form id="formSetujui" method="POST">
+                <div class="flex gap-4">
+                    <button type="button" onclick="tutupModalSetujui()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="flex-1 bg-[#1E3A8A] hover:bg-[#1a3376] text-white font-bold py-3 rounded-xl transition">
+                        Ya, Setujui
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL: KONFIRMASI LOGOUT -->
     <div id="logoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
         <div id="modalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
@@ -443,6 +471,8 @@
         // --- MODAL BUKTI PEMBAYARAN ---
         // url di sini adalah URL Cloudinary lengkap yang tersimpan di kolom
         // bukti_bayar pada database (diisi saat orang tua mengupload bukti).
+        let currentBuktiUrl = '';
+
         function bukaBukti(url) {
             const img = document.getElementById('buktiImage');
             const errorBox = document.getElementById('buktiError');
@@ -453,6 +483,7 @@
                 return;
             }
 
+            currentBuktiUrl = url;
             fallbackLink.href = url;
 
             // File PDF tidak bisa dirender lewat <img>, jadi langsung buka di tab baru.
@@ -476,6 +507,58 @@
         function tutupBukti() {
             document.getElementById('buktiModal').classList.add('hidden');
             document.getElementById('buktiImage').src = '';
+            currentBuktiUrl = '';
+        }
+
+        // Mengunduh gambar bukti pembayaran yang sedang ditampilkan di modal.
+        // Diambil sebagai blob dulu (bukan pakai atribut <a download> langsung)
+        // supaya browser benar-benar mengunduh filenya, bukan cuma membuka
+        // gambarnya di tab baru (atribut download sering diabaikan browser
+        // untuk URL cross-origin seperti Cloudinary).
+        async function unduhBukti() {
+            if (!currentBuktiUrl) return;
+
+            const btn = document.getElementById('buktiDownloadBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(currentBuktiUrl, { mode: 'cors' });
+                if (!response.ok) throw new Error('Gagal mengambil file');
+                const blob = await response.blob();
+
+                let extensi = (currentBuktiUrl.split('.').pop() || 'jpg').split(/[?#]/)[0];
+                if (!extensi || extensi.length > 5) extensi = 'jpg';
+                const namaFile = `bukti_pembayaran_${Date.now()}.${extensi}`;
+
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = namaFile;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (err) {
+                console.warn('Gagal mengunduh via blob, fallback ke tab baru:', err);
+                window.open(currentBuktiUrl, '_blank', 'noopener');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+
+        // --- MODAL SETUJUI PEMBAYARAN ---
+        function bukaModalSetujui(idPembayaran, namaAnak, jumlahFormatted) {
+            document.getElementById('namaAnakSetujui').innerText = namaAnak;
+            document.getElementById('jumlahSetujui').innerText = jumlahFormatted;
+            document.getElementById('formSetujui').action = "{{ url_for('admin.setujui_pembayaran', id_pembayaran=0) }}".replace('0', idPembayaran);
+            document.getElementById('setujuiModal').classList.remove('hidden');
+        }
+        function tutupModalSetujui() {
+            document.getElementById('setujuiModal').classList.add('hidden');
         }
 
         // --- MODAL TOLAK PEMBAYARAN ---

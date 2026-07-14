@@ -85,13 +85,63 @@
         }
 
         .topbar {
-            background-color: #ffffff;
+            background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border-light);
             min-height: 70px;
+        }
+
+        .user-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .username-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2b2525;
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b;
+            font-weight: 500;
+        }
+
+        .top-parent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fbd0dd;
+            padding: 2px;
+            background-color: #ffffff;
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-transform: uppercase;
         }
 
         .btn-back {
@@ -540,7 +590,17 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     Kembali ke Riwayat
                 </a>
-                <div class="user-profile text-capitalize" style="font-weight:600;">{{ username if username else 'Wali Murid' }}</div>
+                <div class="user-profile-header">
+                    <div class="user-info">
+                        <span class="username-text">{{ username if username else 'Wali Murid' }}</span>
+                        <span class="user-role">Orang Tua</span>
+                    </div>
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
+                </div>
             </header>
 
             <div class="page-content">

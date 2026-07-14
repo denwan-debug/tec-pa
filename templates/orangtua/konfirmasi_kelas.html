@@ -89,7 +89,7 @@
 
         /* === Topbar Custom untuk Konfirmasi === */
         .topbar {
-            background-color: #ffffff;
+            background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -120,27 +120,59 @@
             gap: 15px;
         }
 
-        .profile-switcher {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: #e0f2fe; /* Light blue */
-            color: #0369a1;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-transform: capitalize;
-        }
-
         .btn-icon {
             background: none; border: none; cursor: pointer; color: var(--text-gray);
             display: flex; align-items: center; justify-content: center;
         }
 
-        .avatar-img {
-            width: 35px; height: 35px; border-radius: 50%; object-fit: cover;
+        .user-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .username-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2b2525;
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b;
+            font-weight: 500;
+        }
+
+        .top-parent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fbd0dd;
+            padding: 2px;
+            background-color: #ffffff;
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-transform: uppercase;
         }
 
         /* === Grid Layout Konfirmasi Kelas === */
@@ -482,14 +514,20 @@
                 </a>
                 
                 <div class="topbar-actions">
-                    <div class="profile-switcher">
-                        {{ username if username else 'Wali Murid' }}
-                        <span>⇄</span>
-                    </div>
                     <button class="btn-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                     </button>
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop" alt="User" class="avatar-img">
+                    <div class="user-profile-header">
+                        <div class="user-info">
+                            <span class="username-text">{{ username if username else 'Wali Murid' }}</span>
+                            <span class="user-role">Orang Tua</span>
+                        </div>
+                        {% if foto_profil and 'http' in foto_profil %}
+                            <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                        {% else %}
+                            <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </header>
 
@@ -513,7 +551,7 @@
                     <div class="card-box">
                         <h2 class="section-title">Ringkasan Kursus</h2>
                         <div class="summary-text">
-                            <p>{{ deskripsi }}</p>
+                            <p>{{ deskripsi or 'Belum ada deskripsi' }}</p>
                         </div>
                     </div>
 
@@ -523,12 +561,16 @@
                             <div class="stars">★★★★★</div>
                         </div>
                         <div class="instructor-profile">
-                            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop" alt="Pengajar">
+                            {% set nama_pengajar = kelas.nama_tutor if kelas.nama_tutor else 'Tentor TEC' %}
+                            {% if kelas.foto_pengajar and kelas.foto_pengajar.startswith('http') %}
+                            <img src="{{ kelas.foto_pengajar }}" alt="{{ nama_pengajar }}">
+                            {% else %}
+                            <img src="https://ui-avatars.com/api/?name={{ nama_pengajar | urlencode }}&background=b42b51&color=fff&size=200" alt="{{ nama_pengajar }}">
+                            {% endif %}
                             <div class="instructor-details">
-                                <h3>{{ kelas.nama_tutor if kelas.nama_tutor else 'Tentor TEC' }}</h3>
+                                <h3>{{ nama_pengajar }}</h3>
                                 <div class="title">Professional English Tutor</div>
-                                <blockquote>"Bahasa adalah alat yang kita gunakan untuk membangun dunia. Saya membantu siswa menemukan kosakata yang tepat untuk membangun dunia mereka."</blockquote>
-                                <p>Tutor berpengalaman di TEC English, fokus pada pendekatan praktis dan teori terapan untuk membantu perkembangan linguistik siswa secara maksimal dalam ruang belajar interaktif.</p>
+                                <p>{{ kelas.deskripsi_pengajar or 'Tutor berpengalaman di TEC English, fokus pada pendekatan praktis dan teori terapan untuk membantu perkembangan linguistik siswa secara maksimal dalam ruang belajar interaktif.' }}</p>
                             </div>
                         </div>
                     </div>
@@ -560,6 +602,16 @@
                             </div>
                         </div>
 
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                            <div class="alert-kriteria" style="display:block; margin-bottom: 15px;">
+                                {% for category, message in messages %}
+                                    ⚠️ <strong>{{ message }}</strong>{% if not loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        {% endwith %}
+
                         <form action="/pembayaran" method="POST">
     <input type="hidden" name="id_kelas" value="{{ kelas.id_kelas }}">
     <input type="hidden" id="kriteria_kelas" value="{{ kriteria_kelas }}">
@@ -586,8 +638,8 @@
             {% set jenjang = 'LAINNYA' %}
         {% endif %}
 
-        <option value="{{ anak.id_anak }}" data-jenjang="{{ jenjang }}">
-            {{ anak.nama_panggilan }} - {{ anak.kelas | default('Kelas Belum Diisi', true) }} - {{ jenjang }}
+        <option value="{{ anak.id_anak }}" data-jenjang="{{ jenjang }}" data-terdaftar="{{ 'true' if anak.id_anak|string in anak_terdaftar_ids|default([]) else 'false' }}">
+            {{ anak.nama_panggilan }} - {{ anak.kelas | default('Kelas Belum Diisi', true) }} - {{ jenjang }}{% if anak.id_anak|string in anak_terdaftar_ids|default([]) %} (Sudah Terdaftar){% endif %}
         </option>
     {% endfor %}
 </select>
@@ -652,7 +704,17 @@ function cekKriteriaAnak() {
         return false;
     }
 
-    // 2. Validasi kecocokan jenjang dengan kelas (jika kelas ada kriteria spesifik)
+    // 2. FITUR BARU: Anak yang sama tidak boleh didaftarkan dua kali di kelas yang sama
+    const sudahTerdaftar = selectedOption.getAttribute('data-terdaftar') === 'true';
+    if (sudahTerdaftar) {
+        errorBox.innerHTML = `⚠️ <strong>Pendaftaran Ditolak!</strong> <strong>${selectedOption.text.split(' - ')[0]}</strong> sudah terdaftar di kelas ini. Anak yang sama tidak bisa didaftarkan dua kali pada kelas yang sama.`;
+        errorBox.style.display = 'block';
+
+        disableSubmitButton(btnSubmit);
+        return false;
+    }
+
+    // 3. Validasi kecocokan jenjang dengan kelas (jika kelas ada kriteria spesifik)
     if (kriteriaKelas && jenjangAnak !== kriteriaKelas) {
         errorBox.innerHTML = `⚠️ <strong>Pendaftaran Ditolak!</strong> Kelas ini ditujukan khusus untuk tingkatan <strong>${kriteriaKelas}</strong>. Anak yang Anda pilih berada di tingkatan <strong>${jenjangAnak}</strong>.`;
         errorBox.style.display = 'block';

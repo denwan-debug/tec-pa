@@ -90,7 +90,8 @@
         /* === Top Navbar === */
         .top-navbar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 35px; background-color: var(--bg-light); border-bottom: 1px solid #f1f5f9;
+            padding: 15px 30px; background-color: #FCF9F9; border-bottom: 1px solid #edf2f7;
+            min-height: 70px;
         }
 
         .search-container { position: relative; width: 350px; }
@@ -109,11 +110,20 @@
         .notification-icon { position: relative; cursor: pointer; color: #1e293b; }
         .notification-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background-color: var(--primary-accent); border-radius: 50%; }
         
-        .user-profile-info { display: flex; align-items: center; gap: 12px; }
+        .user-profile-info { display: flex; align-items: center; gap: 15px; }
         .profile-text { text-align: right; }
-        .profile-text h4 { font-size: 0.9rem; color: #1e293b; font-weight: 600; }
-        .profile-text p { font-size: 0.75rem; color: #7a8b94; }
-        .profile-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .profile-text h4 { font-size: 18px; color: #2b2525; font-weight: 600; }
+        .profile-text p { font-size: 14px; color: #6d5b5b; font-weight: 500; }
+        .profile-avatar {
+            width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
+            border: 3px solid #fbd0dd; padding: 2px; background-color: #ffffff;
+        }
+        /* Fallback: dipakai kalau user belum punya foto profil. */
+        .avatar-initial {
+            display: flex; align-items: center; justify-content: center;
+            background-color: #fce7f3; color: var(--primary-accent);
+            font-size: 20px; font-weight: 700; text-transform: uppercase;
+        }
 
         /* === Content Header === */
         .content-header { display: flex; justify-content: space-between; align-items: center; padding: 30px 35px 25px 35px; }
@@ -399,10 +409,14 @@
                     </div>
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>Alex Rivera</h4>
+                            <h4>{{ username if username else 'Wali Murid' }}</h4>
                             <p>Orang Tua</p>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Profile" class="profile-avatar">
+                        {% if foto_profil and 'http' in foto_profil %}
+                            <img src="{{ foto_profil }}" alt="Foto Profil" class="profile-avatar">
+                        {% else %}
+                            <div class="profile-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

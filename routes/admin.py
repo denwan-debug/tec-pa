@@ -1,9 +1,39 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from db import get_db_connection
 import uuid, math
+from datetime import datetime, timedelta
 
 # Membuat blueprint untuk admin
 admin_bp = Blueprint('admin', __name__)
+
+
+def _wajib_login_admin():
+    """
+    Pastikan yang mengakses route ini benar-benar sudah login SEBAGAI ADMIN
+    (role 'Kepala').
+
+    Kalau belum login sama sekali, ATAU sudah login tapi rolenya bukan
+    Kepala (misalnya Pengajar/Orang Tua yang session-nya kebetulan masih
+    aktif dan mencoba membuka halaman Admin), user akan langsung ditendang
+    balik ke halaman login Admin.
+
+    Catatan: perbandingan role dibuat case-insensitive (.lower()) karena di
+    tabel `role` nilainya tersimpan huruf kecil ('kepala'), supaya admin asli
+    tidak ikut tertendang gara-gara perbedaan besar/kecil huruf.
+
+    Return:
+        - None kalau lolos validasi (boleh lanjut memproses route).
+        - Response redirect kalau harus ditolak -- WAJIB langsung di-`return`
+          oleh route pemanggil, contoh:
+
+              cek_akses = _wajib_login_admin()
+              if cek_akses:
+                  return cek_akses
+    """
+    if 'user_id' not in session or (session.get('role') or '').lower() != 'kepala':
+        session.clear()
+        return redirect(url_for('admin.login_admin'))
+    return None
 
 
 # --- FILTER JINJA2: Format angka menjadi Rupiah (Rp450.000) ---
@@ -34,8 +64,9 @@ def format_tanggal_indo(dt):
 @admin_bp.route('/dashboard_admin')
 def dashboard_admin():
     print("ISI SESSION:", dict(session))
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -178,8 +209,9 @@ def logout_admin():
 @admin_bp.route('/manajemen_kelas_admin')
 def manajemen_kelas_admin():
     # 1. Proteksi Akses Admin Kepala
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
         
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -253,7 +285,8 @@ def manajemen_kelas_admin():
     except Exception as e:
         print(f"\n[ERROR MANAJEMEN KELAS]: {e}\n")
         flash("Gagal memuat data kelas dari database.", "error")
-        return render_template('admin/manajemen_kelas.html', daftar_kelas=[], total_kelas=0, kelas_aktif=0, total_slot=0)
+        return render_template('admin/manajemen_kelas.html', daftar_kelas=[], total_kelas=0, kelas_aktif=0, total_slot=0,
+                               username=session.get('username', 'Admin'))
         
     finally:
         cursor.close()
@@ -262,15 +295,16 @@ def manajemen_kelas_admin():
 @admin_bp.route('/buat_kelas_baru')
 def buat_kelas_baru():
     # 1. Proteksi Sesi Admin (Hanya Kepala/Admin yang bisa akses)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
         
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
     try:
         # 2. Ambil daftar user yang memiliki role Pengajar (R02) untuk dikirim ke dropdown HTML
-        cursor.execute("SELECT id_users, username, email FROM users WHERE role_id_role = 'R02'")
+        cursor.execute("SELECT id_users, username, email, foto_profil FROM users WHERE role_id_role = 'R02'")
         daftar_tutor = cursor.fetchall()
         
         return render_template('admin/tambah_kelas.html', daftar_tutor=daftar_tutor)
@@ -285,8 +319,9 @@ def buat_kelas_baru():
 @admin_bp.route('/simpan_kelas_baru', methods=['POST'])
 def simpan_kelas_baru():
     # Proteksi Sesi
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
         
     # 1. Ambil data dari input form HTML
     nama_kelas = request.form.get('nama_kelas')
@@ -294,24 +329,53 @@ def simpan_kelas_baru():
     id_pengajar = request.form.get('id_pengajar')
     hari_jadwal = request.form.get('hari_jadwal')
     jam_mulai = request.form.get('jam_mulai')
-    jam_selesai = request.form.get('jam_selesai')
+    durasi_menit = request.form.get('durasi_menit')  # total durasi kelas dalam menit (dari jam + menit di form)
     kapasitas_maksimal = request.form.get('kapasitas_maksimal')
-    harga = request.form.get('harga') # <--- Menerima data harga baru
+    harga = request.form.get('harga')
     deskripsi = request.form.get('deskripsi')
+    tanggal_mulai = request.form.get('tanggal_mulai')
+    jumlah_sesi = request.form.get('jumlah_sesi')
 
-    # 2. Validasi kelengkapan data (tambahkan 'harga' ke dalam pengecekan)
-    if not all([nama_kelas, tingkat, id_pengajar, hari_jadwal, jam_mulai, jam_selesai, kapasitas_maksimal, harga, deskripsi]):
+    # 2. Validasi kelengkapan data
+    if not all([nama_kelas, tingkat, id_pengajar, hari_jadwal, jam_mulai, durasi_menit, 
+                kapasitas_maksimal, harga, deskripsi, tanggal_mulai, jumlah_sesi]):
         flash('Semua kolom formulir wajib diisi!', 'error')
         return redirect(url_for('admin.buat_kelas_baru'))
+
+    try:
+        durasi_menit = int(durasi_menit)
+        jumlah_sesi = int(jumlah_sesi)
+        if durasi_menit <= 0 or jumlah_sesi <= 0:
+            raise ValueError
+    except ValueError:
+        flash('Durasi kelas dan jumlah sesi harus berupa angka yang valid!', 'error')
+        return redirect(url_for('admin.buat_kelas_baru'))
+
+    # 3. Hitung jam selesai otomatis dari jam mulai + durasi (dihitung ulang di server,
+    # tidak cuma percaya hasil kalkulasi JS di browser)
+    waktu_mulai = datetime.strptime(jam_mulai, '%H:%M')
+    waktu_selesai = waktu_mulai + timedelta(minutes=durasi_menit)
+    jam_selesai = waktu_selesai.strftime('%H:%M')
+
+    # 4. Hitung tanggal tiap sesi: 1 sesi = 1 minggu, jadi sesi ke-n jatuh (n-1) minggu
+    # setelah tanggal mulai. Tanggal berakhir kelas otomatis = tanggal sesi terakhir.
+    try:
+        tanggal_mulai_obj = datetime.strptime(tanggal_mulai, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Format tanggal mulai tidak valid!', 'error')
+        return redirect(url_for('admin.buat_kelas_baru'))
+
+    tanggal_sesi_list = [tanggal_mulai_obj + timedelta(weeks=i) for i in range(jumlah_sesi)]
+    tanggal_berakhir_obj = tanggal_sesi_list[-1]
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # 3. Generate ID kelas secara unik
+        # 5. Generate ID kelas secara unik
         id_kelas_baru = f"KLS-{str(uuid.uuid4().hex[:6]).upper()}"
 
-        # 4. Eksekusi query INSERT ke tabel kelas (Tambahkan kolom harga)
+        # 6. Eksekusi query INSERT ke tabel kelas
         query = """
             INSERT INTO kelas (
                 id_kelas, nama_kelas, tingkat, id_pengajar, 
@@ -320,17 +384,28 @@ def simpan_kelas_baru():
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')
         """
-        # Sesuaikan urutan values dengan urutan kolom pada query di atas
         values = (
             id_kelas_baru, nama_kelas, tingkat, id_pengajar, 
             hari_jadwal, jam_mulai, jam_selesai, 
             kapasitas_maksimal, harga, deskripsi
         )
-        
         cursor.execute(query, values)
+
+        # 7. Generate otomatis baris-baris sesi di tabel sesi_kelas sebanyak jumlah_sesi,
+        # masing-masing berjarak 1 minggu dari sesi sebelumnya
+        for i, tanggal_sesi in enumerate(tanggal_sesi_list, start=1):
+            cursor.execute("""
+                INSERT INTO sesi_kelas (id_kelas, sesi_ke, tanggal)
+                VALUES (%s, %s, %s)
+            """, (id_kelas_baru, i, tanggal_sesi))
+
         conn.commit() 
 
-        flash(f'Kelas "{nama_kelas}" berhasil dibuat dengan harga Rp {harga}!', 'success')
+        flash(
+            f'Kelas "{nama_kelas}" berhasil dibuat dengan {jumlah_sesi} sesi '
+            f'({tanggal_mulai_obj.strftime("%d %b %Y")} - {tanggal_berakhir_obj.strftime("%d %b %Y")})!',
+            'success'
+        )
         return redirect(url_for('admin.manajemen_kelas_admin'))
 
     except Exception as e:
@@ -346,8 +421,9 @@ def simpan_kelas_baru():
 @admin_bp.route('/manajemen_pengajar_admin')
 def manajemen_pengajar_admin():
     # 1. Verifikasi hak akses admin login
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
     
     # 2. Tangkap parameter filter, pencarian, dan halaman (Pagination)
     search = request.args.get('search', '')
@@ -432,8 +508,9 @@ def manajemen_pengajar_admin():
 @admin_bp.route('/admin/pengajar/detail/<id_pengajar>')
 def detail_pengajar_admin(id_pengajar):
     # Proteksi Sesi Admin (Pastikan hanya Kepala / Admin yang bisa masuk)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -508,8 +585,9 @@ def detail_pengajar_admin(id_pengajar):
 @admin_bp.route('/manajemen_orangtua_admin')
 def manajemen_orangtua_admin():
     # Proteksi Sesi Admin (Kepala)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
     
     # 1. Tangkap Parameter Query String dari URL
     search = request.args.get('search', '')
@@ -610,8 +688,9 @@ def manajemen_orangtua_admin():
 
 @admin_bp.route('/manajemen_orangtua_admin/detail/<id_users>')
 def detail_orangtua(id_users):
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
         
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -664,8 +743,9 @@ def detail_orangtua(id_users):
 @admin_bp.route('/manajemen_orangtua_admin/suspend/<id_users>', methods=['POST'])
 def suspend_akun_orangtua(id_users):
     # Route untuk membekukan akun (mengubah status dari verified menjadi suspended)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
         
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -697,8 +777,9 @@ def suspend_akun_orangtua(id_users):
 @admin_bp.route('/manajemen_pengajar_admin/suspend/<id_users>', methods=['POST'])
 def suspend_akun_pengajar(id_users):
     # Route untuk membekukan akun pengajar (mengubah status dari verified menjadi suspended)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -730,8 +811,9 @@ def suspend_akun_pengajar(id_users):
 @admin_bp.route('/tambah_pengajar', methods=['POST'])
 def tambah_pengajar():
     # Pastikan yang mengakses adalah Admin (Kepala)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
     
     username = request.form.get('username')
     email = request.form.get('email')
@@ -793,8 +875,9 @@ def tambah_pengajar():
 @admin_bp.route('/validasi_pembayaran_admin')
 def validasi_pembayaran_admin():
     # 1. Proteksi Sesi Admin (Kepala)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
 
     # 2. Tangkap parameter pencarian, filter status, dan halaman untuk tabel riwayat
     search = request.args.get('search', '')
@@ -928,18 +1011,23 @@ def validasi_pembayaran_admin():
 @admin_bp.route('/validasi_pembayaran_admin/setujui/<int:id_pembayaran>', methods=['POST'])
 def setujui_pembayaran(id_pembayaran):
     # Proteksi Sesi Admin (Kepala)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # Hanya memproses transaksi yang statusnya masih 'Pending' (mencegah proses ganda)
+        # Hanya memproses transaksi yang statusnya masih 'Pending' (mencegah proses ganda).
+        # Sekalian aktifkan pendaftaran muridnya (status_pendaftaran -> 'Aktif'), karena
+        # sebelum ini murid baru berstatus 'Pending' menunggu verifikasi pembayaran.
         cursor.execute("""
-            UPDATE pembayaran 
-            SET status_pembayaran = 'Lunas' 
-            WHERE id_pembayaran = %s AND status_pembayaran = 'Pending'
+            UPDATE pembayaran pb
+            JOIN pendaftaran pd ON pd.id_pendaftaran = pb.id_pendaftaran
+            SET pb.status_pembayaran = 'Lunas',
+                pd.status_pendaftaran = 'Aktif'
+            WHERE pb.id_pembayaran = %s AND pb.status_pembayaran = 'Pending'
         """, (id_pembayaran,))
         conn.commit()
 
@@ -962,8 +1050,9 @@ def setujui_pembayaran(id_pembayaran):
 @admin_bp.route('/validasi_pembayaran_admin/tolak/<int:id_pembayaran>', methods=['POST'])
 def tolak_pembayaran(id_pembayaran):
     # Proteksi Sesi Admin (Kepala)
-    if 'user_id' not in session or session.get('role') != 'Kepala':
-        return redirect(url_for('admin.login_admin'))
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
 
     alasan = request.form.get('alasan_tolak', '').strip()
 
@@ -971,10 +1060,15 @@ def tolak_pembayaran(id_pembayaran):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Sekalian tandai pendaftaran muridnya sebagai 'Ditolak', supaya murid yang
+        # pembayarannya ditolak tidak nyangkut selamanya di status 'Pending'
         cursor.execute("""
-            UPDATE pembayaran 
-            SET status_pembayaran = 'Ditolak', keterangan = %s 
-            WHERE id_pembayaran = %s AND status_pembayaran = 'Pending'
+            UPDATE pembayaran pb
+            JOIN pendaftaran pd ON pd.id_pendaftaran = pb.id_pendaftaran
+            SET pb.status_pembayaran = 'Ditolak',
+                pb.keterangan = %s,
+                pd.status_pendaftaran = 'Ditolak'
+            WHERE pb.id_pembayaran = %s AND pb.status_pembayaran = 'Pending'
         """, (alasan if alasan else 'Ditolak oleh admin', id_pembayaran))
         conn.commit()
 

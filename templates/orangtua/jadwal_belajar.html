@@ -195,7 +195,9 @@
         .day-detail-card h4 { font-size: 0.95rem; color: #1e293b; margin-bottom: 12px; }
         .day-event-item {
             display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--card-border);
+            border-radius: 8px; transition: background-color 0.15s;
         }
+        .day-event-item:hover { background-color: #f8fafc; padding-left: 6px; padding-right: 6px; }
         .day-event-item:last-child { border-bottom: none; }
         .day-event-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
         .day-event-item .t { font-size: 0.78rem; color: var(--text-muted); }
@@ -253,12 +255,20 @@
             font-size: 0.65rem; line-height: 1.15; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.08);
             cursor: default;
             word-break: break-word; /* Memaksa teks turun ke baris baru jika kotak kalender menjadi sempit */
+            transition: transform 0.12s, box-shadow 0.12s;
         }
+        .week-event:hover { transform: scale(1.02); box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 2; }
                 .week-event .n { font-weight: 700; display: block; }
         .week-event.status-akandatang { background: #dbeafe; color: #1d4ed8; border-left: 3px solid #1d4ed8; }
         .week-event.status-berlangsung { background: #ffe4e6; color: #be123c; border-left: 3px solid #be123c; }
         .week-event.status-selesai { background: #dcfce3; color: #15803d; border-left: 3px solid #15803d; }
         .week-event.status-rutin { background: #f1f5f9; color: #475569; border-left: 3px dashed #94a3b8; }
+        .anak-tag {
+            display: inline-block; background: rgba(180,43,81,0.12); color: var(--primary-accent);
+            font-weight: 700; font-size: 0.62rem; border-radius: 4px; padding: 1px 5px; margin: 1px 0;
+        }
+        .week-event .anak-tag { display: block; width: fit-content; margin-bottom: 2px; }
+        .day-event-item .anak-tag { font-size: 0.65rem; margin-left: 6px; vertical-align: middle; }
 
         /* === Dashboard Containers & Filters === */
         .dashboard-container { padding: 0 35px 35px 35px; }
@@ -481,7 +491,9 @@
             <div class="content-header">
                 <div class="header-title">
                     <h1>Jadwal Belajar</h1>
-                    {% if anak_aktif %}
+                    {% if mode_semua %}
+                    <p>Menampilkan jadwal kelas <strong>semua anak</strong> dalam satu kalender. Pantau agar tidak ada sesi yang terlewat.</p>
+                    {% elif anak_aktif %}
                     <p>Jadwal kelas milik <strong>{{ anak_aktif.nama_panggilan or anak_aktif.nama_lengkap }}</strong>. Pantau agar tidak ada sesi yang terlewat.</p>
                     {% else %}
                     <p>Pantau dan kelola jadwal kelas agar tidak ada sesi yang terlewat.</p>
@@ -489,6 +501,14 @@
                 </div>
                 <div class="header-actions">
                     {% if daftar_anak %}
+                    <select class="select-filter" id="selectAnak" onchange="if(this.value){ window.location.href = '/jadwal_belajar?anak_id=' + this.value; }">
+                        <option value="semua" {% if mode_semua %}selected{% endif %}>Semua Anak</option>
+                        {% for anak in daftar_anak %}
+                        <option value="{{ anak.id_anak }}" {% if anak_aktif and anak.id_anak == anak_aktif.id_anak %}selected{% endif %}>
+                            {{ anak.nama_panggilan or anak.nama_lengkap }}
+                        </option>
+                        {% endfor %}
+                    </select>
                     <div class="view-toggle">
                         <button type="button" id="btnViewKalender" class="active" onclick="switchView('kalender')">KALENDER</button>
                         <button type="button" id="btnViewDaftar" onclick="switchView('daftar')">DAFTAR</button>
@@ -551,13 +571,6 @@
                 <div id="viewDaftar" style="display:none;">
                 <div class="filter-row">
                     <div class="filter-controls">
-                        <select class="select-filter" id="selectAnak" onchange="if(this.value){ window.location.href = '/jadwal_belajar?anak_id=' + this.value; }">
-                            {% for anak in daftar_anak %}
-                            <option value="{{ anak.id_anak }}" {% if anak_aktif and anak.id_anak == anak_aktif.id_anak %}selected{% endif %}>
-                                {{ anak.nama_panggilan or anak.nama_lengkap }}
-                            </option>
-                            {% endfor %}
-                        </select>
                         <select class="select-filter" id="selectStatus" onchange="filterJadwalByStatus(this.value)">
                             <option value="semua">Semua Status</option>
                             <option value="Akan Datang">Akan Datang</option>
@@ -569,7 +582,7 @@
                 </div>
 
                 <div class="schedule-grid" id="scheduleGrid">
-                    {% for jadwal in daftar_jadwal %}
+                    {% for jadwal in daftar_mapel %}
                     <div class="schedule-card" data-status="{{ jadwal.status_sesi }}">
                         <div class="card-header-row">
                             {% if jadwal.tanggal_display %}
@@ -578,21 +591,20 @@
                             <span class="schedule-date">Setiap {{ jadwal.hari }}</span>
                             {% endif %}
 
-                            {% if jadwal.status_sesi == 'Sedang Berlangsung' %}
-                            <span class="status-badge badge-live">Sedang Berlangsung</span>
-                            {% elif jadwal.status_sesi == 'Selesai' %}
+                            {% if jadwal.status_sesi == 'Selesai' %}
                             <span class="status-badge badge-completed">Selesai</span>
-                            {% elif jadwal.status_sesi == 'Terjadwal Rutin' %}
-                            <span class="status-badge badge-upcoming">Jadwal Rutin</span>
-                            {% else %}
-                            <span class="status-badge badge-upcoming">Akan Datang</span>
                             {% endif %}
                         </div>
                         <div class="schedule-time">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             {{ jadwal.jam_mulai }} - {{ jadwal.jam_selesai }} WIB
                         </div>
-                        <h3 class="schedule-class-name">{{ jadwal.nama_kelas }}</h3>
+                        <h3 class="schedule-class-name">
+                            {{ jadwal.nama_kelas }}
+                            {% if mode_semua and jadwal.nama_anak %}
+                            <span style="font-size:0.7rem; font-weight:600; color:#A22754; background:#fce7f0; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;">{{ jadwal.nama_anak }}</span>
+                            {% endif %}
+                        </h3>
                         {% if jadwal.topik %}
                         <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Topik: {{ jadwal.topik }}</p>
                         {% elif jadwal.status_sesi == 'Terjadwal Rutin' %}
@@ -608,14 +620,18 @@
                             {% elif jadwal.status_sesi == 'Selesai' %}
                             <a href="#" class="btn-class-action action-gray">Lihat Rangkuman &rarr;</a>
                             {% else %}
-                            <a href="#" class="btn-class-action">Detail Kelas &rarr;</a>
+                            <a href="{{ url_for('orangtua.detail_kelas', id_kelas=jadwal.id_kelas) }}" class="btn-class-action">Detail Kelas &rarr;</a>
                             {% endif %}
                         </div>
                     </div>
                     {% else %}
                     <div style="grid-column: 1 / -1; text-align:center; padding:60px 20px; color:#7a8b94;">
                         <p style="font-size:1rem; font-weight:600; margin-bottom:6px;">Belum ada jadwal kelas.</p>
+                        {% if mode_semua %}
+                        <p style="font-size:0.9rem;">Belum ada anak yang terdaftar di kelas manapun, atau sesi kelas belum dijadwalkan.</p>
+                        {% else %}
                         <p style="font-size:0.9rem;">{{ anak_aktif.nama_panggilan or anak_aktif.nama_lengkap }} belum terdaftar di kelas manapun, atau sesi kelas belum dijadwalkan.</p>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -637,6 +653,13 @@
            jadi tidak perlu login akun Google).
         ========================================================= */
         const JADWAL_DATA = {{ daftar_jadwal | tojson }};
+        const MODE_SEMUA = {{ 'true' if mode_semua else 'false' }};
+
+        // Base URL detail kelas dari Flask, placeholder ID diganti di JS saat diklik
+        const DETAIL_KELAS_BASE_URL = "{{ url_for('orangtua.detail_kelas', id_kelas='__ID_KELAS__') }}";
+        function urlDetailKelas(idKelas) {
+            return DETAIL_KELAS_BASE_URL.replace('__ID_KELAS__', encodeURIComponent(idKelas));
+        }
 
         const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const HARI_ID_MON_FIRST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
@@ -695,6 +718,22 @@
             return set;
         }
 
+        // Kelas "Terjadwal Rutin" (belum ada sesi_kelas spesifik) TIDAK boleh
+        // muncul terus tanpa batas -- hanya tampil:
+        //  1) pada/​setelah tanggal anak terdaftar di kelas itu (tanggal_daftar_iso), dan
+        //  2) selama kelasnya belum berstatus 'Selesai'.
+        function isRutinAktifPadaTanggal(j, iso, hariNama) {
+            if (j.tanggal_iso) return false; // ini sesi dgn tanggal pasti, bukan "rutin"
+            if (j.status_sesi !== 'Terjadwal Rutin' || j.hari !== hariNama) return false;
+            if (j.status_kelas === 'Selesai') return false;
+            if (j.tanggal_daftar_iso && iso < j.tanggal_daftar_iso) return false;
+            return true;
+        }
+
+        function hariRutinAktifPadaTanggal(iso, hariNama) {
+            return JADWAL_DATA.some(j => isRutinAktifPadaTanggal(j, iso, hariNama));
+        }
+
         function renderMiniCal() {
             const title = document.getElementById('miniCalTitle');
             title.textContent = `${BULAN_ID[miniCalMonth.getMonth()]} ${miniCalMonth.getFullYear()}`;
@@ -730,7 +769,7 @@
                 const num = document.createElement('span');
                 num.textContent = d.getDate();
                 el.appendChild(num);
-                if (sessionDates.has(iso)) {
+                if (sessionDates.has(iso) || hariRutinAktifPadaTanggal(iso, HARI_ID[d.getDay()])) {
                     const dot = document.createElement('span');
                     dot.className = 'mini-cal-dot';
                     el.appendChild(dot);
@@ -749,13 +788,18 @@
         // ---- Daftar sesi pada tanggal terpilih ----
         function renderDayDetail() {
             const iso = isoOf(selectedDate);
+            const hariNama = HARI_ID[selectedDate.getDay()];
             document.getElementById('dayDetailTitle').textContent =
                 `${HARI_ID[selectedDate.getDay()]}, ${selectedDate.getDate()} ${BULAN_ID[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
 
             const list = document.getElementById('dayDetailList');
             list.innerHTML = '';
-            const items = JADWAL_DATA.filter(j => j.tanggal_iso === iso)
-                .sort((a,b) => timeToMinutes(a.jam_mulai) - timeToMinutes(b.jam_mulai));
+            // Sama seperti renderWeekGrid: tampilkan sesi dengan tanggal pasti (sesi_kelas)
+            // ATAU kelas yang belum punya sesi spesifik tapi jadwal mingguannya jatuh di hari ini.
+            const items = JADWAL_DATA.filter(j => {
+                if (j.tanggal_iso) return j.tanggal_iso === iso;
+                return isRutinAktifPadaTanggal(j, iso, hariNama);
+            }).sort((a,b) => timeToMinutes(a.jam_mulai) - timeToMinutes(b.jam_mulai));
 
             if (items.length === 0) {
                 list.innerHTML = '<div class="day-empty">Tidak ada sesi kelas pada tanggal ini.</div>';
@@ -765,13 +809,18 @@
             items.forEach(j => {
                 const row = document.createElement('div');
                 row.className = 'day-event-item';
+                row.style.cursor = 'pointer';
+                row.title = `Lihat detail kelas ${j.nama_kelas}`;
                 row.innerHTML = `
                     <span class="day-event-dot" style="background:${dotColor[j.status_sesi] || '#94a3b8'};"></span>
                     <div>
-                        <div class="n">${j.nama_kelas}</div>
+                        <div class="n">${j.nama_kelas}${MODE_SEMUA && j.nama_anak ? ' <span class="anak-tag">'+j.nama_anak+'</span>' : ''}</div>
                         <div class="t">${j.jam_mulai} - ${j.jam_selesai} WIB</div>
                         <div class="p">${j.nama_pengajar}</div>
                     </div>`;
+                if (j.id_kelas) {
+                    row.addEventListener('click', () => { window.location.href = urlDetailKelas(j.id_kelas); });
+                }
                 list.appendChild(row);
             });
         }
@@ -832,8 +881,9 @@
 
                 const events = JADWAL_DATA.filter(j => {
                     if (j.tanggal_iso) return j.tanggal_iso === iso;
-                    // Jadwal rutin (belum ada sesi_kelas spesifik) -> tampilkan tiap minggu di hari yg sama
-                    return j.status_sesi === 'Terjadwal Rutin' && j.hari === hariNama;
+                    // Jadwal rutin (belum ada sesi_kelas spesifik) -> tampilkan tiap minggu di
+                    // hari yg sama, TAPI dibatasi tanggal_daftar & status_kelas (lihat helper).
+                    return isRutinAktifPadaTanggal(j, iso, hariNama);
                 });
 
                 events.forEach(j => {
@@ -846,8 +896,13 @@
                     ev.className = 'week-event ' + statusClass(j.status_sesi);
                     ev.style.top = top + 'px';
                     ev.style.height = height + 'px';
-                    ev.innerHTML = `<span class="n">${j.nama_kelas}</span>${j.jam_mulai}-${j.jam_selesai}`;
-                    ev.title = `${j.nama_kelas} (${j.nama_pengajar})`;
+                    const anakLabel = (MODE_SEMUA && j.nama_anak) ? `<span class="anak-tag">${j.nama_anak}</span>` : '';
+                    ev.innerHTML = `<span class="n">${j.nama_kelas}</span>${anakLabel}${j.jam_mulai}-${j.jam_selesai}`;
+                    ev.title = (MODE_SEMUA && j.nama_anak ? `${j.nama_anak} - ` : '') + `${j.nama_kelas} (${j.nama_pengajar}) — klik untuk lihat detail kelas`;
+                    if (j.id_kelas) {
+                        ev.style.cursor = 'pointer';
+                        ev.addEventListener('click', () => { window.location.href = urlDetailKelas(j.id_kelas); });
+                    }
                     col.appendChild(ev);
                 });
 

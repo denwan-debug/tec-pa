@@ -402,6 +402,20 @@
             padding: 2px; /* Memberi jarak putih antara foto dan border */
             background-color: #ffffff; /* Warna dasar padding */
         }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent, #902b54);
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -505,9 +519,11 @@
                     </div>
                     
                     <!-- Posisi gambar dipindah ke bawah teks agar berada di sebelah kanan -->
-                    <img src="{{ foto_profil if 'http' in foto_profil else url_for('static', filename='img/' ~ foto_profil) }}" 
-                        alt="Foto Profil" 
-                        class="top-parent-avatar">
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
                 </div>
             </header>
 

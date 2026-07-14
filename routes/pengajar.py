@@ -3,10 +3,36 @@ from db import get_db_connection
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 import random
+from datetime import date
+import cloudinary.uploader
 from extensions import send_email
 
 # Membuat blueprint untuk pengajar
 pengajar_bp = Blueprint('pengajar', __name__)
+
+
+def _wajib_login_pengajar():
+    """
+    Pastikan yang mengakses route ini benar-benar sudah login SEBAGAI PENGAJAR.
+
+    Kalau belum login sama sekali, ATAU sudah login tapi rolenya bukan
+    'pengajar' (misalnya Admin/Kepala atau Orang Tua yang session-nya
+    kebetulan masih aktif dan mencoba membuka halaman Pengajar), user akan
+    langsung ditendang balik ke halaman login Pengajar.
+
+    Return:
+        - None kalau lolos validasi (boleh lanjut memproses route).
+        - Response redirect kalau harus ditolak -- WAJIB langsung di-`return`
+          oleh route pemanggil, contoh:
+
+              cek_akses = _wajib_login_pengajar()
+              if cek_akses:
+                  return cek_akses
+    """
+    if 'user_id' not in session or session.get('role') != 'pengajar':
+        session.clear()
+        return redirect(url_for('pengajar.login_pengajar'))
+    return None
 
 @pengajar_bp.route('/login_pengajar_action', methods=['POST'])
 def login_pengajar_action():
@@ -90,8 +116,9 @@ def login_pengajar():
 @pengajar_bp.route('/dashboard_pengajar')
 def dashboard_pengajar():
     # 1. Proteksi Sesi Login Pengajar
-    if 'user_id' not in session:
-        return redirect(url_for('pengajar.login_pengajar'))
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
         
     pengajar_id = session['user_id']
     
@@ -163,8 +190,9 @@ def dashboard_pengajar():
 
 @pengajar_bp.route('/kelas_pengajar')
 def kelas_pengajar():
-    if 'user_id' not in session:
-        return redirect(url_for('pengajar.login_pengajar'))
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
         
     pengajar_id = session['user_id']
     conn = get_db_connection()
@@ -210,8 +238,9 @@ def kelas_pengajar():
 # TAMBAHKAN ROUTE INI agar url_for di HTML tidak error
 @pengajar_bp.route('/detail_kelas/<id_kelas>')
 def detail_kelas(id_kelas):
-    if 'user_id' not in session:
-        return redirect(url_for('pengajar.login_pengajar'))
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
         
     # DEBUG 1: Pastikan ID yang diterima dari HTML sudah benar
     print(f"==> Menerima request detail_kelas untuk ID: {id_kelas} (Tipe: {type(id_kelas)})")
@@ -221,6 +250,8 @@ def detail_kelas(id_kelas):
     
     detail_kelas_data = None
     daftar_siswa = []
+    daftar_sesi = []
+    tingkat_kehadiran = None
     
     try:
         # 1. UBAH JOIN MENJADI LEFT JOIN DI SINI
@@ -277,7 +308,38 @@ def detail_kelas(id_kelas):
         """
         cursor.execute(query_siswa, (id_kelas,))
         daftar_siswa = cursor.fetchall()
-        
+
+        # Query daftar sesi (Rencana Pelajaran) -- diurutkan dari yang terdekat/belum lewat duluan
+        query_sesi = """
+            SELECT id_sesi, sesi_ke, tanggal, topik_pembahasan
+            FROM sesi_kelas
+            WHERE id_kelas = %s
+            ORDER BY (tanggal >= CURDATE()) DESC, tanggal ASC
+        """
+        cursor.execute(query_sesi, (id_kelas,))
+        daftar_sesi = cursor.fetchall()
+
+        # Query tingkat kehadiran: persentase status 'Hadir' dari seluruh presensi
+        # yang sudah pernah dicatat pada semua sesi kelas ini
+        query_kehadiran = """
+            SELECT 
+                COUNT(*) AS total_presensi,
+                SUM(CASE WHEN pr.status_kehadiran = 'Hadir' THEN 1 ELSE 0 END) AS total_hadir
+            FROM presensi pr
+            JOIN sesi_kelas sk ON pr.id_sesi = sk.id_sesi
+            WHERE sk.id_kelas = %s
+        """
+        cursor.execute(query_kehadiran, (id_kelas,))
+        data_kehadiran = cursor.fetchone()
+
+        total_presensi = data_kehadiran['total_presensi'] or 0
+        total_hadir = data_kehadiran['total_hadir'] or 0
+
+        if total_presensi > 0:
+            tingkat_kehadiran = round((total_hadir / total_presensi) * 100)
+        else:
+            tingkat_kehadiran = None  # Belum ada data absensi yang dicatat sama sekali
+
     except Exception as e:
         # DEBUG 3: Menangkap jika ada error sintaks SQL atau error koneksi
         print(f"!!! Error pada database detail kelas: {e}")
@@ -287,23 +349,272 @@ def detail_kelas(id_kelas):
         cursor.close()
         conn.close()
         
-    return render_template('pengajar/detail_kelas.html', kelas=detail_kelas_data, daftar_siswa=daftar_siswa)
+    return render_template('pengajar/detail_kelas.html', kelas=detail_kelas_data, daftar_siswa=daftar_siswa, daftar_sesi=daftar_sesi, tingkat_kehadiran=tingkat_kehadiran, today=date.today())
 
+
+@pengajar_bp.route('/kelas/sesi/<int:id_sesi>')
+def detail_sesi(id_sesi):
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 1. Ambil data sesi beserta info kelas & pengajarnya
+        cursor.execute("""
+            SELECT 
+                sk.id_sesi, sk.id_kelas, sk.sesi_ke, sk.tanggal, sk.topik_pembahasan,
+                k.nama_kelas, k.id_pengajar,
+                u.username AS nama_pengajar
+            FROM sesi_kelas sk
+            JOIN kelas k ON sk.id_kelas = k.id_kelas
+            LEFT JOIN users u ON k.id_pengajar = u.id_users
+            WHERE sk.id_sesi = %s
+        """, (id_sesi,))
+        sesi = cursor.fetchone()
+
+        if not sesi:
+            flash('Sesi tidak ditemukan.', 'error')
+            return redirect(url_for('pengajar.kelas_pengajar'))
+
+        # Pastikan hanya pengajar pemilik kelas ini yang bisa mengaksesnya
+        if sesi['id_pengajar'] != session['user_id']:
+            flash('Anda tidak memiliki akses ke sesi ini.', 'error')
+            return redirect(url_for('pengajar.kelas_pengajar'))
+
+        # 2. Ambil daftar materi pembelajaran untuk sesi ini
+        cursor.execute("""
+            SELECT id_materi, judul_materi, deskripsi, file_materi, created_at
+            FROM materi_belajar
+            WHERE id_sesi = %s
+            ORDER BY created_at DESC
+        """, (id_sesi,))
+        daftar_materi = cursor.fetchall()
+
+        kelas = {'id_kelas': sesi['id_kelas'], 'nama_kelas': sesi['nama_kelas'], 'nama_pengajar': sesi['nama_pengajar']}
+
+        return render_template('pengajar/detail_sesi.html', sesi=sesi, kelas=kelas, daftar_materi=daftar_materi)
+
+    except Exception as e:
+        print(f"!!! Error pada database detail sesi: {e}")
+        flash('Gagal memuat data sesi.', 'error')
+        return redirect(url_for('pengajar.kelas_pengajar'))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@pengajar_bp.route('/kelas/sesi/<int:id_sesi>/simpan_sesi', methods=['POST'])
+def simpan_sesi(id_sesi):
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    topik_pembahasan = request.form.get('topik_pembahasan')
+    judul_materi = request.form.get('judul_materi')
+    deskripsi = request.form.get('deskripsi')
+    file_upload = request.files.get('file_materi')
+
+    if not topik_pembahasan:
+        flash('Nama topik tidak boleh kosong!', 'error')
+        return redirect(url_for('pengajar.detail_sesi', id_sesi=id_sesi))
+
+    # Materi bersifat opsional, tapi kalau salah satu (judul/file) diisi, keduanya wajib diisi
+    ada_materi_baru = bool(judul_materi) or (file_upload and file_upload.filename != '')
+    if ada_materi_baru and (not judul_materi or not file_upload or file_upload.filename == ''):
+        flash('Judul materi dan file wajib diisi bersamaan jika ingin menambah materi!', 'error')
+        return redirect(url_for('pengajar.detail_sesi', id_sesi=id_sesi))
+
+    url_file = None
+    if ada_materi_baru:
+        try:
+            # Materi bisa berupa dokumen (pdf/doc/ppt) maupun gambar, jadi pakai
+            # resource_type="auto" supaya Cloudinary otomatis menyesuaikan
+            upload_result = cloudinary.uploader.upload(
+                file_upload,
+                folder="tec_portal/materi_belajar",
+                resource_type="auto"
+            )
+            url_file = upload_result.get('secure_url')
+        except Exception as e:
+            print(f"Error upload materi ke Cloudinary: {e}")
+            flash('Gagal mengunggah file materi.', 'error')
+            return redirect(url_for('pengajar.detail_sesi', id_sesi=id_sesi))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE sesi_kelas SET topik_pembahasan = %s WHERE id_sesi = %s
+        """, (topik_pembahasan, id_sesi))
+
+        if ada_materi_baru:
+            cursor.execute("""
+                INSERT INTO materi_belajar (id_sesi, judul_materi, deskripsi, file_materi)
+                VALUES (%s, %s, %s, %s)
+            """, (id_sesi, judul_materi, deskripsi, url_file))
+
+        conn.commit()
+
+        if ada_materi_baru:
+            flash('Topik sesi dan materi pembelajaran berhasil disimpan!', 'success')
+        else:
+            flash('Topik sesi berhasil diperbarui!', 'success')
+    except Exception as e:
+        conn.rollback()
+        print(f"Error simpan sesi: {e}")
+        flash('Gagal menyimpan data sesi.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('pengajar.detail_sesi', id_sesi=id_sesi))
+
+
+@pengajar_bp.route('/kelas/sesi/<int:id_sesi>/absensi')
+def absensi_sesi(id_sesi):
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    sesi_data = None
+    daftar_absensi = []
+
+    try:
+        # Ambil info sesi sekaligus data kelas & pengajarnya
+        cursor.execute("""
+            SELECT 
+                sk.id_sesi, sk.id_kelas, sk.sesi_ke, sk.tanggal, sk.topik_pembahasan,
+                k.nama_kelas, k.id_pengajar
+            FROM sesi_kelas sk
+            JOIN kelas k ON sk.id_kelas = k.id_kelas
+            WHERE sk.id_sesi = %s
+        """, (id_sesi,))
+        sesi_data = cursor.fetchone()
+
+        if not sesi_data:
+            flash('Sesi tidak ditemukan.', 'error')
+            return redirect(url_for('pengajar.kelas_pengajar'))
+
+        # Pastikan hanya pengajar pemilik kelas ini yang bisa mengaksesnya
+        if sesi_data['id_pengajar'] != session['user_id']:
+            flash('Anda tidak memiliki akses ke sesi ini.', 'error')
+            return redirect(url_for('pengajar.kelas_pengajar'))
+
+        # Ambil daftar siswa aktif di kelas ini beserta status kehadiran
+        # (kalau sudah pernah diabsen untuk sesi ini sebelumnya, statusnya akan ikut tampil)
+        cursor.execute("""
+            SELECT
+                p.id_pendaftaran,
+                a.id_anak,
+                a.nama_lengkap,
+                a.nama_panggilan,
+                pr.status_kehadiran,
+                pr.catatan
+            FROM pendaftaran p
+            JOIN anak a ON p.id_anak = a.id_anak
+            LEFT JOIN presensi pr ON pr.id_pendaftaran = p.id_pendaftaran AND pr.id_sesi = %s
+            WHERE p.id_kelas = %s AND p.status_pendaftaran = 'Aktif'
+            ORDER BY a.nama_lengkap ASC
+        """, (id_sesi, sesi_data['id_kelas']))
+        daftar_absensi = cursor.fetchall()
+
+    except Exception as e:
+        print(f"Error pada halaman absensi sesi: {e}")
+        flash('Gagal memuat data absensi.', 'error')
+        return redirect(url_for('pengajar.kelas_pengajar'))
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('pengajar/absensi_sesi.html', sesi=sesi_data, daftar_absensi=daftar_absensi)
+
+
+@pengajar_bp.route('/kelas/sesi/<int:id_sesi>/simpan_absensi', methods=['POST'])
+def simpan_absensi(id_sesi):
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    status_valid = ('Hadir', 'Izin', 'Alpa')
+
+    try:
+        # Form dikirim dengan nama field status_<id_pendaftaran>
+        for key, value in request.form.items():
+            if not key.startswith('status_'):
+                continue
+
+            id_pendaftaran = key.replace('status_', '')
+            status_kehadiran = value
+
+            if status_kehadiran not in status_valid:
+                continue
+
+            # Catatan hanya relevan untuk status Izin, tapi tetap diambil apa adanya
+            # (kalau statusnya bukan Izin, boleh dikosongkan di sisi form)
+            catatan = request.form.get(f'catatan_{id_pendaftaran}', '').strip() or None
+
+            # Cek apakah presensi untuk sesi & pendaftaran ini sudah pernah dicatat sebelumnya
+            cursor.execute(
+                "SELECT id_presensi FROM presensi WHERE id_sesi = %s AND id_pendaftaran = %s",
+                (id_sesi, id_pendaftaran)
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                cursor.execute(
+                    "UPDATE presensi SET status_kehadiran = %s, catatan = %s WHERE id_presensi = %s",
+                    (status_kehadiran, catatan, existing['id_presensi'])
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO presensi (id_sesi, id_pendaftaran, status_kehadiran, catatan) VALUES (%s, %s, %s, %s)",
+                    (id_sesi, id_pendaftaran, status_kehadiran, catatan)
+                )
+
+        conn.commit()
+        flash('Absensi berhasil disimpan!', 'success')
+
+    except Exception as e:
+        print(f"Error saat menyimpan absensi: {e}")
+        conn.rollback()
+        flash('Gagal menyimpan absensi. Silakan coba lagi.', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('pengajar.absensi_sesi', id_sesi=id_sesi))
 
 
 @pengajar_bp.route('/jadwal_pengajar')
 def manajemen_jadwal():
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
     return render_template('pengajar/manajemen_jadwal.html')
 
 @pengajar_bp.route('/laporan_pengajar')
 def laporan_pengajar():
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
     return render_template('pengajar/manajemen_laporan.html')
 
 @pengajar_bp.route('/profil_pengajar')
 def profil_pengajar():
     # Proteksi Sesi
-    if 'user_id' not in session:
-        return redirect(url_for('pengajar.login_pengajar'))
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
         
     pengajar_id = session['user_id']
     conn = get_db_connection()
@@ -313,7 +624,7 @@ def profil_pengajar():
     try:
         # Mengambil data diri, abaikan notif_tagihan sesuai permintaan
         query = """
-            SELECT username, nama_lengkap, email, no_telp, alamat, tempat_lahir, foto_profil 
+            SELECT username, nama_lengkap, email, no_telp, alamat, tempat_lahir, deskripsi, foto_profil 
             FROM users 
             WHERE id_users = %s
         """
@@ -333,8 +644,9 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 
 @pengajar_bp.route('/update_profil_pengajar', methods=['POST'])
 def update_profil_pengajar():
-    if 'user_id' not in session:
-        return redirect(url_for('pengajar.login_pengajar'))
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
         
     pengajar_id = session['user_id']
     form_type = request.form.get('form_type')
@@ -391,6 +703,7 @@ def update_profil_pengajar():
     tempat_lahir = request.form.get('tempat_lahir')
     no_telp = request.form.get('no_telp')
     alamat = request.form.get('alamat')
+    deskripsi = request.form.get('deskripsi')
     
     # Tangkap file foto
     foto_file = request.files.get('foto_profil')
@@ -423,17 +736,17 @@ def update_profil_pengajar():
         if nama_foto_baru:
             query = """
                 UPDATE users 
-                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s, foto_profil = %s 
+                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s, deskripsi = %s, foto_profil = %s 
                 WHERE id_users = %s
             """
-            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, nama_foto_baru, pengajar_id))
+            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, deskripsi, nama_foto_baru, pengajar_id))
         else:
             query = """
                 UPDATE users 
-                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s 
+                SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s, deskripsi = %s 
                 WHERE id_users = %s
             """
-            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, pengajar_id))
+            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, deskripsi, pengajar_id))
             
         conn.commit()
         flash('Perubahan data berhasil disimpan!', 'success')

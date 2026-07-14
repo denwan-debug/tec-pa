@@ -391,34 +391,6 @@
             cursor: not-allowed;
         }
 
-        /* === Floating Action Button === */
-        .fab-chat {
-            position: fixed;
-            bottom: 32px;
-            right: 32px;
-            width: 56px;
-            height: 56px;
-            background-color: var(--primary-accent);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(180, 43, 81, 0.3);
-            cursor: pointer;
-            transition: transform 0.2s;
-            z-index: 999;
-        }
-
-        .fab-chat:hover {
-            transform: scale(1.05);
-        }
-
-        .fab-chat svg {
-            width: 24px;
-            height: 24px;
-            fill: #ffffff;
-        }
-
         /* === Modal Settings (Sesuai Index) === */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -627,12 +599,6 @@
                 </div>
             </div>
         </main>
-    </div>
-
-    <div class="fab-chat">
-        <svg viewBox="0 0 24 24">
-            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-        </svg>
     </div>
 
     <script>

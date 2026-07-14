@@ -542,14 +542,11 @@
                 </div>
                 
                 <div class="user-area">
-                    <div class="notification">
-                        <i class="fa-regular fa-bell"></i>
-                    </div>
                     <div class="profile-info">
-    <div class="profile-text">
-        <div class="name">{{ session.get('username', 'Pengajar TEC') }}</div>
-        <div class="role">{{ session.get('role', 'Pengajar') }}</div>
-    </div>
+                        <div class="profile-text">
+                            <div class="name">{{ session.get('username', 'Pengajar TEC') }}</div>
+                            <div class="role">{{ session.get('role', 'Pengajar') }}</div>
+                        </div>
     
     <!-- Tag img ini sudah otomatis mengecek foto di database atau menampilkan avatar default -->
     <img src="{{ url_for('static', filename='img/' ~ session.get('foto_profil')) if session.get('foto_profil') and 'default' not in session.get('foto_profil') else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff' }}" alt="Avatar">

@@ -165,5 +165,15 @@ CREATE TABLE `presensi` (
   CONSTRAINT `fk_presensi_pendaftaran` FOREIGN KEY (`id_pendaftaran`) REFERENCES `pendaftaran` (`id_pendaftaran`) ON DELETE CASCADE,
   CONSTRAINT `fk_presensi_sesi` FOREIGN KEY (`id_sesi`) REFERENCES `sesi_kelas` (`id_sesi`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+ALTER TABLE users ADD COLUMN deskripsi TEXT DEFAULT NULL AFTER tempat_lahir;
+
+ALTER TABLE pendaftaran
+    MODIFY COLUMN status_pendaftaran enum('Pending','Aktif','Lulus','Berhenti','Ditolak') NOT NULL DEFAULT 'Pending';
+
+ALTER TABLE `kelas` ADD COLUMN `jumlah_sesi` INT DEFAULT NULL AFTER `jam_selesai`;
+ALTER TABLE `kelas`    ADD COLUMN `tanggal_mulai` DATE DEFAULT NULL AFTER `jumlah_sesi`;
+ALTER TABLE `kelas`    ADD COLUMN `tanggal_berakhir` DATE DEFAULT NULL AFTER `tanggal_mulai`;i;
+
 -- Mengaktifkan kembali pengecekan Foreign Key
 SET FOREIGN_KEY_CHECKS = 1;

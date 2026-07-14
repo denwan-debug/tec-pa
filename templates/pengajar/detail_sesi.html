@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEC Pengajar Dashboard</title>
+    <title>TEC Pengajar - Detail Sesi</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
+     <style>
         :root {
             --primary-pink: #d84b7a;
             --primary-light: #fcecf1;
@@ -401,6 +401,7 @@
             color: var(--text-light-gray);
         }
 
+
         /* --- MODAL LOGOUT STYLES --- */
         .modal-overlay {
             display: none;
@@ -522,107 +523,134 @@
         </aside>
 
         <main class="main-content">
+
             <header class="topbar">
                 <div class="page-title">
-                    <h1>Daftar Program Kelas</h1>
-                    <p>Kelola kelas aktif dan pantau perkembangan siswa Anda</p>
+                    <h1>Sesi {{ sesi.sesi_ke }} &mdash; {{ kelas.nama_kelas }}</h1>
+                    <p>
+                        <a href="{{ url_for('pengajar.detail_kelas', id_kelas=kelas.id_kelas) }}" style="color: var(--text-gray); text-decoration:none;">{{ kelas.nama_kelas }}</a>
+                        <i class="fa-solid fa-chevron-right" style="font-size: 10px; margin: 0 6px; color: var(--text-light-gray);"></i>
+                        <span style="font-weight: 600; color: var(--text-gray);">Sesi {{ sesi.sesi_ke }}</span>
+                    </p>
                 </div>
-                
+
                 <div class="user-area">
                     <div class="profile-info">
                         <div class="profile-text">
-                            <div class="name">{{ session.get('username', 'Pengajar TEC') }}</div>
-                            <div class="role">{{ session.get('role', 'Pengajar') }}</div>
+                            <div class="name">{{ kelas.nama_pengajar }}</div>
+                            <div class="role">Pengajar</div>
                         </div>
-                        <img src="https://ui-avatars.com/api/?name={{ session.get('username', 'Pengajar') }}&background=d84b7a&color=fff" alt="Avatar">
+                        <img src="https://ui-avatars.com/api/?name={{ kelas.nama_pengajar }}&background=d84b7a&color=fff" alt="Profile">
                     </div>
                 </div>
             </header>
 
-            <div class="filter-bar">
-                <div class="filter-tabs">
-                    <button class="filter-btn active" onclick="filterKategori('all')">Semua Kelas</button>
-                    <button class="filter-btn" onclick="filterKategori('sd')">SD</button>
-                    <button class="filter-btn" onclick="filterKategori('smp')">SMP</button>
-                    <button class="filter-btn" onclick="filterKategori('sma')">SMA</button>
-                </div>
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchInput" onkeyup="cariKelas()" placeholder="Cari nama kelas...">
-                </div>
-            </div>
+            <section class="pb-24">
 
-            <div class="classes-grid" id="classesGrid">
-                {% if daftar_kelas %}
-                    {% for kelas in daftar_kelas %}
-                    
-                    {# Logika Pengelompokan Kategori Otomatis berdasarkan String Nama Kelas #}
-                    {% set nama_lower = kelas.nama_kelas | lower %}
-                    {% if 'sd' in nama_lower or 'kids' in nama_lower or 'primary' in nama_lower or 'phonics' in nama_lower %}
-                        {% set kategori = 'sd' %}
-                        {% set tag_class = 'tag-sd' %}
-                        {% set icon_theme = 'icon-blue' %}
-                        {% set label_tag = 'SD' %}
-                    {% elif 'smp' in nama_lower or 'junior' in nama_lower %}
-                        {% set kategori = 'smp' %}
-                        {% set tag_class = 'tag-smp' %}
-                        {% set icon_theme = 'icon-orange' %}
-                        {% set label_tag = 'SMP' %}
-                    {% else %}
-                        {% set kategori = 'sma' %}
-                        {% set tag_class = 'tag-sma' %}
-                        {% set icon_theme = 'icon-pink' %}
-                        {% set label_tag = 'SMA' %}
+                <a href="{{ url_for('pengajar.detail_kelas', id_kelas=kelas.id_kelas) }}" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#A22754] transition mb-6">
+                    <i class="fa-solid fa-arrow-left"></i> Kembali ke {{ kelas.nama_kelas }}
+                </a>
+
+                <!-- PESAN FLASH NOTIFIKASI -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="mb-4 px-4 py-3 rounded-xl text-sm font-semibold {{ 'bg-emerald-50 text-emerald-700 border border-emerald-100' if category == 'success' else 'bg-red-50 text-red-700 border border-red-100' }}">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
                     {% endif %}
+                {% endwith %}
 
-                    <div class="class-card" data-category="{{ kategori }}">
-                        <div class="card-header-top">
-                            <span class="level-tag {{ tag_class }}">{{ label_tag }}</span>
-                            <div class="card-icon {{ icon_theme }}">
-                                {% if kategori == 'sd' %}<i class="fa-solid fa-child"></i>{% elif kategori == 'smp' %}<i class="fa-solid fa-book-open"></i>{% else %}<i class="fa-solid fa-graduation-cap"></i>{% endif %}
+                <form action="{{ url_for('pengajar.simpan_sesi', id_sesi=sesi.id_sesi) }}" method="POST" enctype="multipart/form-data" id="formSimpanSesi">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- KIRI: Info Sesi + Edit Topik -->
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Informasi Sesi</p>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <p><i class="fa-solid fa-hashtag w-5 text-gray-400"></i> Sesi ke-{{ sesi.sesi_ke }}</p>
+                                <p><i class="fa-regular fa-calendar w-5 text-gray-400"></i> {{ sesi.tanggal.strftime('%d %B %Y') if sesi.tanggal else '-' }}</p>
+                                <p><i class="fa-solid fa-graduation-cap w-5 text-gray-400"></i> {{ kelas.nama_kelas }}</p>
                             </div>
                         </div>
-                        <h3 class="class-title">{{ kelas.nama_kelas }}</h3>
-                        <div class="class-details">
-                            <div class="detail-item">
-                                <i class="fa-solid fa-user-group"></i> <span>{{ kelas.jumlah_siswa }} / {{ kelas.kapasitas_maksimal }} Siswa</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fa-regular fa-calendar"></i> <span>{{ kelas.hari_jadwal }}, {{ kelas.jam_mulai }} - {{ kelas.jam_selesai }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fa-solid fa-circle-info"></i> <span>Status: <strong>{{ kelas.status_kelas }}</strong></span>
-                            </div>
+
+                        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Nama Topik</p>
+                            <input type="text" name="topik_pembahasan" required
+                                   value="{{ sesi.topik_pembahasan or '' }}"
+                                   placeholder="contoh: Simple Present Tense"
+                                   class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 transition">
                         </div>
-                        
-                        {# Kalkulasi Persentase Kapasitas Kuota Kelas #}
-                        {% set persen = ((kelas.jumlah_siswa / kelas.kapasitas_maksimal) * 100) | int %}
-                        <div class="progress-container">
-                            <div class="progress-header">
-                                <span class="progress-label">Kapasitas</span>
-                                <span class="progress-percent">{{ persen }}%</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" style="width: {{ persen }}%;"></div>
-                            </div>
-                        </div>
-                            <a class="btn-detail" href="{{ url_for('pengajar.detail_kelas', id_kelas=kelas.id_kelas) }}" style="display: block; text-align: center; text-decoration: none; line-height: 40px;">
-                                Lihat Detail Kelas
-                            </a>                   
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="no-data-card">
-                        <i class="fa-solid fa-graduation-cap" style="font-size: 36px; color: #ccc; margin-bottom: 12px; display: block;"></i>
-                        Anda tidak memiliki program kelas aktif yang ditugaskan saat ini.
                     </div>
-                {% endif %}
-                
-                <div class="no-data-card" id="filterEmptyMessage" style="display: none;">
-                    <i class="fa-solid fa-magnifying-glass" style="font-size: 36px; color: #ccc; margin-bottom: 12px; display: block;"></i>
-                    Tidak ada kelas dengan kategori tersebut yang cocok.
+
+                    <!-- KANAN: Materi Pembelajaran -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Tambah Materi Pembelajaran <span class="normal-case font-medium text-gray-300">(opsional)</span></p>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-500 block mb-1.5">Judul Materi</label>
+                                    <input type="text" name="judul_materi" placeholder="contoh: Worksheet Simple Present Tense"
+                                           class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-500 block mb-1.5">Deskripsi (Opsional)</label>
+                                    <textarea name="deskripsi" rows="2" placeholder="Penjelasan singkat tentang materi ini"
+                                              class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition resize-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-500 block mb-1.5">File Materi (PDF, DOC, PPT, atau Gambar)</label>
+                                    <input type="file" name="file_materi" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png"
+                                           class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-rose-50 file:text-[#A22754] file:font-semibold file:text-xs">
+                                </div>
+                                <button type="submit" id="btnSimpanSesi" class="bg-[#A22754] hover:bg-[#8E1F47] text-white font-semibold text-sm px-5 py-2.5 rounded-lg transition flex items-center gap-2">
+                                    <i class="fa-solid fa-floppy-disk"></i> Simpan Topik & Materi
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                            <div class="px-6 py-5 border-b border-gray-100">
+                                <h2 class="text-lg font-bold text-gray-800">Materi Pembelajaran Sesi Ini</h2>
+                            </div>
+
+                            {% if daftar_materi %}
+                            <div class="divide-y divide-gray-50">
+                                {% for materi in daftar_materi %}
+                                <div class="px-6 py-4 flex items-start gap-4">
+                                    <div class="w-10 h-10 rounded-lg bg-rose-50 text-[#A22754] flex items-center justify-center shrink-0">
+                                        <i class="fa-regular fa-file-lines"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-gray-900">{{ materi.judul_materi }}</p>
+                                        {% if materi.deskripsi %}
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ materi.deskripsi }}</p>
+                                        {% endif %}
+                                        <p class="text-[11px] text-gray-400 mt-1">
+                                            Diunggah {{ materi.created_at.strftime('%d %b %Y') if materi.created_at else '-' }}
+                                        </p>
+                                    </div>
+                                    <a href="{{ materi.file_materi }}" target="_blank" rel="noopener"
+                                       class="shrink-0 text-xs font-bold text-[#A22754] hover:underline flex items-center gap-1.5">
+                                        Buka File <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="px-6 py-12 text-center">
+                                <i class="fa-regular fa-folder-open text-4xl text-gray-200 mb-3"></i>
+                                <p class="text-gray-500 font-medium">Belum ada materi yang diunggah untuk sesi ini.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            </div>
+                </form>
+
+            </section>
         </main>
     </div>
 <!-- HTML Modal Logout -->
@@ -632,7 +660,7 @@
             <i class="fa-solid fa-arrow-right-from-bracket"></i>
         </div>
         <h2>Konfirmasi Logout</h2>
-        <p>Apakah Anda yakin ingin keluar dari akun TEC Anda?</p>
+        <p>Apakah Anda yakin ingin keluar dari akun TEC Anda? </p>
         <div class="modal-buttons">
             <!-- Tombol Logout yang sesungguhnya (akan memanggil route Flask) -->
             <a href="{{ url_for('pengajar.logout_pengajar') }}" class="btn-confirm">Logout</a>
@@ -645,78 +673,27 @@
 <!-- Script untuk mengontrol Modal -->
 <script>
     function tampilkanModalLogout(event) {
-        // Mencegah link dari mengubah halaman secara langsung
         event.preventDefault(); 
-        
         const modal = document.getElementById('modalLogout');
-        // Ubah display menjadi flex agar muncul
         modal.style.display = 'flex'; 
-        
-        // Sedikit delay agar efek animasi CSS (fade in & slide up) bisa berjalan
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
+        setTimeout(() => { modal.classList.add('show'); }, 10);
     }
 
     function sembunyikanModalLogout() {
         const modal = document.getElementById('modalLogout');
-        // Hapus class show untuk memutar animasi kebalikan (fade out)
         modal.classList.remove('show');
-        
-        // Tunggu animasi selesai selama 0.3 detik (300ms) sebelum menghilangkan display-nya
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    }
+
+    // Cegah submit ganda saat menyimpan topik & materi
+    const formSimpanSesi = document.getElementById('formSimpanSesi');
+    if (formSimpanSesi) {
+        formSimpanSesi.addEventListener('submit', function() {
+            const btn = document.getElementById('btnSimpanSesi');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        });
     }
 </script>
-    <script>
-        let currentCategory = 'all';
-
-        function filterKategori(kategori) {
-            currentCategory = kategori;
-            
-            // Ubah tombol aktif secara visual
-            const buttons = document.querySelectorAll('.filter-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-
-            jalankanFilter();
-        }
-
-        function cariKelas() {
-            jalankanFilter();
-        }
-
-        function jalankanFilter() {
-            const input = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.class-card');
-            let adaYangTampil = false;
-
-            cards.forEach(card => {
-                const namaKelas = card.querySelector('.class-title').innerText.toLowerCase();
-                const kategoriCard = card.getAttribute('data-category');
-
-                const cocokKategori = (currentCategory === 'all' || kategoriCard === currentCategory);
-                const cocokPencarian = namaKelas.includes(input);
-
-                if (cocokKategori && cocokPencarian) {
-                    card.style.display = 'flex';
-                    adaYangTampil = true;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            // Handle pesan error kosong
-            const emptyMessage = document.getElementById('filterEmptyMessage');
-            if (emptyMessage) {
-                if (!adaYangTampil && cards.length > 0) {
-                    emptyMessage.style.display = 'block';
-                } else {
-                    emptyMessage.style.display = 'none';
-                }
-            }
-        }
-    </script>
 </body>
 </html>

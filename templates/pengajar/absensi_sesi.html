@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEC Pengajar - Absensi Sesi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-pink: #d84b7a;
+            --primary-light: #fcecf1;
+            --bg-color: #faf7f8;
+            --sidebar-bg: #fffefe;
+            --text-dark: #202020;
+            --text-gray: #6b6b6b;
+            --text-light-gray: #a0a0a0;
+            --border-color: #f0e6e8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .logo-area { padding: 0 24px 32px 24px; }
+        .logo-title { color: var(--primary-pink); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .logo-subtitle { color: var(--text-gray); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 16px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover { background-color: var(--bg-color); }
+        .nav-item.active { background-color: var(--primary-pink); color: white; }
+        .nav-item i { width: 20px; text-align: center; font-size: 16px; }
+        .logout-area { padding: 0 16px; }
+
+        .main-content {
+            margin-left: 250px;
+            flex-grow: 1;
+            padding: 24px 40px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .page-title h1 { font-size: 24px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+        .page-title p { font-size: 14px; color: var(--text-gray); }
+
+        /* --- MODAL LOGOUT STYLES (disamakan dgn halaman lain) --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show { opacity: 1; }
+
+        .modal-content-box {
+            background-color: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content-box { transform: translateY(0); }
+
+        .modal-icon-logout {
+            width: 64px;
+            height: 64px;
+            background-color: #ed6494;
+            color: #0a2540;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin: 0 auto 24px auto;
+        }
+
+        .modal-content-box h2 { color: #0a2540; font-size: 26px; font-weight: 700; margin-bottom: 16px; }
+        .modal-content-box p { color: #4a5568; font-size: 16px; line-height: 1.5; margin-bottom: 32px; }
+        .modal-buttons { display: flex; gap: 16px; }
+
+        .btn-confirm, .btn-cancel {
+            flex: 1;
+            padding: 14px 0;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-confirm { background-color: #ed6494; color: white; }
+        .btn-confirm:hover { background-color: #d84b7a; }
+        .btn-cancel { background-color: #f0f4fb; color: #0a2540; border: 1px solid #d8e2f0; }
+        .btn-cancel:hover { background-color: #e2eaf6; }
+
+        /* --- TOAST NOTIFICATION (untuk pesan flash, mis. "Absensi berhasil disimpan") --- */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 380px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            border-left: 4px solid var(--primary-pink);
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+        }
+
+        .toast.show { transform: translateX(0); opacity: 1; }
+
+        .toast.success { border-left-color: #10b981; }
+        .toast.error { border-left-color: #ef4444; }
+
+        .toast .toast-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            color: #fff;
+            background: var(--primary-pink);
+        }
+
+        .toast.success .toast-icon { background: #10b981; }
+        .toast.error .toast-icon { background: #ef4444; }
+
+        .toast .toast-text {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-dark);
+            line-height: 1.4;
+            padding-top: 4px;
+        }
+
+        .toast .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--text-light-gray);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+        .toast .toast-close:hover { color: var(--text-gray); }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+
+        <!-- TOAST NOTIFICATION CONTAINER -->
+        <div class="toast-container" id="toastContainer"></div>
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-title">TEC Pengajar</div>
+                <div class="logo-subtitle">PENGAJAR</div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="{{ url_for('pengajar.dashboard_pengajar') }}" class="nav-item"><i class="fa-solid fa-border-all"></i> BERANDA</a>
+                <a href="{{ url_for('pengajar.manajemen_jadwal') }}" class="nav-item"><i class="fa-regular fa-calendar"></i> JADWAL</a>
+                <a href="{{ url_for('pengajar.kelas_pengajar') }}" class="nav-item active"><i class="fa-solid fa-graduation-cap"></i> KELAS</a>
+                <a href="{{ url_for('pengajar.laporan_pengajar') }}" class="nav-item"><i class="fa-solid fa-chart-simple"></i> LAPORAN</a>
+                <a href="#" class="nav-item"><i class="fa-regular fa-user"></i> PROFIL</a>
+            </nav>
+
+            <div class="logout-area">
+                <a href="#" onclick="tampilkanModalLogout(event)" class="nav-item" style="color: #c93a3e;"><i class="fa-solid fa-arrow-right-from-bracket"></i> KELUAR</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <header class="topbar">
+                <div class="page-title">
+                    <h1>Absensi - Sesi {{ sesi.sesi_ke }}</h1>
+                    <p>
+                        <a href="{{ url_for('pengajar.detail_kelas', id_kelas=sesi.id_kelas) }}" style="color: var(--text-gray); text-decoration: none;">{{ sesi.nama_kelas }}</a>
+                        <i class="fa-solid fa-chevron-right" style="font-size: 10px; margin: 0 6px; color: var(--text-light-gray);"></i>
+                        <span style="font-weight: 600; color: var(--text-gray);">Absensi Sesi {{ sesi.sesi_ke }}</span>
+                    </p>
+                </div>
+
+                <a href="{{ url_for('pengajar.detail_kelas', id_kelas=sesi.id_kelas) }}" class="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-left"></i> Kembali ke Kelas
+                </a>
+            </header>
+
+            <section class="pb-24">
+
+                <div class="mb-8 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                    <div class="flex flex-wrap items-center gap-4 text-sm font-medium">
+                        <span class="px-4 py-1.5 bg-rose-100 text-[#A22754] rounded-full font-bold uppercase">Sesi {{ sesi.sesi_ke }}</span>
+                        <span class="text-gray-700 font-bold">{{ sesi.topik_pembahasan if sesi.topik_pembahasan else 'Topik belum ditentukan' }}</span>
+                        <span class="text-gray-500 flex items-center gap-2"><i class="fa-regular fa-calendar"></i> {{ sesi.tanggal.strftime('%d %B %Y') if sesi.tanggal else '-' }}</span>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('pengajar.simpan_absensi', id_sesi=sesi.id_sesi) }}" method="POST">
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                        <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-bold text-gray-800">Daftar Kehadiran Siswa</h2>
+                                <p class="text-xs text-gray-400 mt-0.5">Pilih status kehadiran untuk setiap siswa, tambahkan catatan bila perlu, lalu simpan.</p>
+                            </div>
+                            <span class="text-xs text-gray-500 font-semibold">{{ daftar_absensi|length }} Siswa</span>
+                        </div>
+
+                        {% if daftar_absensi %}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-white text-gray-400 font-bold text-[10px] uppercase tracking-wider border-b border-gray-100">
+                                        <th class="px-6 py-4">No</th>
+                                        <th class="px-6 py-4">Nama Siswa</th>
+                                        <th class="px-6 py-4">Status Kehadiran</th>
+                                        <th class="px-6 py-4">Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50 text-sm">
+                                    {% for siswa in daftar_absensi %}
+                                    <tr class="hover:bg-slate-50/50 transition">
+                                        <td class="px-6 py-4 text-gray-500 font-medium">{{ loop.index }}</td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-rose-100 text-[#A22754] flex items-center justify-center font-bold text-lg shrink-0">
+                                                    {{ siswa.nama_lengkap[0] | upper }}
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-gray-900">{{ siswa.nama_lengkap }}</p>
+                                                    <p class="text-[11px] text-gray-400">Panggilan: {{ siswa.nama_panggilan or '-' }}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex gap-2">
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" name="status_{{ siswa.id_pendaftaran }}" value="Hadir" class="peer hidden radio-kehadiran"
+                                                        data-id="{{ siswa.id_pendaftaran }}"
+                                                        {% if siswa.status_kehadiran == 'Hadir' or not siswa.status_kehadiran %}checked{% endif %}>
+                                                    <span class="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:border-emerald-500 transition select-none">
+                                                        <i class="fa-solid fa-check mr-1"></i>Hadir
+                                                    </span>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" name="status_{{ siswa.id_pendaftaran }}" value="Izin" class="peer hidden radio-kehadiran"
+                                                        data-id="{{ siswa.id_pendaftaran }}"
+                                                        {% if siswa.status_kehadiran == 'Izin' %}checked{% endif %}>
+                                                    <span class="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-500 peer-checked:bg-amber-500 peer-checked:text-white peer-checked:border-amber-500 transition select-none">
+                                                        <i class="fa-solid fa-note-sticky mr-1"></i>Izin
+                                                    </span>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" name="status_{{ siswa.id_pendaftaran }}" value="Alpa" class="peer hidden radio-kehadiran"
+                                                        data-id="{{ siswa.id_pendaftaran }}"
+                                                        {% if siswa.status_kehadiran == 'Alpa' %}checked{% endif %}>
+                                                    <span class="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-500 peer-checked:bg-rose-500 peer-checked:text-white peer-checked:border-rose-500 transition select-none">
+                                                        <i class="fa-solid fa-xmark mr-1"></i>Alpa
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <input type="text"
+                                                   name="catatan_{{ siswa.id_pendaftaran }}"
+                                                   id="catatan_{{ siswa.id_pendaftaran }}"
+                                                   value="{{ siswa.catatan or '' }}"
+                                                   placeholder="contoh: Sakit demam, datang terlambat, dll. (opsional)"
+                                                   maxlength="255"
+                                                   class="catatan-izin-input w-full min-w-[220px] bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-rose-400 focus:border-rose-400 transition">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <a href="{{ url_for('pengajar.detail_kelas', id_kelas=sesi.id_kelas) }}" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-lg transition">
+                                Batal
+                            </a>
+                            <button type="submit" class="px-5 py-2.5 bg-[#A22754] hover:bg-[#8a1f46] text-white font-semibold text-sm rounded-lg transition shadow-sm flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Absensi
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="px-6 py-12 text-center">
+                            <i class="fa-solid fa-users text-4xl text-gray-200 mb-3"></i>
+                            <p class="text-gray-500 font-medium">Belum ada siswa yang terdaftar aktif di kelas ini.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+
+            </section>
+        </main>
+    </div>
+
+    <!-- HTML Modal Logout -->
+    <div id="modalLogout" class="modal-overlay">
+        <div class="modal-content-box">
+            <div class="modal-icon-logout">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </div>
+            <h2>Konfirmasi Logout</h2>
+            <p>Apakah Anda yakin ingin keluar dari akun TEC Anda? </p>
+            <div class="modal-buttons">
+                <a href="{{ url_for('pengajar.logout_pengajar') }}" class="btn-confirm">Logout</a>
+                <button onclick="sembunyikanModalLogout()" class="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function tampilkanModalLogout(event) {
+            event.preventDefault();
+            const modal = document.getElementById('modalLogout');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        function sembunyikanModalLogout() {
+            const modal = document.getElementById('modalLogout');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // --- TOAST NOTIFICATION ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon"><i class="fa-solid ${icon}"></i></span>
+                <span class="toast-text">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(toast);
+
+            // Munculkan dengan sedikit delay supaya transisi CSS kepakai
+            requestAnimationFrame(() => {
+                setTimeout(() => toast.classList.add('show'), 10);
+            });
+
+            // Otomatis hilang setelah beberapa detik
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 350);
+            }, 4000);
+        }
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                document.addEventListener('DOMContentLoaded', function () {
+                    const flashMessages = [
+                        {% for category, message in messages %}
+                            { message: {{ message|tojson }}, category: {{ category|tojson }} }{{ "," if not loop.last }}
+                        {% endfor %}
+                    ];
+                    flashMessages.forEach(function (item) {
+                        showToast(item.message, item.category === 'error' ? 'error' : 'success');
+                    });
+                });
+            {% endif %}
+        {% endwith %}
+    </script>
+</body>
+</html>

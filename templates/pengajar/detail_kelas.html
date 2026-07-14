@@ -531,9 +531,6 @@
                 </div>
 
                 <div class="user-area">
-                    <div class="notification">
-                        <i class="fa-regular fa-bell"></i>
-                    </div>
                     <div class="profile-info">
                         <div class="profile-text">
                             <div class="name">{{ kelas.nama_pengajar }}</div>
@@ -558,10 +555,18 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tingkat Kehadiran</p>
-                        <h3 class="text-4xl font-black text-gray-800 mb-4">92%</h3>
-                        <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                            <div class="bg-[#A22754] h-full rounded-full w-[92%]"></div>
-                        </div>
+                        {% if tingkat_kehadiran is not none %}
+                            <h3 class="text-4xl font-black text-gray-800 mb-4">{{ tingkat_kehadiran }}%</h3>
+                            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                <div class="bg-[#A22754] h-full rounded-full" style="width: {{ tingkat_kehadiran }}%"></div>
+                            </div>
+                        {% else %}
+                            <h3 class="text-2xl font-black text-gray-300 mb-4">Belum ada data</h3>
+                            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                <div class="bg-gray-200 h-full rounded-full w-0"></div>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mt-2">Absensi belum pernah dicatat untuk kelas ini.</p>
+                        {% endif %}
                     </div>
 
                     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -590,12 +595,12 @@
                 </div>
 
                 <div class="flex items-center gap-8 border-b border-gray-200 mb-6">
-                    <button class="pb-3 border-b-2 border-[#A22754] text-[#A22754] font-bold text-sm">List Siswa</button>
-                    <button class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Rencana Pelajaran</button>
-                    <button class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Absensi</button>
+                    <button type="button" id="tabBtnSiswa" onclick="gantiTab('siswa')" class="pb-3 border-b-2 border-[#A22754] text-[#A22754] font-bold text-sm">List Siswa</button>
+                    <button type="button" id="tabBtnRencana" onclick="gantiTab('rencana')" class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Rencana Pelajaran</button>
+                    <button type="button" id="tabBtnAbsensi" onclick="gantiTab('absensi')" class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-gray-600 font-medium text-sm transition">Absensi</button>
                 </div>
 
-                <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                <div id="panelListSiswa" class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                     <div class="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100">
                         <h2 class="text-lg font-bold text-gray-800">Daftar Pendaftaran</h2>
                         <div class="relative max-w-xs w-full">
@@ -672,6 +677,86 @@
                     </div>
                 </div>
 
+                <div id="panelRencanaPelajaran" class="hidden bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-800">Rencana Pelajaran</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Seluruh sesi pembelajaran yang terjadwal untuk kelas ini.</p>
+                    </div>
+
+                    {% if daftar_sesi %}
+                    <div class="divide-y divide-gray-50">
+                        {% for sesi in daftar_sesi %}
+                        <a href="{{ url_for('pengajar.detail_sesi', id_sesi=sesi.id_sesi) }}" class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50/50 transition cursor-pointer">
+                            <div class="w-11 h-11 rounded-xl bg-rose-50 text-[#A22754] flex flex-col items-center justify-center font-bold shrink-0 leading-none">
+                                <span class="text-[9px] uppercase tracking-wide">Sesi</span>
+                                <span class="text-base">{{ sesi.sesi_ke }}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 truncate">
+                                    {{ sesi.topik_pembahasan if sesi.topik_pembahasan else 'Topik belum ditentukan' }}
+                                </p>
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    <i class="fa-regular fa-calendar mr-1"></i>{{ sesi.tanggal.strftime('%d %B %Y') if sesi.tanggal else '-' }}
+                                </p>
+                            </div>
+                            {% if sesi.tanggal and sesi.tanggal < today %}
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full shrink-0">Selesai</span>
+                            {% else %}
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full shrink-0">Mendatang</span>
+                            {% endif %}
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-xs shrink-0"></i>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-12 text-center">
+                        <i class="fa-regular fa-calendar-xmark text-4xl text-gray-200 mb-3"></i>
+                        <p class="text-gray-500 font-medium">Belum ada sesi pembelajaran untuk kelas ini.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div id="panelAbsensi" class="hidden bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-gray-100">
+                        <h2 class="text-lg font-bold text-gray-800">Absensi</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Pilih sesi untuk mencatat kehadiran siswa pada sesi tersebut.</p>
+                    </div>
+
+                    {% if daftar_sesi %}
+                    <div class="divide-y divide-gray-50">
+                        {% for sesi in daftar_sesi %}
+                        <a href="{{ url_for('pengajar.absensi_sesi', id_sesi=sesi.id_sesi) }}" class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50/50 transition cursor-pointer">
+                            <div class="w-11 h-11 rounded-xl bg-rose-50 text-[#A22754] flex flex-col items-center justify-center font-bold shrink-0 leading-none">
+                                <span class="text-[9px] uppercase tracking-wide">Sesi</span>
+                                <span class="text-base">{{ sesi.sesi_ke }}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 truncate">
+                                    {{ sesi.topik_pembahasan if sesi.topik_pembahasan else 'Topik belum ditentukan' }}
+                                </p>
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    <i class="fa-regular fa-calendar mr-1"></i>{{ sesi.tanggal.strftime('%d %B %Y') if sesi.tanggal else '-' }}
+                                </p>
+                            </div>
+                            {% if sesi.tanggal and sesi.tanggal < today %}
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full shrink-0">Selesai</span>
+                            {% else %}
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full shrink-0">Mendatang</span>
+                            {% endif %}
+                            <span class="ml-2 px-4 py-2 bg-[#A22754] text-white font-semibold text-xs rounded-lg flex items-center gap-2 shrink-0">
+                                <i class="fa-solid fa-clipboard-check"></i> Absen
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-12 text-center">
+                        <i class="fa-regular fa-clipboard text-4xl text-gray-200 mb-3"></i>
+                        <p class="text-gray-500 font-medium">Belum ada sesi pembelajaran untuk kelas ini.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
             </section>
         </main>
     </div>
@@ -694,6 +779,23 @@
 
 <!-- Script untuk mengontrol Modal -->
 <script>
+    function gantiTab(tab) {
+        const panels = { siswa: 'panelListSiswa', rencana: 'panelRencanaPelajaran', absensi: 'panelAbsensi' };
+        const tombol = { siswa: 'tabBtnSiswa', rencana: 'tabBtnRencana', absensi: 'tabBtnAbsensi' };
+
+        Object.keys(panels).forEach(key => {
+            document.getElementById(panels[key]).classList.toggle('hidden', key !== tab);
+            const btn = document.getElementById(tombol[key]);
+            if (key === tab) {
+                btn.classList.add('border-[#A22754]', 'text-[#A22754]', 'font-bold');
+                btn.classList.remove('border-transparent', 'text-gray-400', 'font-medium');
+            } else {
+                btn.classList.remove('border-[#A22754]', 'text-[#A22754]', 'font-bold');
+                btn.classList.add('border-transparent', 'text-gray-400', 'font-medium');
+            }
+        });
+    }
+
     function tampilkanModalLogout(event) {
         // Mencegah link dari mengubah halaman secara langsung
         event.preventDefault(); 

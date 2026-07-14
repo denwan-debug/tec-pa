@@ -86,9 +86,9 @@
             background-color: #fcfcfc;
         }
 
-        /* === Topbar Custom untuk Checkout === */
+        /* === Topbar Custom untuk Checkout (konsisten dengan kelas.html) === */
         .topbar {
-            background-color: #ffffff;
+            background-color: #FCF9F9;
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -103,48 +103,59 @@
             font-weight: 700;
         }
 
-        .topbar-center {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-        }
-
-        .search-bar {
-            display: flex;
-            align-items: center;
-            background: #f1f5f9;
-            padding: 10px 20px;
-            border-radius: 20px;
-            width: 350px;
-            gap: 10px;
-        }
-
-        .search-bar input {
-            border: none;
-            background: transparent;
-            outline: none;
-            width: 100%;
-            color: var(--text-dark);
-        }
-
         .topbar-actions {
             display: flex;
             align-items: center;
             gap: 20px;
         }
 
-        .user-profile {
+        .user-profile-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            text-align: right;
+            gap: 15px;
         }
 
-        .user-info h4 { margin: 0; font-size: 0.9rem; color: var(--text-dark); }
-        .user-info p { margin: 0; font-size: 0.75rem; color: var(--text-gray); }
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
 
-        .avatar-img {
-            width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+        .username-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2b2525;
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b;
+            font-weight: 500;
+        }
+
+        .top-parent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fbd0dd;
+            padding: 2px;
+            background-color: #ffffff;
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil.
+           Menampilkan lingkaran pink berisi inisial huruf pertama nama. */
+        .top-parent-avatar.avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
         /* === Checkout Content === */
@@ -418,6 +429,7 @@
 
         /* Upload Section */
         .upload-box {
+            display: block; /* WAJIB: <label> defaultnya inline, beda dgn <div> yang dipakai sebelumnya */
             border: 2px dashed var(--primary-border);
             background-color: var(--primary-light);
             border-radius: 12px;
@@ -472,6 +484,115 @@
             transition: background 0.2s;
         }
         .btn-submit-final:hover { background-color: #931e3f; }
+        .btn-submit-final:disabled {
+            background-color: #d1a5b1;
+            cursor: not-allowed;
+        }
+        .btn-submit-final:disabled:hover { background-color: #d1a5b1; }
+
+        .upload-box.has-file {
+            border-style: solid;
+            border-color: var(--primary-accent);
+            background-color: #fff;
+        }
+        #uploadPlaceholder { cursor: pointer; }
+
+        /* Mode preview: sudah ada file dipilih */
+        .preview-thumb-wrap {
+            position: relative;
+            display: inline-block;
+            cursor: zoom-in;
+        }
+        .preview-thumb {
+            max-width: 100%;
+            max-height: 160px;
+            border-radius: 8px;
+            display: block;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+        }
+        .preview-thumb-wrap::after {
+            content: '🔍 Klik untuk lihat penuh';
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 4px 0;
+            border-radius: 0 0 8px 8px;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .preview-thumb-wrap:hover::after { opacity: 1; }
+
+        .preview-pdf-box {
+            display: flex; align-items: center; gap: 12px;
+            background: #fff; border: 1px solid var(--primary-border);
+            border-radius: 10px; padding: 12px 16px; cursor: pointer;
+        }
+        .preview-filename {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--text-gray);
+            word-break: break-all;
+        }
+        .preview-change-btn {
+            margin-top: 10px;
+            display: inline-block;
+            background: none;
+            border: none;
+            color: var(--primary-accent);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* Lightbox untuk lihat gambar bukti bayar secara penuh */
+        .lightbox-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+        }
+        .lightbox-overlay.open { display: flex; }
+        .lightbox-overlay img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 20px; right: 30px;
+            color: #fff;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .upload-success {
+            text-align: center;
+            padding: 30px 20px;
+            background-color: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 12px;
+        }
+        .upload-success-title {
+            margin-top: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #16a34a;
+        }
+        .upload-success-desc {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
 
         .secure-transaction {
             display: flex;
@@ -521,7 +642,6 @@
 
         @media (max-width: 900px) {
             .checkout-grid { grid-template-columns: 1fr; }
-            .topbar-center { display: none; }
             .submit-section { flex-direction: column; align-items: stretch; text-align: center; }
             .secure-transaction { justify-content: center; }
         }
@@ -587,23 +707,18 @@
         <main class="main-content">
             <header class="topbar">
                 <div class="topbar-title">Checkout</div>
-                
-                <div class="topbar-center">
-                    <div class="search-bar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-gray)" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" placeholder="Cari Tagihan...">
-                    </div>
-                </div>
 
                 <div class="topbar-actions">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-accent)" stroke-width="2" style="cursor: pointer;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                    
-                    <div class="user-profile">
+                    <div class="user-profile-header">
                         <div class="user-info">
-                            <h4>Alex Mercer</h4>
-                            <p>Akun Orang Tua</p>
+                            <span class="username-text">{{ username or 'User' }}</span>
+                            <span class="user-role">Akun Orang Tua</span>
                         </div>
-                        <img src="https://ui-avatars.com/api/?name=Alex+Mercer&background=5b9bd5&color=fff" alt="User" class="avatar-img">
+                        {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                        {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                        {% endif %}
                     </div>
                 </div>
             </header>
@@ -741,30 +856,49 @@
                                 </div>
                             </div>
 
-                            <!-- Upload Bukti Pembayaran -->
-                            <label class="section-label" style="margin-bottom: 10px;">Bukti Pembayaran</label>
-                            <div class="upload-box">
-                                <div class="upload-icon-circle">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
-                                        <path d="M12 12v9"></path>
-                                        <path d="m16 16-4-4-4 4"></path>
-                                    </svg>
-                                </div>
-                                <p>Format yang tersedia: JPG, PNG, PDF (Max 5MB)</p>
-                            </div>
+                            {% if id_pembayaran %}
+                            <form id="formBuktiBayar" method="POST" enctype="multipart/form-data"
+                                  action="{{ url_for('orangtua.detail_pembayaran', id_pembayaran=id_pembayaran) }}">
+                            <div id="uploadCardBody">
 
-                            <!-- Submit Button -->
-                            <div class="submit-section">
-                                <button class="btn-submit-final">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-                                    Selesaikan Pendaftaran
-                                </button>
-                                <div class="secure-transaction">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                    Transaksi Aman
+                                <!-- Upload Bukti Pembayaran -->
+                                <label class="section-label" style="margin-bottom: 10px;">Bukti Pembayaran</label>
+                                <input type="file" name="bukti_bayar" id="buktiBayarInput"
+                                       accept=".jpg,.jpeg,.png,.pdf" style="display:none;" required>
+
+                                <div class="upload-box" id="uploadBox">
+                                    <!-- State 1: belum ada file -->
+                                    <div id="uploadPlaceholder">
+                                        <div class="upload-icon-circle">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                                                <path d="M12 12v9"></path>
+                                                <path d="m16 16-4-4-4 4"></path>
+                                            </svg>
+                                        </div>
+                                        <p id="uploadBoxText">Klik untuk pilih file &mdash; JPG, PNG, PDF (Max 5MB)</p>
+                                    </div>
+
+                                    <!-- State 2: sudah ada file (diisi via JS) -->
+                                    <div id="uploadPreview" style="display:none;"></div>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <div class="submit-section">
+                                    <button type="submit" class="btn-submit-final" id="btnSubmitFinal" disabled>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                                        Selesaikan Pendaftaran
+                                    </button>
+                                    <div class="secure-transaction">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                        Transaksi Aman
+                                    </div>
                                 </div>
                             </div>
+                            </form>
+                            {% else %}
+                            <p class="help-text-italic">Data pembayaran belum siap. Silakan mulai pendaftaran dari halaman kelas.</p>
+                            {% endif %}
                         </div>
 
                         <!-- Card 4: Kepuasan Terjamin -->
@@ -784,5 +918,196 @@
             </div>
         </main>
     </div>
+
+    <!-- Lightbox untuk lihat bukti pembayaran secara penuh -->
+    <div class="lightbox-overlay" id="lightboxOverlay">
+        <button type="button" class="lightbox-close" id="lightboxClose">&times;</button>
+        <img id="lightboxImg" src="" alt="Bukti Pembayaran">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const fileInput = document.getElementById('buktiBayarInput');
+            const uploadBox = document.getElementById('uploadBox');
+            const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+            const uploadPreview = document.getElementById('uploadPreview');
+            const btnSubmit = document.getElementById('btnSubmitFinal');
+            const lightbox = document.getElementById('lightboxOverlay');
+            const lightboxImg = document.getElementById('lightboxImg');
+            const lightboxClose = document.getElementById('lightboxClose');
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'pdf'];
+
+            if (!fileInput) return; // form tidak ada (id_pembayaran belum tersedia)
+
+            let currentPreviewUrl = null; // dipakai untuk buka lightbox / file PDF
+
+            // Klik area "belum ada file" -> buka file picker
+            uploadPlaceholder.addEventListener('click', function () {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function () {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    resetUploadState();
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const ext = file.name.split('.').pop().toLowerCase();
+
+                if (!ALLOWED_EXT.includes(ext)) {
+                    alert('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.');
+                    fileInput.value = '';
+                    resetUploadState();
+                    return;
+                }
+
+                if (file.size > MAX_SIZE) {
+                    alert('Ukuran file maksimal 5MB.');
+                    fileInput.value = '';
+                    resetUploadState();
+                    return;
+                }
+
+                renderPreview(file);
+                uploadBox.classList.add('has-file');
+                btnSubmit.disabled = false; // tombol baru aktif setelah bukti bayar dipilih
+            });
+
+            function renderPreview(file) {
+                const isImage = file.type.startsWith('image/');
+                uploadPlaceholder.style.display = 'none';
+                uploadPreview.style.display = 'block';
+
+                if (currentPreviewUrl) {
+                    URL.revokeObjectURL(currentPreviewUrl);
+                }
+                currentPreviewUrl = URL.createObjectURL(file);
+
+                if (isImage) {
+                    uploadPreview.innerHTML =
+                        '<div class="preview-thumb-wrap" id="previewThumbWrap">' +
+                        '<img class="preview-thumb" src="' + currentPreviewUrl + '" alt="Pratinjau Bukti Pembayaran">' +
+                        '</div>' +
+                        '<p class="preview-filename">' + escapeHtml(file.name) + '</p>' +
+                        '<button type="button" class="preview-change-btn" id="previewChangeBtn">Ganti File</button>';
+
+                    document.getElementById('previewThumbWrap').addEventListener('click', function () {
+                        openLightbox(currentPreviewUrl);
+                    });
+                } else {
+                    // File PDF: tampilkan kartu ikon, klik untuk buka PDF di tab baru
+                    uploadPreview.innerHTML =
+                        '<div class="preview-pdf-box" id="previewPdfBox">' +
+                        '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--primary-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>' +
+                        '<div style="text-align:left;"><div style="font-weight:600; font-size:0.85rem; color: var(--text-dark);">' + escapeHtml(file.name) + '</div>' +
+                        '<div style="font-size:0.75rem; color: var(--text-gray);">Klik untuk buka file PDF</div></div>' +
+                        '</div>' +
+                        '<button type="button" class="preview-change-btn" id="previewChangeBtn">Ganti File</button>';
+
+                    document.getElementById('previewPdfBox').addEventListener('click', function () {
+                        window.open(currentPreviewUrl, '_blank');
+                    });
+                }
+
+                document.getElementById('previewChangeBtn').addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+            }
+
+            function resetUploadState() {
+                uploadPlaceholder.style.display = 'block';
+                uploadPreview.style.display = 'none';
+                uploadPreview.innerHTML = '';
+                uploadBox.classList.remove('has-file');
+                btnSubmit.disabled = true;
+                if (currentPreviewUrl) {
+                    URL.revokeObjectURL(currentPreviewUrl);
+                    currentPreviewUrl = null;
+                }
+            }
+
+            function openLightbox(url) {
+                lightboxImg.src = url;
+                lightbox.classList.add('open');
+            }
+            function closeLightbox() {
+                lightbox.classList.remove('open');
+                lightboxImg.src = '';
+            }
+            lightboxClose.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', function (e) {
+                if (e.target === lightbox) closeLightbox(); // klik area gelap = tutup
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeLightbox();
+            });
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // Kirim via fetch supaya tetap di halaman ini (tidak redirect),
+            // lalu update tampilan langsung berdasarkan hasilnya.
+            const form = document.getElementById('formBuktiBayar');
+            const uploadCard = document.getElementById('uploadCardBody');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    if (!fileInput.files || fileInput.files.length === 0) return;
+
+                    btnSubmit.disabled = true;
+                    const originalBtnHtml = btnSubmit.innerHTML;
+                    btnSubmit.innerHTML = 'Mengirim...';
+
+                    const formData = new FormData(form);
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                        .then(function (result) {
+                            if (result.ok && result.data.success) {
+                                // Sukses: tampilkan status terkirim + gambar yang sudah tersimpan di server
+                                const buktiUrl = result.data.bukti_bayar;
+                                const isImageResult = buktiUrl && /\.(jpg|jpeg|png)(\?|$)/i.test(buktiUrl);
+                                if (uploadCard) {
+                                    uploadCard.innerHTML =
+                                        '<div class="upload-success">' +
+                                        '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9"></polyline></svg>' +
+                                        '<p class="upload-success-title">Bukti pembayaran terkirim!</p>' +
+                                        '<p class="upload-success-desc">' + result.data.message + '</p>' +
+                                        (isImageResult ? ('<div class="preview-thumb-wrap" id="successThumbWrap" style="margin-top:14px; cursor:zoom-in;"><img class="preview-thumb" src="' + buktiUrl + '" alt="Bukti Pembayaran"></div>') : '') +
+                                        '</div>';
+
+                                    const successThumb = document.getElementById('successThumbWrap');
+                                    if (successThumb) {
+                                        successThumb.addEventListener('click', function () {
+                                            openLightbox(buktiUrl);
+                                        });
+                                    }
+                                }
+                            } else {
+                                alert(result.data.message || 'Terjadi kesalahan saat mengirim bukti pembayaran.');
+                                btnSubmit.disabled = false;
+                                btnSubmit.innerHTML = originalBtnHtml;
+                            }
+                        })
+                        .catch(function () {
+                            alert('Gagal terhubung ke server. Silakan coba lagi.');
+                            btnSubmit.disabled = false;
+                            btnSubmit.innerHTML = originalBtnHtml;
+                        });
+                });
+            }
+        });
+    </script>
 </body>
 </html>

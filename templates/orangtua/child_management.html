@@ -126,6 +126,65 @@
             background-color: #f5f7f9;
         }
 
+        /* === Topbar (konsisten dengan kelas.html) === */
+        .topbar {
+            background-color: #FCF9F9;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            border-bottom: 1px solid #edf2f7;
+            min-height: 70px;
+        }
+
+        .user-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .username-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2b2525;
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: #6d5b5b;
+            font-weight: 500;
+        }
+
+        .top-parent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fbd0dd;
+            padding: 2px;
+            background-color: #ffffff;
+        }
+
+        /* Fallback: dipakai kalau user belum punya foto profil. */
+        .top-parent-avatar.avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
         /* === Header Area === */
         .content-header {
             display: flex;
@@ -594,7 +653,7 @@
     <div id="addBabyModal" class="modal-overlay" style="display:none;">
         <div class="modal-content" style="text-align: left;">
             <h2 style="margin-bottom: 20px; color: #1e293b;">Tambah Data Anak</h2>
-            <form action="/tambah_anak" method="POST">
+            <form action="/tambah_anak" method="POST" id="formTambahAnak">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Nama Lengkap</label>
                     <input type="text" name="nama_lengkap" required style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -650,7 +709,7 @@
 
                 <div class="modal-actions">
                     <button type="button" id="cancelAddBaby" class="btn-cancel">Batal</button>
-                    <button type="submit" class="btn-tambahin" style="background-color: #b42b51; outline: none;">Simpan</button>
+                    <button type="submit" id="btnSimpanTambahAnak" class="btn-tambahin" style="background-color: #b42b51; outline: none;">Simpan</button>
                 </div>
             </form>
         </div>
@@ -660,7 +719,7 @@
     <div id="editBabyModal" class="modal-overlay" style="display:none;">
         <div class="modal-content" style="text-align: left;">
             <h2 style="margin-bottom: 20px; color: #1e293b;">Edit Profil Anak</h2>
-            <form action="{{ url_for('orangtua.edit_anak') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ url_for('orangtua.edit_anak') }}" method="POST" enctype="multipart/form-data" id="formEditAnak">
                 <!-- Hidden Input untuk ID Anak -->
                 <input type="hidden" name="id_anak" id="edit_id_anak">
                 <div style="margin-bottom: 15px;">
@@ -723,7 +782,7 @@
 
                 <div class="modal-actions">
                     <button type="button" id="cancelEditBaby" class="btn-cancel">Batal</button>
-                    <button type="submit" class="btn-tambahin" style="background-color: #b42b51;">Simpan Perubahan</button>
+                    <button type="submit" id="btnSimpanEditAnak" class="btn-tambahin" style="background-color: #b42b51;">Simpan Perubahan</button>
                 </div>
             </form>
         </div>
@@ -793,6 +852,19 @@
         </aside>
 
         <main class="main-content">
+            <header class="topbar">
+                <div class="user-profile-header">
+                    <div class="user-info">
+                        <span class="username-text">{{ username if username else 'Wali Murid' }}</span>
+                        <span class="user-role">Orang Tua</span>
+                    </div>
+                    {% if foto_profil and 'http' in foto_profil %}
+                        <img src="{{ foto_profil }}" alt="Foto Profil" class="top-parent-avatar">
+                    {% else %}
+                        <div class="top-parent-avatar avatar-initial">{{ (username[0] if username else '?') }}</div>
+                    {% endif %}
+                </div>
+            </header>
             <div class="content-header">
                 <div class="header-title">
                     <h1>Manajemen Anak</h1>
@@ -1031,6 +1103,27 @@
             });
         });
     });
+
+    // ==========================================
+    // 5. CEGAH SUBMIT GANDA (klik cepat berkali-kali)
+    // ==========================================
+    const formEditAnak = document.getElementById('formEditAnak');
+    if (formEditAnak) {
+        formEditAnak.addEventListener('submit', function() {
+            const btnSimpan = document.getElementById('btnSimpanEditAnak');
+            btnSimpan.disabled = true;
+            btnSimpan.innerText = 'Menyimpan...';
+        });
+    }
+
+    const formTambahAnak = document.getElementById('formTambahAnak');
+    if (formTambahAnak) {
+        formTambahAnak.addEventListener('submit', function() {
+            const btnSimpan = document.getElementById('btnSimpanTambahAnak');
+            btnSimpan.disabled = true;
+            btnSimpan.innerText = 'Menyimpan...';
+        });
+    }
 
     // ==========================================
     // 4. LOGIKA TOMBOL EDIT PROFIL DIKLIK

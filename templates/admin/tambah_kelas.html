@@ -216,10 +216,10 @@
                                 <label class="text-sm font-medium text-gray-600">Pilih Tutor</label>
                                 <div class="relative">
                                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                    <select name="id_pengajar" required class="w-full bg-white border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition cursor-pointer">
+                                    <select name="id_pengajar" id="id_pengajar" required class="w-full bg-white border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition cursor-pointer">
                                         <option value="">-- Cari Pengajar --</option>
                                         {% for pengajar in daftar_tutor %}
-                                            <option value="{{ pengajar.id_users }}">{{ pengajar.username }}</option>
+                                            <option value="{{ pengajar.id_users }}" data-nama="{{ pengajar.username }}" data-foto="{{ pengajar.foto_profil or '' }}">{{ pengajar.username }}</option>
                                         {% endfor %}
                                     </select>
                                     <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
@@ -227,11 +227,11 @@
                             </div>
 
                             <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-3 min-w-[250px] w-full md:w-auto">
-                                <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden">
+                                <div id="tutorAvatarWrap" class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden shrink-0">
                                     <i class="fa-solid fa-user"></i>
                                 </div>
                                 <div>
-                                    <h5 class="text-sm font-bold text-gray-700 leading-tight">Pengajar Dipilih</h5>
+                                    <h5 id="tutorNamaTerpilih" class="text-sm font-bold text-gray-700 leading-tight">Pengajar Dipilih</h5>
                                     <p class="text-[11px] text-gray-500 font-medium mt-0.5">Tutor Specialist</p>
                                 </div>
                             </div>
@@ -248,12 +248,17 @@
                             <div class="grid grid-cols-2 gap-5">
                                 <div class="space-y-1.5">
                                     <label class="text-sm font-medium text-gray-600">Mulai Tanggal</label>
-                                    <input type="date" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                    <input type="date" name="tanggal_mulai" id="tanggal_mulai" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
                                 </div>
                                 <div class="space-y-1.5">
-                                    <label class="text-sm font-medium text-gray-600">Tanggal Berakhir</label>
-                                    <input type="date" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                    <label class="text-sm font-medium text-gray-600">Jumlah Sesi</label>
+                                    <input type="number" name="jumlah_sesi" id="jumlah_sesi" required min="1" placeholder="contoh: 12" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
                                 </div>
+                            </div>
+
+                            <div class="bg-rose-50/60 border border-rose-100 rounded-lg px-4 py-2.5 flex items-center gap-2 text-xs text-[#8E1F47] font-medium">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>Kelas akan berakhir otomatis pada: <b id="tanggalBerakhirPreview">-</b> (1 sesi = 1 minggu)</span>
                             </div>
 
                             <div class="space-y-2">
@@ -275,12 +280,37 @@
                             <div class="grid grid-cols-2 gap-5 pt-1">
                                 <div class="space-y-1.5">
                                     <label class="text-sm font-medium text-gray-600">Jam Mulai (Start)</label>
-                                    <input type="time" name="jam_mulai" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                    <input type="time" name="jam_mulai" id="jam_mulai" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
                                 </div>
                                 <div class="space-y-1.5">
-                                    <label class="text-sm font-medium text-gray-600">Jam Berakhir (End)</label>
-                                    <input type="time" name="jam_selesai" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 transition">
+                                    <label class="text-sm font-medium text-gray-600">Durasi Kelas</label>
+                                    <div class="flex gap-2">
+                                        <div class="relative flex-1">
+                                            <select id="durasi_jam" required class="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 appearance-none transition">
+                                                {% for j in range(0, 5) %}
+                                                <option value="{{ j }}" {{ 'selected' if j == 1 }}>{{ j }} jam</option>
+                                                {% endfor %}
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                        <div class="relative flex-1">
+                                            <select id="durasi_menit" required class="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:border-rose-400 text-gray-700 appearance-none transition">
+                                                <option value="0" selected>0 mnt</option>
+                                                <option value="15">15 mnt</option>
+                                                <option value="30">30 mnt</option>
+                                                <option value="45">45 mnt</option>
+                                            </select>
+                                            <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <input type="hidden" name="durasi_menit" id="durasi_menit_hidden">
+
+                            <div class="bg-rose-50/60 border border-rose-100 rounded-lg px-4 py-2.5 flex items-center gap-2 text-xs text-[#8E1F47] font-medium">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>Kelas akan berakhir setiap sesi pada pukul: <b id="jamSelesaiPreview">-</b></span>
                             </div>
                         </div>
                     </div>
@@ -347,6 +377,99 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // ===== Kalkulasi otomatis Jam Berakhir dari Jam Mulai + Durasi =====
+        function updateJamSelesai() {
+            const jamMulai = document.getElementById('jam_mulai').value;
+            const durasiJam = parseInt(document.getElementById('durasi_jam').value || '0', 10);
+            const durasiMenit = parseInt(document.getElementById('durasi_menit').value || '0', 10);
+            const totalMenit = (durasiJam * 60) + durasiMenit;
+
+            document.getElementById('durasi_menit_hidden').value = totalMenit;
+
+            const preview = document.getElementById('jamSelesaiPreview');
+            if (!jamMulai || totalMenit <= 0) {
+                preview.innerText = '-';
+                return;
+            }
+
+            const [h, m] = jamMulai.split(':').map(Number);
+            const start = new Date();
+            start.setHours(h, m, 0, 0);
+            start.setMinutes(start.getMinutes() + totalMenit);
+
+            const hh = String(start.getHours()).padStart(2, '0');
+            const mm = String(start.getMinutes()).padStart(2, '0');
+            preview.innerText = `${hh}.${mm}`;
+        }
+
+        // ===== Kalkulasi otomatis Tanggal Berakhir dari Tanggal Mulai + Jumlah Sesi =====
+        function updateTanggalBerakhir() {
+            const tglMulai = document.getElementById('tanggal_mulai').value;
+            const jumlahSesi = parseInt(document.getElementById('jumlah_sesi').value || '0', 10);
+            const preview = document.getElementById('tanggalBerakhirPreview');
+
+            if (!tglMulai || jumlahSesi <= 0) {
+                preview.innerText = '-';
+                return;
+            }
+
+            const start = new Date(tglMulai + 'T00:00:00');
+            start.setDate(start.getDate() + (jumlahSesi - 1) * 7);
+
+            preview.innerText = start.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+
+        ['jam_mulai', 'durasi_jam', 'durasi_menit'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateJamSelesai);
+        });
+        ['tanggal_mulai', 'jumlah_sesi'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateTanggalBerakhir);
+        });
+
+        // Set nilai awal saat halaman dimuat (durasi default 1 jam 0 menit)
+        updateJamSelesai();
+    </script>
+
+    <script>
+        // ===== Update Card "Pengajar Dipilih" (foto/inisial + nama) =====
+        function updateTutorCard() {
+            const select = document.getElementById('id_pengajar');
+            const opt = select.options[select.selectedIndex];
+            const avatarWrap = document.getElementById('tutorAvatarWrap');
+            const namaEl = document.getElementById('tutorNamaTerpilih');
+
+            if (!opt || !opt.value) {
+                avatarWrap.innerHTML = '<i class="fa-solid fa-user"></i>';
+                namaEl.innerText = 'Pengajar Dipilih';
+                return;
+            }
+
+            const nama = opt.getAttribute('data-nama') || 'Pengajar';
+            const foto = opt.getAttribute('data-foto');
+
+            namaEl.innerText = nama;
+
+            const kataNama = nama.trim().split(/\s+/);
+            const inisial = ((kataNama[0][0] || '') + (kataNama[1] ? kataNama[1][0] : '')).toUpperCase();
+
+            // foto_profil di database menyimpan URL Cloudinary LENGKAP kalau pengajar
+            // sudah pernah upload foto (mis. "https://res.cloudinary.com/..."), atau
+            // placeholder seperti "default_avatar.png" kalau belum. Jadi HANYA pakai
+            // sebagai <img src> kalau memang URL asli (diawali http) -- selain itu
+            // tampilkan inisial, konsisten dengan halaman lain di aplikasi ini.
+            if (foto && foto.startsWith('http')) {
+                avatarWrap.innerHTML = `<img src="${foto}" alt="${nama}" class="w-full h-full object-cover"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="w-full h-full rounded-full bg-[#A22754] text-white items-center justify-center text-sm font-bold" style="display:none;">${inisial}</div>`;
+            } else {
+                avatarWrap.innerHTML = `<div class="w-full h-full rounded-full bg-[#A22754] text-white flex items-center justify-center text-sm font-bold">${inisial}</div>`;
+            }
+        }
+
+        document.getElementById('id_pengajar').addEventListener('change', updateTutorCard);
+    </script>
 
     <script>
         const logoutBtn = document.getElementById('btnTriggerLogout');
