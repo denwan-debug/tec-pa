@@ -3,6 +3,7 @@ from db import get_db_connection
 from extensions import send_email
 import uuid, math
 from datetime import datetime, timedelta
+import cloudinary.uploader
 
 # Membuat blueprint untuk admin
 admin_bp = Blueprint('admin', __name__)
@@ -425,25 +426,41 @@ def simpan_kelas_baru():
         # 6. Generate ID kelas secara unik
         id_kelas_baru = f"KLS-{str(uuid.uuid4().hex[:6]).upper()}"
 
-        # 7. Eksekusi query INSERT ke tabel kelas
+        # 7. Upload gambar sampul kelas ke Cloudinary (opsional -- boleh kosong)
+        url_gambar_kelas = None
+        file_gambar = request.files.get('gambar_kelas')
+        if file_gambar and file_gambar.filename:
+            try:
+                hasil_upload = cloudinary.uploader.upload(
+                    file_gambar,
+                    folder="tec_portal/sampul_kelas",
+                    resource_type="image"
+                )
+                url_gambar_kelas = hasil_upload.get('secure_url')
+            except Exception as e:
+                print(f"\n[ERROR UPLOAD SAMPUL KELAS]: {e}\n")
+                flash('Gagal mengunggah gambar sampul kelas. Kelas belum disimpan, coba lagi.', 'error')
+                return redirect(url_for('admin.buat_kelas_baru'))
+
+        # 8. Eksekusi query INSERT ke tabel kelas
         query = """
             INSERT INTO kelas (
                 id_kelas, nama_kelas, tingkat, id_pengajar, 
                 hari_jadwal, jam_mulai, jam_selesai, 
-                kapasitas_maksimal, harga, deskripsi,
+                kapasitas_maksimal, harga, deskripsi, gambar_kelas,
                 jumlah_sesi, tanggal_mulai, tanggal_berakhir, status_kelas
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Aktif')
         """
         values = (
             id_kelas_baru, nama_kelas, tingkat, id_pengajar, 
             hari_jadwal, jam_mulai, jam_selesai, 
-            kapasitas_maksimal, harga, deskripsi,
+            kapasitas_maksimal, harga, deskripsi, url_gambar_kelas,
             jumlah_sesi, tanggal_mulai_obj, tanggal_berakhir_obj
         )
         cursor.execute(query, values)
 
-        # 8. Generate otomatis baris-baris sesi di tabel sesi_kelas sebanyak jumlah_sesi,
+        # 9. Generate otomatis baris-baris sesi di tabel sesi_kelas sebanyak jumlah_sesi,
         # masing-masing berjarak 1 minggu dari sesi sebelumnya
         for i, tanggal_sesi in enumerate(tanggal_sesi_list, start=1):
             cursor.execute("""

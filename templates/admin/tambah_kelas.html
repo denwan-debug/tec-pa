@@ -112,7 +112,7 @@
             </div>
         </header>
 
-        <form action="{{ url_for('admin.simpan_kelas_baru') }}" method="POST" class="flex-1 flex flex-col overflow-hidden">
+        <form action="{{ url_for('admin.simpan_kelas_baru') }}" method="POST" enctype="multipart/form-data" class="flex-1 flex flex-col overflow-hidden">
             <section class="flex-1 p-8 overflow-y-auto pb-36">
                 <div class="max-w-4xl mx-auto space-y-5">
                     
@@ -192,6 +192,27 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
+                            <i class="fa-regular fa-image text-lg"></i>
+                            <span>Sampul Kelas</span>
+                        </div>
+
+                        <input type="file" name="gambar_kelas" id="gambarKelasInput" accept=".jpg,.jpeg,.png,.webp" style="display:none;">
+
+                        <div id="sampulUploadBox" onclick="document.getElementById('gambarKelasInput').click();"
+                             class="relative w-full h-48 rounded-xl border-2 border-dashed border-gray-300 bg-slate-50 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-rose-400 hover:bg-rose-50/40 transition overflow-hidden">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400"></i>
+                            <p class="text-sm text-gray-500 font-medium">Klik untuk unggah sampul kelas</p>
+                            <p class="text-xs text-gray-400">JPG, PNG, atau WEBP (Maks. 5MB)</p>
+                        </div>
+
+                        <button type="button" id="gantiSampulBtn" onclick="document.getElementById('gambarKelasInput').click();"
+                                style="display:none;" class="mt-3 text-xs font-semibold text-[#A22754] hover:underline">
+                            <i class="fa-solid fa-rotate"></i> Ganti Gambar
+                        </button>
                     </div>
 
                     <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -379,6 +400,44 @@
     </div>
 
     <script>
+        // ===== Preview gambar sampul kelas =====
+        (function () {
+            const input = document.getElementById('gambarKelasInput');
+            const box = document.getElementById('sampulUploadBox');
+            const gantiBtn = document.getElementById('gantiSampulBtn');
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'webp'];
+
+            input.addEventListener('change', function () {
+                if (!input.files || input.files.length === 0) return;
+
+                const file = input.files[0];
+                const ext = file.name.split('.').pop().toLowerCase();
+
+                if (!ALLOWED_EXT.includes(ext)) {
+                    alert('Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.');
+                    input.value = '';
+                    return;
+                }
+                if (file.size > MAX_SIZE) {
+                    alert('Ukuran gambar maksimal 5MB.');
+                    input.value = '';
+                    return;
+                }
+
+                const url = URL.createObjectURL(file);
+                box.style.backgroundImage = `url('${url}')`;
+                box.style.backgroundSize = 'cover';
+                box.style.backgroundPosition = 'center';
+                box.innerHTML = `
+                    <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1 opacity-0 hover:opacity-100 transition">
+                        <i class="fa-solid fa-image text-2xl text-white"></i>
+                        <p class="text-xs text-white font-medium">${file.name}</p>
+                    </div>`;
+                gantiBtn.style.display = 'inline-flex';
+            });
+        })();
+
         // ===== Kalkulasi otomatis Jam Berakhir dari Jam Mulai + Durasi =====
         function updateJamSelesai() {
             const jamMulai = document.getElementById('jam_mulai').value;

@@ -594,7 +594,7 @@
 
                     <div class="class-card" data-jenjang="{{ data_jenjang }}">
                         <div class="card-image-container">
-                            <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80" alt="{{ kelas.nama_kelas }}">
+                            <img src="{{ kelas.gambar_kelas if kelas.gambar_kelas else 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80' }}" alt="{{ kelas.nama_kelas }}">
                             <span class="card-badge badge-kelas5">Aktif</span>
                             <span class="card-badge badge-level {{ level_class }}">{{ jenjang }}</span>
                         </div>

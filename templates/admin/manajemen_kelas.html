@@ -219,7 +219,7 @@
             <div class="bg-white rounded-t-2xl border-t border-x border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xs">
                 <div class="relative max-w-xs w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                    <input type="text" placeholder="Cari kode atau nama kelas..." class="w-full bg-slate-50 border border-gray-300 rounded-lg pl-10 pr-4 py-1.5 text-xs focus:outline-none focus:border-rose-400 transition">
+                    <input type="text" id="searchKelasInput" oninput="cariKelasAdmin()" placeholder="Cari kode atau nama kelas..." class="w-full bg-slate-50 border border-gray-300 rounded-lg pl-10 pr-4 py-1.5 text-xs focus:outline-none focus:border-rose-400 transition">
                 </div>
                 <a href="{{ url_for('admin.buat_kelas_baru') }}" class="px-4 py-2 bg-[#A22754] hover:bg-[#8E1F47] text-white font-semibold text-xs rounded-lg shadow-sm transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-plus"></i> Buat Kelas Baru
@@ -241,12 +241,15 @@
                                 <th class="px-6 py-3.5 text-center">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 text-xs text-gray-700">
+                        <tbody id="tabelKelasBody" class="divide-y divide-gray-100 text-xs text-gray-700">
                             
                             {% if daftar_kelas %}
                                 {% for kelas in daftar_kelas %}
                                 {% set persentase = (kelas.jumlah_siswa / kelas.kapasitas_maksimal * 100) | int if kelas.kapasitas_maksimal > 0 else 0 %}
-                                <tr class="hover:bg-slate-50/70 transition">
+                                <tr class="kelas-row hover:bg-slate-50/70 transition"
+                                    data-kode="{{ kelas.id_kelas | lower }}"
+                                    data-nama="{{ kelas.nama_kelas | lower }}"
+                                    data-tutor="{{ (kelas.nama_tutor or '') | lower }}">
                                     <td class="px-6 py-4 font-bold text-gray-500 tracking-wide">{{ kelas.id_kelas }}</td>
                                     
                                     <td class="px-6 py-4 font-semibold text-gray-900 text-sm max-w-xs truncate">{{ kelas.nama_kelas }}</td>
@@ -303,6 +306,13 @@
                                     </td>
                                 </tr>
                             {% endif %}
+
+                            <tr id="noResultKelasAdmin" style="display:none;">
+                                <td colspan="8" class="text-center py-12 text-gray-400 font-medium">
+                                    <i class="fa-solid fa-magnifying-glass text-3xl mb-2 block text-gray-300"></i>
+                                    Tidak ada kelas yang cocok dengan pencarian "<span id="noResultKelasAdminKeyword"></span>".
+                                </td>
+                            </tr>
                             
                         </tbody>
                     </table>
@@ -337,6 +347,31 @@
     </div>
 
     <script>
+        // Pencarian kelas (kode/nama/tutor) secara langsung, client-side tanpa reload
+        function cariKelasAdmin() {
+            const keyword = document.getElementById('searchKelasInput').value.trim().toLowerCase();
+            const baris = document.querySelectorAll('#tabelKelasBody .kelas-row');
+            let jumlahTampil = 0;
+
+            baris.forEach(row => {
+                const kode = row.getAttribute('data-kode') || '';
+                const nama = row.getAttribute('data-nama') || '';
+                const tutor = row.getAttribute('data-tutor') || '';
+                const cocok = kode.includes(keyword) || nama.includes(keyword) || tutor.includes(keyword);
+
+                row.style.display = cocok ? '' : 'none';
+                if (cocok) jumlahTampil++;
+            });
+
+            const noResult = document.getElementById('noResultKelasAdmin');
+            const noResultKeyword = document.getElementById('noResultKelasAdminKeyword');
+            if (noResult) {
+                const tampilkanNoResult = jumlahTampil === 0 && baris.length > 0 && keyword !== '';
+                noResult.style.display = tampilkanNoResult ? '' : 'none';
+                if (noResultKeyword) noResultKeyword.textContent = keyword;
+            }
+        }
+
         const logoutBtn = document.getElementById('btnTriggerLogout');
         const modal = document.getElementById('logoutModal');
         const modalInner = document.getElementById('modalInner');

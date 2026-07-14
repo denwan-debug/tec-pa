@@ -217,7 +217,7 @@
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0) 100%), 
-                        url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1000') center/cover;
+                        var(--hero-image) center/cover;
             z-index: 1;
         }
 
@@ -445,9 +445,40 @@
         @media (max-width: 1024px) {
             .detail-container { grid-template-columns: 1fr; }
         }
+
+        /* Modal Konfirmasi Logout (sama seperti halaman orang tua lainnya) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 16px;
+            width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .icon-container { background: #e2e8f0; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-logout { flex: 1; padding: 12px; border-radius: 8px; background: #4a5568; color: white; text-decoration: none; font-weight: bold; }
+        .btn-cancel { flex: 1; padding: 12px; border-radius: 8px; background: #edf2f7; border: none; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="logoutModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="icon-container">
+                <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.5 22.5C1.8125 22.5 1.22396 22.2552 0.734375 21.7656C0.244792 21.276 0 20.6875 0 20V2.5C0 1.8125 0.244792 1.22396 0.734375 0.734375C1.22396 0.244792 1.8125 0 2.5 0H11.25V2.5H2.5V20H11.25V22.5H2.5ZM16.25 17.5L14.5312 15.6875L17.7188 12.5H7.5V10H17.7188L14.5312 6.8125L16.25 5L22.5 11.25L16.25 17.5Z" fill="#24181B"/>
+                </svg>
+            </div>
+            <h2>Konfirmasi Logout</h2>
+            <p>Apakah Anda yakin ingin keluar dari akun TEC English Anda? Perubahan yang belum disimpan mungkin akan hilang.</p>
+            <div class="modal-actions">
+                <button id="cancelLogout" class="btn-cancel">Batal</button>
+                <a href="/logout" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </div>
 
     <div class="app-container">
         
@@ -533,7 +564,7 @@
 
             <div class="detail-container">
                 <div class="main-details">
-                    <div class="hero-banner">
+                    <div class="hero-banner" style="--hero-image: url('{{ kelas.gambar_kelas if kelas.gambar_kelas else 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1000&auto=format&fit=crop&q=80' }}');">
                         <div class="hero-content">
                             <div class="hero-badges">
                                 <span class="badge-tag">KELAS AKTIF</span>
@@ -542,8 +573,6 @@
                             <h1>{{ kelas.nama_kelas }}</h1>
                             <div class="hero-meta">
                                 <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> {{ kelas.kapasitas_maksimal }} Maksimal Siswa</span>
-                                <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg> English Immersion</span>
-                                <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 4.9 (42 Review)</span>
                             </div>
                         </div>
                     </div>
@@ -674,6 +703,24 @@
 
 </body>
 <script>
+// Modal Konfirmasi Logout (sama seperti halaman orang tua lainnya)
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('logoutModal');
+    const logoutBtn = document.getElementById('btnTriggerLogout');
+    const cancelBtn = document.getElementById('cancelLogout');
+
+    if (logoutBtn && modal && cancelBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.style.display = 'flex';
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+});
+
 function cekKriteriaAnak() {
     const selectAnak = document.getElementById('id_anak');
     const selectedOption = selectAnak.options[selectAnak.selectedIndex];

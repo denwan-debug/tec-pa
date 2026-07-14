@@ -178,5 +178,7 @@ ALTER TABLE `kelas`    ADD COLUMN `tanggal_berakhir` DATE DEFAULT NULL AFTER `ta
 ALTER TABLE `kelas`
     MODIFY COLUMN `status_kelas` enum('Aktif','Nonaktif','Penuh','Selesai') DEFAULT 'Aktif';
 
+ALTER TABLE `kelas` ADD COLUMN `gambar_kelas` VARCHAR(255) DEFAULT NULL AFTER `deskripsi`;
+
 -- Mengaktifkan kembali pengecekan Foreign Key
 SET FOREIGN_KEY_CHECKS = 1;
