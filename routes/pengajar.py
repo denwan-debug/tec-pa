@@ -607,7 +607,104 @@ def laporan_pengajar():
     cek_akses = _wajib_login_pengajar()
     if cek_akses:
         return cek_akses
-    return render_template('pengajar/manajemen_laporan.html')
+
+    pengajar_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    daftar_pendaftaran = []
+    try:
+        # Ambil semua siswa aktif yang terdaftar di kelas-kelas milik pengajar ini,
+        # berikut nama anak, kelas/tingkat sekolahnya, dan mata pelajaran (kelas) yang diikuti.
+        query = """
+            SELECT
+                p.id_pendaftaran,
+                a.id_anak,
+                a.nama_lengkap AS nama_anak,
+                a.kelas AS tingkat_kelas,
+                k.id_kelas,
+                k.nama_kelas
+            FROM pendaftaran p
+            JOIN anak a ON p.id_anak = a.id_anak
+            JOIN kelas k ON p.id_kelas = k.id_kelas
+            WHERE k.id_pengajar = %s AND p.status_pendaftaran = 'Aktif'
+            ORDER BY a.nama_lengkap ASC, k.nama_kelas ASC
+        """
+        cursor.execute(query, (pengajar_id,))
+        daftar_pendaftaran = cursor.fetchall()
+
+    except Exception as e:
+        print(f"Error pada halaman laporan pengajar: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    # Daftar siswa unik (untuk Langkah 1) -- kelas/mata pelajaran per siswa
+    # difilter secara dinamis di JS berdasarkan daftar_pendaftaran (Langkah 2)
+    daftar_siswa = []
+    id_anak_terlihat = set()
+    for p in daftar_pendaftaran:
+        if p['id_anak'] not in id_anak_terlihat:
+            id_anak_terlihat.add(p['id_anak'])
+            daftar_siswa.append(p)
+
+    return render_template(
+        'pengajar/manajemen_laporan.html',
+        daftar_siswa=daftar_siswa,
+        daftar_pendaftaran=daftar_pendaftaran
+    )
+
+
+@pengajar_bp.route('/simpan_laporan_pengajar', methods=['POST'])
+def simpan_laporan_pengajar():
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    pengajar_id = session['user_id']
+    data = request.get_json(force=True)
+
+    id_pendaftaran = data.get('id_pendaftaran')
+    deskripsi = (data.get('deskripsi') or '').strip()
+
+    if not id_pendaftaran:
+        return jsonify({"message": "Siswa dan kelas wajib dipilih!"}), 400
+    if not deskripsi:
+        return jsonify({"message": "Catatan evaluasi tidak boleh kosong!"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Pastikan siswa yang dipilih memang terdaftar di salah satu kelas milik pengajar ini
+        cursor.execute("""
+            SELECT p.id_pendaftaran
+            FROM pendaftaran p
+            JOIN kelas k ON p.id_kelas = k.id_kelas
+            WHERE p.id_pendaftaran = %s AND k.id_pengajar = %s
+        """, (id_pendaftaran, pengajar_id))
+        valid = cursor.fetchone()
+
+        if not valid:
+            return jsonify({"message": "Data siswa/kelas tidak valid untuk akun Anda."}), 403
+
+        # NOTE: sesuaikan nama tabel & kolom di bawah ini dengan skema tabel
+        # laporan/evaluasi yang sudah ada di database Anda.
+        cursor.execute("""
+            INSERT INTO laporan (id_pendaftaran, id_pengajar, deskripsi, created_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (id_pendaftaran, pengajar_id, deskripsi))
+        conn.commit()
+
+        return jsonify({"message": "Laporan evaluasi berhasil dikirim!"}), 200
+
+    except Exception as e:
+        print(f"Error saat menyimpan laporan pengajar: {e}")
+        conn.rollback()
+        return jsonify({"message": "Terjadi kesalahan pada server saat menyimpan laporan."}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @pengajar_bp.route('/profil_pengajar')
 def profil_pengajar():

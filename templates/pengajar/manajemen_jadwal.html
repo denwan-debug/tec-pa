@@ -538,6 +538,118 @@
             color: var(--event-pink-text);
         }
 
+        .event-card.event-selesai {
+            opacity: 0.55;
+        }
+
+        .event-card {
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .event-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .event-card.event-selected {
+            border-color: #90264b;
+            box-shadow: 0 0 0 2px rgba(144, 38, 75, 0.25);
+        }
+
+        .cal-nav i {
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .cal-nav i:hover {
+            background-color: var(--primary-light);
+        }
+
+        .week-nav-btn {
+            color: var(--text-gray);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .week-nav-btn:hover {
+            background-color: var(--primary-light);
+        }
+
+        .week-title-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-week-note {
+            grid-column: 2 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+            color: var(--text-light-gray);
+            font-size: 13px;
+        }
+
+        /* --- MONTH VIEW --- */
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            flex-grow: 1;
+        }
+        .month-day-name {
+            padding: 12px 0;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-gray);
+            border-bottom: 1px solid var(--calendar-border);
+        }
+        .month-cell {
+            min-height: 96px;
+            border-right: 1px solid var(--calendar-border);
+            border-bottom: 1px solid var(--calendar-border);
+            padding: 6px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .month-cell:hover {
+            background-color: var(--primary-light);
+        }
+        .month-cell.other-month .month-cell-date {
+            color: var(--text-light-gray);
+        }
+        .month-cell.is-today .month-cell-date {
+            background-color: #90264b;
+            color: white;
+        }
+        .month-cell-date {
+            font-size: 12px;
+            font-weight: 600;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .month-event-pill {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .month-event-pill.pink { background-color: var(--event-pink-bg); color: var(--event-pink-text); }
+        .month-event-pill.blue { background-color: var(--event-blue-bg); color: var(--event-blue-text); }
+        .month-more {
+            font-size: 10px;
+            color: var(--text-gray);
+            font-weight: 600;
+        }
+
         /* --- MODAL LOGOUT STYLES --- */
         .modal-overlay {
             display: none;
@@ -686,8 +798,8 @@
                 </div>
                 <div class="header-controls">
                     <div class="view-toggle">
-                        <button class="toggle-btn active">MINGGU</button>
-                        <button class="toggle-btn">BULAN</button>
+                        <button class="toggle-btn active" id="btnViewMinggu" onclick="switchCalendarView('minggu')">MINGGU</button>
+                        <button class="toggle-btn" id="btnViewBulan" onclick="switchCalendarView('bulan')">BULAN</button>
                     </div>
                     <button class="btn-primary">
                         <i class="fa-solid fa-plus"></i> TAMBAHKAN SESI
@@ -700,61 +812,32 @@
                 <div class="left-panel">
                     <div class="mini-calendar-card">
                         <div class="cal-header">
-                            <h3>September 2024</h3>
+                            <h3 id="miniCalTitle">-</h3>
                             <div class="cal-nav">
-                                <i class="fa-solid fa-chevron-left"></i>
-                                <i class="fa-solid fa-chevron-right"></i>
+                                <i class="fa-solid fa-chevron-left" onclick="miniCalPrevMonth()"></i>
+                                <i class="fa-solid fa-chevron-right" onclick="miniCalNextMonth()"></i>
                             </div>
                         </div>
-                        <div class="cal-grid">
-                            <div class="cal-day-name">M</div>
-                            <div class="cal-day-name">T</div>
-                            <div class="cal-day-name">W</div>
-                            <div class="cal-day-name">T</div>
-                            <div class="cal-day-name">F</div>
-                            <div class="cal-day-name">S</div>
-                            <div class="cal-day-name">S</div>
-                            
-                            <div class="cal-date muted">26</div>
-                            <div class="cal-date muted">27</div>
-                            <div class="cal-date muted">28</div>
-                            <div class="cal-date muted">29</div>
-                            <div class="cal-date muted">30</div>
-                            <div class="cal-date muted">31</div>
-                            <div class="cal-date has-event">1</div>
-                            
-                            <div class="cal-date active has-event">2</div>
-                            <div class="cal-date">3</div>
-                            <div class="cal-date has-event">4</div>
-                            <div class="cal-date">5</div>
-                            <div class="cal-date">6</div>
-                            <div class="cal-date">7</div>
-                            <div class="cal-date">8</div>
-                            
-                            <div class="cal-date outlined">9</div>
-                            <div class="cal-date">10</div>
-                            <div class="cal-date">11</div>
-                            <div class="cal-date">12</div>
-                            <div class="cal-date">13</div>
-                            <div class="cal-date">14</div>
+                        <div class="cal-grid" id="miniCalGrid">
                             </div>
                     </div>
 
                     <div class="selected-slot-card">
                         <div class="slot-header">
-                            <div class="slot-title">Fonik Tingkat 2</div>
-                            <span class="badge-blue">SLOT TERPILIH</span>
+                            <div class="slot-title" id="slotTitle">Belum ada sesi</div>
+                            <span class="badge-blue" id="slotBadge">SLOT TERPILIH</span>
                         </div>
                         <div class="slot-time">
-                            <i class="fa-regular fa-clock"></i> 14:00 - 15:30 (90 min)
+                            <i class="fa-regular fa-clock"></i> <span id="slotTime">-</span>
                         </div>
                         
                         <div class="slot-students">
                             <div class="slot-students-label">
                                 <i class="fa-solid fa-user-group"></i> SISWA TERDAFTAR
                             </div>
-                            <p style="font-size: 16px; font-weight: 600;">12 Students</p>
+                            <p style="font-size: 16px; font-weight: 600;" id="slotStudents">-</p>
                         </div>
+                        <div id="slotDetailLink" style="margin-top: 14px;"></div>
                     </div>
                 </div>
 

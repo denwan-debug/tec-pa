@@ -207,12 +207,72 @@
             cursor: pointer;
             font-size: 15px;
             font-weight: 500;
+            position: relative;
         }
 
         .select-box i {
             color: var(--text-gray);
             font-size: 14px;
+            pointer-events: none;
         }
+
+        .select-box select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-dark);
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .select-box select:disabled {
+            cursor: not-allowed;
+            color: var(--text-light-gray);
+        }
+
+        .kirim-area {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-kirim {
+            background-color: var(--primary-pink);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-kirim:hover {
+            background-color: #b8365e;
+        }
+
+        .btn-kirim:disabled {
+            background-color: var(--text-light-gray);
+            cursor: not-allowed;
+        }
+
+        .kirim-status {
+            font-size: 13px;
+            margin-right: auto;
+            align-self: center;
+        }
+
+        .kirim-status.success { color: #1e8e3e; }
+        .kirim-status.error { color: #c93a3e; }
 
         /* --- REPORT STATS ROW --- */
         .report-stats-grid {
@@ -331,12 +391,17 @@
         }
 
         .editor-content {
+            display: block;
+            width: 100%;
             padding: 20px;
             min-height: 180px;
             font-size: 14px;
+            font-family: 'Inter', sans-serif;
             line-height: 1.6;
             color: var(--text-dark);
+            border: none;
             outline: none;
+            resize: vertical;
             background-color: #fffcfd; /* Very subtle lighter internal background */
         }
 
@@ -469,10 +534,22 @@
                         <i class="fa-regular fa-bell"></i>
                     </div>
                     <div class="profile-info">
-                        <img src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random" alt="Sarah Jenkins">
+                        <div class="profile-info">
+                        <!-- Membuat variabel untuk memudahkan pemanggilan -->
+                        {% set foto = session.get('foto_profil') %}
+                        {% set nama = session.get('username', 'Pengajar') %}
+                        
+                        <!-- Cek ketat: pastikan foto ada, bukan teks kosong, dan bukan teks 'None' -->
+                        {% if foto and foto | trim != '' and foto != 'None' %}
+                            <img src="{{ foto }}" alt="Foto {{ nama }}">
+                        {% else %}
+                            <!-- Menggunakan urlencode agar spasi pada nama tidak merusak link -->
+                            <img src="https://ui-avatars.com/api/?name={{ nama | urlencode }}&background=d84b7a&color=fff&bold=true" alt="Inisial {{ nama }}">
+                        {% endif %}
+                        
                         <div class="profile-text">
-                            <div class="name">Sarah Jenkins</div>
-                            <div class="role">Pengajar Senior</div>
+                            <div class="name">{{ nama }}</div>
+                            <div class="role">{{ session.get('role', 'Pengajar') }}</div>
                         </div>
                     </div>
                 </div>
@@ -482,14 +559,25 @@
                 <div class="step-card">
                     <label>Langkah 1: Pilih Siswa</label>
                     <div class="select-box">
-                        <span>Aiden Suzuki (Kelas 3-SD)</span>
+                        <select id="pilihSiswa" {% if not daftar_siswa %}disabled{% endif %}>
+                            {% if not daftar_siswa %}
+                            <option value="">Belum ada siswa</option>
+                            {% endif %}
+                            {% for s in daftar_siswa %}
+                            <option value="{{ s.id_anak }}">{{ s.nama_anak }} (Kelas {{ s.tingkat_kelas }})</option>
+                            {% endfor %}
+                        </select>
                         <i class="fa-solid fa-chevron-down"></i>
                     </div>
                 </div>
                 <div class="step-card">
                     <label>Langkah 2: Pilih Mata Pelajaran</label>
                     <div class="select-box">
-                        <span>Kelas Speaking (Sekolah Dasar)</span>
+                        <select id="pilihKelas" {% if not daftar_pendaftaran %}disabled{% endif %}>
+                            {% if not daftar_pendaftaran %}
+                            <option value="">Belum ada kelas</option>
+                            {% endif %}
+                        </select>
                         <i class="fa-solid fa-chevron-down"></i>
                     </div>
                 </div>
@@ -531,9 +619,14 @@
                         <button title="Insert Link"><i class="fa-solid fa-link"></i></button>
                         <button title="Text Color"><i class="fa-solid fa-font"></i></button>
                     </div>
-                    <div class="editor-content" contenteditable="true">
-                        Aiden telah menunjukkan pertumbuhan yang luar biasa dalam komunikasi verbalnya semester ini. Kosakatanya telah berkembang terutama dalam kata sifat deskriptif. Dia tetap fokus selama kegiatan kelompok, meskipun dia bisa mendapat manfaat dari lebih banyak latihan dalam pemahaman membaca.
-                    </div>
+                    <textarea id="deskripsiEvaluasi" class="editor-content" placeholder="Tulis catatan evaluasi untuk siswa ini..."></textarea>
+                </div>
+
+                <div class="kirim-area">
+                    <span id="kirimStatus" class="kirim-status"></span>
+                    <button type="button" id="btnKirimLaporan" class="btn-kirim" {% if not daftar_siswa %}disabled{% endif %}>
+                        <i class="fa-solid fa-paper-plane"></i> Kirim Laporan
+                    </button>
                 </div>
             </div>
 
@@ -581,6 +674,98 @@
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300);
+    }
+</script>
+
+<!-- Script untuk Langkah 1 & 2 (siswa & kelas) serta pengiriman laporan -->
+<script>
+    // Data seluruh pendaftaran (siswa + kelas yang diikuti), dikirim dari Flask
+    const daftarPendaftaran = {{ daftar_pendaftaran|tojson }};
+
+    const selectSiswa = document.getElementById('pilihSiswa');
+    const selectKelas = document.getElementById('pilihKelas');
+    const btnKirim = document.getElementById('btnKirimLaporan');
+    const deskripsiEl = document.getElementById('deskripsiEvaluasi');
+    const statusEl = document.getElementById('kirimStatus');
+
+    // Isi Langkah 2 (Mata Pelajaran) berdasarkan siswa yang dipilih di Langkah 1
+    function perbaruiPilihanKelas() {
+        if (!selectSiswa || !selectKelas) return;
+
+        const idAnak = selectSiswa.value;
+        const kelasUntukSiswaIni = daftarPendaftaran.filter(p => String(p.id_anak) === String(idAnak));
+
+        selectKelas.innerHTML = '';
+
+        if (kelasUntukSiswaIni.length === 0) {
+            selectKelas.innerHTML = '<option value="">Belum ada kelas</option>';
+            selectKelas.disabled = true;
+            return;
+        }
+
+        selectKelas.disabled = false;
+        kelasUntukSiswaIni.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id_pendaftaran;
+            opt.textContent = p.nama_kelas;
+            selectKelas.appendChild(opt);
+        });
+    }
+
+    if (selectSiswa) {
+        selectSiswa.addEventListener('change', perbaruiPilihanKelas);
+        perbaruiPilihanKelas(); // Panggil sekali saat halaman dimuat
+    }
+
+    // Kirim laporan evaluasi ke server
+    if (btnKirim) {
+        btnKirim.addEventListener('click', async () => {
+            const idPendaftaran = selectKelas ? selectKelas.value : null;
+            const deskripsi = deskripsiEl ? deskripsiEl.value.trim() : '';
+
+            statusEl.textContent = '';
+            statusEl.className = 'kirim-status';
+
+            if (!idPendaftaran) {
+                statusEl.textContent = 'Pilih siswa dan kelas terlebih dahulu.';
+                statusEl.classList.add('error');
+                return;
+            }
+            if (!deskripsi) {
+                statusEl.textContent = 'Catatan evaluasi tidak boleh kosong.';
+                statusEl.classList.add('error');
+                return;
+            }
+
+            btnKirim.disabled = true;
+            btnKirim.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+
+            try {
+                const res = await fetch("{{ url_for('pengajar.simpan_laporan_pengajar') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_pendaftaran: idPendaftaran,
+                        deskripsi: deskripsi
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    statusEl.textContent = data.message || 'Laporan berhasil dikirim!';
+                    statusEl.classList.add('success');
+                } else {
+                    statusEl.textContent = data.message || 'Gagal mengirim laporan.';
+                    statusEl.classList.add('error');
+                }
+            } catch (err) {
+                statusEl.textContent = 'Terjadi kesalahan koneksi ke server.';
+                statusEl.classList.add('error');
+            } finally {
+                btnKirim.disabled = false;
+                btnKirim.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim Laporan';
+            }
+        });
     }
 </script>
 </body>

@@ -1,30 +1,4 @@
-"""
-Integrasi Google Calendar untuk TEC Portal.
 
-Fitur:
-- OAuth 2.0 (Authorization Code flow) supaya orang tua bisa menghubungkan
-  akun Google Calendar pribadi mereka.
-- Sinkronisasi 1 arah: sesi kelas anak (dari tabel sesi_kelas, lewat query
-  yang sama dengan halaman Jadwal Belajar) -> event di Google Calendar milik
-  orang tua. Sinkronisasi ulang akan meng-UPDATE event yang sudah pernah
-  dibuat (bukan membuat dobel), karena kita simpan pemetaannya di tabel
-  `google_calendar_events`.
-
-SETUP YANG WAJIB DILAKUKAN DI LUAR KODE INI (lihat panduan lengkap dari Claude):
-1. Buat project di https://console.cloud.google.com/
-2. Aktifkan "Google Calendar API" untuk project tsb.
-3. Buat OAuth Client ID (tipe "Web application"), tambahkan Authorized
-   redirect URI, contoh:
-     http://localhost:5000/google_calendar/oauth2callback   (development)
-     https://domainkamu.com/google_calendar/oauth2callback  (production)
-4. Set environment variable:
-     GOOGLE_CLIENT_ID=...
-     GOOGLE_CLIENT_SECRET=...
-     GOOGLE_REDIRECT_URI=http://localhost:5000/google_calendar/oauth2callback
-5. Install dependency:
-     pip install google-auth google-auth-oauthlib google-api-python-client
-6. Jalankan google_calendar_migration.sql di database.
-"""
 import os
 
 from google.oauth2.credentials import Credentials

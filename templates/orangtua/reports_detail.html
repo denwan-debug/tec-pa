@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEC Portal - Daftar Anak (Reports)</title>
+    <title>TEC Portal - Reports</title>
     <style>
         /* === Reset & Base Styles === */
         * {
@@ -21,20 +21,20 @@
             overflow: hidden;
         }
 
-        /* === Colors & Variables (Berdasarkan Halaman Utama) === */
+        /* === Colors & Variables (sama dengan reports.html) === */
         :root {
             --sidebar-bg: #3d515c;
             --sidebar-hover: #2e3e47;
             --primary-accent: #b42b51;
             --text-muted: #7a8b94;
             --bg-light: #ffffff;
-            
+
             /* Status Colors */
             --status-upcoming-bg: #e0f2fe;
             --status-upcoming-text: #0369a1;
             --status-completed-bg: #dcfce3;
             --status-completed-text: #16a34a;
-            
+
             --card-border: #edf2f7;
         }
 
@@ -100,10 +100,10 @@
         .search-container svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
 
         .top-nav-right { display: flex; align-items: center; gap: 25px; }
-        
+
         .notification-icon { position: relative; cursor: pointer; color: #1e293b; }
         .notification-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background-color: var(--primary-accent); border-radius: 50%; }
-        
+
         .user-profile-info { display: flex; align-items: center; gap: 15px; }
         .profile-text { text-align: right; }
         .profile-text h4 { font-size: 18px; color: #2b2525; font-weight: 600; }
@@ -119,120 +119,107 @@
         .header-title h1 svg { color: var(--primary-accent); width: 28px; height: 28px; }
         .header-title p { color: #64748b; font-size: 0.95rem; }
 
-        /* === Dashboard Containers & Student Grid === */
-        .dashboard-container { padding: 0 35px 35px 35px; max-width: 1000px; }
-        
-        .student-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 2 kolom mirip dengan jadwal yang responsif */
-            gap: 20px;
-        }
-
-        .student-card {
-            background: var(--bg-light);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-            border: 1px solid var(--card-border);
-            display: flex;
-            align-items: center;
-            position: relative;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .student-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-        }
-
-        .student-avatar-container {
-            position: relative;
-            margin-right: 20px;
-            flex-shrink: 0;
-        }
-
-        .student-avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 14px;
-            object-fit: cover;
-            background-color: #eee;
-            border: 2px solid #edf2f7;
-        }
-
-        .status-dot {
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            width: 16px;
-            height: 16px;
-            background-color: var(--status-completed-text); /* Green dot */
-            border: 3px solid #fff;
-            border-radius: 50%;
-        }
-
-        .student-details {
-            flex-grow: 1;
-        }
-
-        .student-details h3 {
-            font-size: 1.25rem;
-            color: #0f172a;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .student-details p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-        }
-
-        .student-stats {
-            display: flex;
-            gap: 30px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid var(--card-border);
-        }
-
-        .stat-box { display: flex; flex-direction: column; }
-        .stat-label { font-size: 0.75rem; color: #64748b; margin-bottom: 4px; font-weight: 500; }
-        .stat-value { font-size: 1rem; color: #1e293b; font-weight: 700; }
-        .stat-value.green { color: var(--status-completed-text); }
-
-        .badge-active {
-            background-color: var(--status-upcoming-bg);
-            color: var(--status-upcoming-text);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            position: absolute;
-            top: 24px;
-            right: 24px;
-        }
-
-        .btn-lihat {
-            position: absolute;
-            bottom: 24px;
-            right: 24px;
+        .back-link {
             color: var(--primary-accent);
             text-decoration: none;
             font-size: 0.9rem;
             font-weight: 600;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 5px;
-            transition: opacity 0.2s;
+            gap: 6px;
+            margin: 25px 35px 0 35px;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        /* === Dashboard Container & Evaluation Card === */
+        .dashboard-container { padding: 0 35px 35px 35px; max-width: 1000px; }
+
+        .card {
+            background: var(--bg-light);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            border: 1px solid var(--card-border);
         }
 
-        .btn-lihat:hover { opacity: 0.8; }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
 
-        /* Responsive Grid */
-        @media (max-width: 900px) { .student-grid { grid-template-columns: 1fr; } }
+        /* Item Evaluasi */
+        .eval-item {
+            background-color: #fcfbfa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid var(--card-border);
+            position: relative;
+        }
+        .eval-item:last-child { margin-bottom: 0; }
+
+        .eval-item.positive {
+            border-left: 4px solid var(--status-completed-text);
+        }
+        .eval-item.improvement {
+            border-left: 4px solid var(--primary-accent);
+        }
+
+        .eval-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .eval-header img {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+            border: 2px solid #edf2f7;
+        }
+        .eval-meta {
+            flex-grow: 1;
+        }
+        .eval-meta .teacher-name {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .eval-meta .date {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .badge.badge-positive {
+            background-color: var(--status-completed-bg);
+            color: var(--status-completed-text);
+        }
+        .badge.badge-improvement {
+            background-color: #fce8ee;
+            color: var(--primary-accent);
+        }
+
+        .eval-body {
+            font-size: 0.95rem;
+            color: #444;
+            line-height: 1.6;
+        }
 
         /* === Modal Styles === */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -291,7 +278,7 @@
         </aside>
 
         <main class="main-content">
-            
+
             <!-- Navbar Atas mengikuti Source 1 -->
             <div class="top-navbar">
                 <div class="search-container">
@@ -300,7 +287,7 @@
                     </svg>
                     <input type="text" placeholder="Cari laporan anak...">
                 </div>
-                
+
                 <div class="top-nav-right">
                     <div class="notification-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -310,56 +297,64 @@
                     </div>
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>{{ username or 'Wali Murid' }}</h4>
+                            <h4>Sarah Thompson</h4>
                             <p>Wali Murid</p>
                         </div>
-                        <img src="{{ foto_profil or 'https://i.pravatar.cc/100?img=47' }}" alt="Foto Profil" class="profile-avatar">
+                        <img src="https://i.pravatar.cc/100?img=47" alt="Foto Profil" class="profile-avatar">
                     </div>
                 </div>
             </div>
 
+            <a href="#" class="back-link">&larr; Kembali</a>
+
             <div class="content-header">
                 <div class="header-title">
                     <h1>
-                        Daftar Anak
+                        Prestasi Akademik
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     </h1>
-                    <p>Prestasi Akademik &bull; Ringkasan Detail Semester Musim Semi 2024</p>
+                    <p>Ringkasan Detail Semester Leo Thompson &bull; Semester Musim Semi 2024</p>
                 </div>
             </div>
 
-            <!-- Konten Reports mengikuti grid dan box style jadwal belajar -->
+            <!-- Konten Reports mengikuti gaya card yang sama dengan reports.html -->
             <div class="dashboard-container">
-                <div class="student-grid">
+                <div class="card">
+                    <h2 class="card-title">Catatan Evaluasi</h2>
 
-                    {% if daftar_anak %}
-                        {% for anak in daftar_anak %}
-                        <div class="student-card">
-                            <div class="student-avatar-container">
-                                <div class="student-avatar" style="background-image: url('{{ anak.foto_profil or 'https://via.placeholder.com/150?text=' + anak.nama_lengkap[0]|upper }}'); background-size: cover; background-position: center;"></div>
-                                <div class="status-dot"></div>
+                    <!-- Evaluasi 1 (Positif) -->
+                    <div class="eval-item positive">
+                        <div class="eval-header">
+                            <img src="https://i.pravatar.cc/150?img=11" alt="Mr. David Henderson">
+                            <div class="eval-meta">
+                                <span class="teacher-name">Mr. David Henderson</span>
+                                <span class="date">Juni 12, 2024</span>
                             </div>
-                            <div class="student-details">
-                                <h3>{{ anak.nama_panggilan or anak.nama_lengkap }}</h3>
-                                <p>KELAS {{ anak.kelas or '-' }}</p>
-                                <div class="student-stats">
-                                    <div class="stat-box">
-                                        <span class="stat-label">Kelas Aktif</span>
-                                        <span class="stat-value">{{ '%02d'|format(anak.kelas_aktif) }}</span>
-                                    </div>
-                                    <div class="stat-box">
-                                        <span class="stat-label">Predikat</span>
-                                        <span class="stat-value {% if anak.predikat in ['Excellent', 'Good'] %}green{% endif %}">{{ anak.predikat }}</span>
-                                    </div>
-                                </div>
+                            <div class="badge badge-positive">
+                                Positif
                             </div>
-                            <div class="badge-active">{{ anak.status_anak }}</div>
-                            <a href="{{ url_for('orangtua.reports', child_id=anak.id_anak) }}" class="btn-lihat">Lihat Detail &rarr;</a>
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <p style="color: var(--text-muted);">Belum ada data anak yang terdaftar untuk akun Anda.</p>
-                    {% endif %}
+                        <div class="eval-body">
+                            Leo telah menunjukkan kemajuan yang luar biasa dalam keterampilan komunikasi lisan bulan ini. Dia sekarang memulai percakapan dalam bahasa Inggris dan menggunakan struktur kalimat yang kompleks dengan lebih percaya diri.
+                        </div>
+                    </div>
+
+                    <!-- Evaluasi 2 (Perlu Perbaikan) -->
+                    <div class="eval-item improvement">
+                        <div class="eval-header">
+                            <img src="https://i.pravatar.cc/150?img=32" alt="Ms. Emily Clarke">
+                            <div class="eval-meta">
+                                <span class="teacher-name">Ms. Emily Clarke</span>
+                                <span class="date">Mei 28, 2024</span>
+                            </div>
+                            <div class="badge badge-improvement">
+                                Perlu Perbaikan
+                            </div>
+                        </div>
+                        <div class="eval-body">
+                            Kami lebih fokus pada ketepatan ejaan dan tata bahasa dalam menulis. Meskipun idenya kreatif, ia sebaiknya berlatih menggunakan bentuk past tense lebih konsisten dalam esainya.
+                        </div>
+                    </div>
 
                 </div>
             </div>

@@ -310,10 +310,10 @@
                     </div>
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>{{ username or 'Wali Murid' }}</h4>
+                            <h4>Sarah Thompson</h4>
                             <p>Wali Murid</p>
                         </div>
-                        <img src="{{ foto_profil or 'https://i.pravatar.cc/100?img=47' }}" alt="Foto Profil" class="profile-avatar">
+                        <img src="https://i.pravatar.cc/100?img=47" alt="Foto Profil" class="profile-avatar">
                     </div>
                 </div>
             </div>
@@ -331,35 +331,54 @@
             <!-- Konten Reports mengikuti grid dan box style jadwal belajar -->
             <div class="dashboard-container">
                 <div class="student-grid">
-
-                    {% if daftar_anak %}
-                        {% for anak in daftar_anak %}
-                        <div class="student-card">
-                            <div class="student-avatar-container">
-                                <div class="student-avatar" style="background-image: url('{{ anak.foto_profil or 'https://via.placeholder.com/150?text=' + anak.nama_lengkap[0]|upper }}'); background-size: cover; background-position: center;"></div>
-                                <div class="status-dot"></div>
-                            </div>
-                            <div class="student-details">
-                                <h3>{{ anak.nama_panggilan or anak.nama_lengkap }}</h3>
-                                <p>KELAS {{ anak.kelas or '-' }}</p>
-                                <div class="student-stats">
-                                    <div class="stat-box">
-                                        <span class="stat-label">Kelas Aktif</span>
-                                        <span class="stat-value">{{ '%02d'|format(anak.kelas_aktif) }}</span>
-                                    </div>
-                                    <div class="stat-box">
-                                        <span class="stat-label">Predikat</span>
-                                        <span class="stat-value {% if anak.predikat in ['Excellent', 'Good'] %}green{% endif %}">{{ anak.predikat }}</span>
-                                    </div>
+                    
+                    <!-- Kartu Ariel Chen -->
+                    <div class="student-card">
+                        <div class="student-avatar-container">
+                            <div class="student-avatar" style="background-image: url('https://images.unsplash.com/photo-1519451842880-60b64d3725be?auto=format&fit=crop&q=80&w=150'); background-size: cover; background-position: center;"></div>
+                            <div class="status-dot"></div>
+                        </div>
+                        <div class="student-details">
+                            <h3>Ariel Chen</h3>
+                            <p>KELAS 3 &bull; DASAR</p>
+                            <div class="student-stats">
+                                <div class="stat-box">
+                                    <span class="stat-label">Kelas Aktif</span>
+                                    <span class="stat-value">03</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-label">Predikat</span>
+                                    <span class="stat-value green">Excellent</span>
                                 </div>
                             </div>
-                            <div class="badge-active">{{ anak.status_anak }}</div>
-                            <a href="{{ url_for('orangtua.reports', child_id=anak.id_anak) }}" class="btn-lihat">Lihat Detail &rarr;</a>
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <p style="color: var(--text-muted);">Belum ada data anak yang terdaftar untuk akun Anda.</p>
-                    {% endif %}
+                        <div class="badge-active">Active</div>
+                        <a href="#" class="btn-lihat">Lihat Detail &rarr;</a>
+                    </div>
+                    
+                    <!-- Kartu Bella Chen -->
+                    <div class="student-card">
+                        <div class="student-avatar-container">
+                            <div class="student-avatar" style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=150'); background-size: cover; background-position: center;"></div>
+                            <div class="status-dot"></div>
+                        </div>
+                        <div class="student-details">
+                            <h3>Bella Chen</h3>
+                            <p>KELAS 4 &bull; DASAR</p>
+                            <div class="student-stats">
+                                <div class="stat-box">
+                                    <span class="stat-label">Kelas Aktif</span>
+                                    <span class="stat-value">02</span>
+                                </div>
+                                <div class="stat-box">
+                                    <span class="stat-label">Predikat</span>
+                                    <span class="stat-value green">Good</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="badge-active">Active</div>
+                        <a href="#" class="btn-lihat">Lihat Detail &rarr;</a>
+                    </div>
 
                 </div>
             </div>

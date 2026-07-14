@@ -580,6 +580,7 @@ def update_kelas(id_kelas):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        
         # 2. Ambil ulang data kelas + jumlah siswa LANGSUNG DARI DATABASE (bukan
         # percaya nilai yang (mungkin) ikut terkirim dari form). Ini kunci utama
         # supaya field yang seharusnya terkunci tetap aman walau ada yang coba

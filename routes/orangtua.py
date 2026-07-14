@@ -2094,8 +2094,13 @@ def reports():
     
     try:
         # 2. Ambil semua daftar anak yang dimiliki oleh orang tua yang sedang login
-        # (hanya yang aktif -- anak nonaktif tidak bisa dilihat laporan/jadwalnya)
-        cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active'", (id_orangtua,))
+        # (hanya yang aktif -- anak nonaktif tidak ditampilkan di daftar reports)
+        cursor.execute("""
+            SELECT id_anak, nama_lengkap, nama_panggilan, kelas, foto_profil, status_anak
+            FROM anak
+            WHERE id_orangtua = %s AND status_anak = 'Active'
+            ORDER BY created_at DESC
+        """, (id_orangtua,))
         daftar_anak = cursor.fetchall()
 
         # Ambil foto profil user (untuk topbar), sama seperti route lain
@@ -2107,7 +2112,44 @@ def reports():
             # Jika orang tua belum memiliki data anak terdaftar
             return render_template('orangtua/reports.html', daftar_anak=[], anak_terpilih=None, jadwal=[],
                                    username=session.get('username'), foto_profil=foto_profil_user)
-        
+
+        # 2b. Lengkapi setiap anak dengan jumlah kelas aktif & predikat (dari persentase kehadiran)
+        for anak in daftar_anak:
+            # Jumlah kelas yang sedang diikuti (pendaftaran berstatus Aktif)
+            cursor.execute("""
+                SELECT COUNT(*) AS jumlah
+                FROM pendaftaran
+                WHERE id_anak = %s AND status_pendaftaran = 'Aktif'
+            """, (anak['id_anak'],))
+            anak['kelas_aktif'] = cursor.fetchone()['jumlah']
+
+            # Persentase kehadiran -> dipakai sebagai dasar predikat
+            cursor.execute("""
+                SELECT pr.status_kehadiran, COUNT(*) AS jumlah
+                FROM presensi pr
+                JOIN pendaftaran pd ON pr.id_pendaftaran = pd.id_pendaftaran
+                WHERE pd.id_anak = %s
+                GROUP BY pr.status_kehadiran
+            """, (anak['id_anak'],))
+            presensi_rows = cursor.fetchall()
+            hadir = sum(r['jumlah'] for r in presensi_rows if r['status_kehadiran'] == 'Hadir')
+            total = sum(r['jumlah'] for r in presensi_rows)
+            persentase = round((hadir / total) * 100) if total > 0 else 0
+
+            if total == 0:
+                predikat = 'Belum Ada Data'
+            elif persentase >= 90:
+                predikat = 'Excellent'
+            elif persentase >= 75:
+                predikat = 'Good'
+            elif persentase >= 50:
+                predikat = 'Cukup'
+            else:
+                predikat = 'Perlu Perhatian'
+
+            anak['persentase_kehadiran'] = persentase
+            anak['predikat'] = predikat
+
         # 3. Tentukan anak mana yang sedang dipilih/aktif dilihat
         anak_terpilih = None
         if child_id_req:
