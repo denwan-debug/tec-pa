@@ -639,9 +639,6 @@ def profil_pengajar():
 
     return render_template('pengajar/profil_pengajar.html', user=user_data)
 
-from werkzeug.utils import secure_filename
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
-
 @pengajar_bp.route('/update_profil_pengajar', methods=['POST'])
 def update_profil_pengajar():
     cek_akses = _wajib_login_pengajar()
@@ -707,7 +704,7 @@ def update_profil_pengajar():
     
     # Tangkap file foto
     foto_file = request.files.get('foto_profil')
-    nama_foto_baru = None
+    url_foto_cloudinary = None
     
     # Jika ada file yang diunggah dan namanya tidak kosong
     if foto_file and foto_file.filename != '':
@@ -717,14 +714,18 @@ def update_profil_pengajar():
         ext = foto_file.filename.split('.')[-1].lower()
         
         if ext in allowed_extensions:
-            nama_asli = secure_filename(foto_file.filename)
-            nama_foto_baru = f"{pengajar_id}_{nama_asli}"
-            
-            # Menentukan path penyimpanan langsung ke static/img
-            simpan_path = f"static/img/{nama_foto_baru}"
-            
-            # Simpan file ke direktori (pastikan folder static/img sudah dibuat manual!)
-            foto_file.save(simpan_path)
+            try:
+                # Unggah ke Cloudinary (bukan disimpan lokal) supaya foto tetap
+                # ada meski servernya di-deploy ulang/berpindah host
+                upload_result = cloudinary.uploader.upload(
+                    foto_file,
+                    folder="tec_portal/foto_user"
+                )
+                url_foto_cloudinary = upload_result.get('secure_url')
+            except Exception as e:
+                print(f"Error upload foto profil ke Cloudinary: {e}")
+                flash('Gagal mengunggah foto profil.', 'error')
+                return redirect(url_for('pengajar.profil_pengajar'))
         else:
             flash('Format foto tidak didukung. Gunakan JPG atau PNG.', 'error')
             return redirect(url_for('pengajar.profil_pengajar'))
@@ -733,13 +734,13 @@ def update_profil_pengajar():
     cursor = conn.cursor()
     
     try:
-        if nama_foto_baru:
+        if url_foto_cloudinary:
             query = """
                 UPDATE users 
                 SET nama_lengkap = %s, tempat_lahir = %s, no_telp = %s, alamat = %s, deskripsi = %s, foto_profil = %s 
                 WHERE id_users = %s
             """
-            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, deskripsi, nama_foto_baru, pengajar_id))
+            cursor.execute(query, (nama_lengkap, tempat_lahir, no_telp, alamat, deskripsi, url_foto_cloudinary, pengajar_id))
         else:
             query = """
                 UPDATE users 
@@ -751,8 +752,8 @@ def update_profil_pengajar():
         conn.commit()
         flash('Perubahan data berhasil disimpan!', 'success')
 
-        if nama_foto_baru:
-            session['foto_profil'] = nama_foto_baru
+        if url_foto_cloudinary:
+            session['foto_profil'] = url_foto_cloudinary
             session.modified = True
         
     except Exception as e:
