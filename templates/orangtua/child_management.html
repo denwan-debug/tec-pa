@@ -722,10 +722,26 @@
             <form action="{{ url_for('orangtua.edit_anak') }}" method="POST" enctype="multipart/form-data" id="formEditAnak">
                 <!-- Hidden Input untuk ID Anak -->
                 <input type="hidden" name="id_anak" id="edit_id_anak">
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Foto Profil (Opsional)</label>
-                    <input type="file" name="foto_profil" accept=".jpg, .jpeg, .png" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
-                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Format didukung: JPG, JPEG, PNG. Kosongkan jika tidak ingin mengubah foto.</p>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 0.9rem;">Foto Profil (Opsional)</label>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                        <!-- Pratinjau foto: lingkaran, menampilkan foto lama / foto baru yang dipilih -->
+                        <div id="previewFotoWrapper" style="width: 96px; height: 96px; border-radius: 50%; overflow: hidden; background-color: #fce7f3; display: flex; align-items: center; justify-content: center; border: 3px solid #f3d1de; flex-shrink: 0;">
+                            <img id="previewFotoAnak" src="" alt="Pratinjau foto anak" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                            <svg id="previewFotoPlaceholder" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#b42b51" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+
+                        <!-- Tombol custom yang memicu input file asli (disembunyikan) -->
+                        <label for="edit_foto_profil_input" style="display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; background-color: #fff; border: 1.5px solid #b42b51; color: #b42b51; border-radius: 999px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: background-color 0.15s, color 0.15s;"
+                               onmouseover="this.style.backgroundColor='#b42b51'; this.style.color='#fff';"
+                               onmouseout="this.style.backgroundColor='#fff'; this.style.color='#b42b51';">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Pilih Foto
+                        </label>
+                        <input type="file" name="foto_profil" id="edit_foto_profil_input" accept=".jpg, .jpeg, .png" style="display: none;">
+                        <p id="namaFileTerpilih" style="font-size: 0.75rem; color: #64748b; margin: 0; text-align: center;">Format didukung: JPG, JPEG, PNG. Kosongkan jika tidak ingin mengubah foto.</p>
+                    </div>
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Nama Lengkap</label>
@@ -769,15 +785,18 @@
                 <div style="margin-bottom: 25px;">
                     <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 0.9rem;">Jenis Kelamin</label>
                     <div style="display: flex; gap: 20px;">
-                        <label style="display: flex; align-items: center; gap: 5px;">
-                            <input type="radio" name="jenis_kelamin" id="edit_jk_l" value="L" style="accent-color: var(--primary-accent);" required>
+                        <label style="display: flex; align-items: center; gap: 5px; opacity: 0.6; cursor: not-allowed;">
+                            <input type="radio" name="jenis_kelamin_display" id="edit_jk_l" value="L" style="accent-color: var(--primary-accent);" disabled>
                             Laki-laki
                         </label>
-                        <label style="display: flex; align-items: center; gap: 5px;">
-                            <input type="radio" name="jenis_kelamin" id="edit_jk_p" value="P" style="accent-color: var(--primary-accent);">
+                        <label style="display: flex; align-items: center; gap: 5px; opacity: 0.6; cursor: not-allowed;">
+                            <input type="radio" name="jenis_kelamin_display" id="edit_jk_p" value="P" style="accent-color: var(--primary-accent);" disabled>
                             Perempuan
                         </label>
                     </div>
+                    <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;">Jenis kelamin tidak dapat diubah setelah data anak dibuat.</p>
+                    <!-- Nilai asli tetap dikirim lewat hidden input, karena input disabled tidak ikut ter-submit -->
+                    <input type="hidden" name="jenis_kelamin" id="edit_jk_hidden">
                 </div>
 
                 <div class="modal-actions">
@@ -915,7 +934,8 @@
                                 data-sekolah="{{ anak.sekolah_asal }}"
                                 data-status="{{ anak.status_anak }}"
                                 data-jk="{{ anak.jenis_kelamin }}"
-                                data-tanggallahir="{{ anak.tanggal_lahir.strftime('%Y-%m-%d') if anak.tanggal_lahir else '' }}">
+                                data-tanggallahir="{{ anak.tanggal_lahir.strftime('%Y-%m-%d') if anak.tanggal_lahir else '' }}"
+                                data-foto="{{ anak.foto_profil if anak.foto_profil and 'http' in anak.foto_profil else '' }}">
                                 
                                 <div class="avatar-container">
                                     {% if anak.foto_profil and 'http' in anak.foto_profil %}
@@ -1082,7 +1102,8 @@
                     sekolah: this.getAttribute('data-sekolah'),
                     status: this.getAttribute('data-status'),
                     jk: this.getAttribute('data-jk'),
-                    tanggallahir: this.getAttribute('data-tanggallahir')
+                    tanggallahir: this.getAttribute('data-tanggallahir'),
+                    foto: this.getAttribute('data-foto')
                 };
 
                 // D. Update Text Profil di Panel Kanan
@@ -1126,6 +1147,30 @@
     }
 
     // ==========================================
+    // PRATINJAU FOTO PROFIL ANAK SAAT FILE DIPILIH
+    // ==========================================
+    const inputFotoProfilEdit = document.getElementById('edit_foto_profil_input');
+    if (inputFotoProfilEdit) {
+        inputFotoProfilEdit.addEventListener('change', function() {
+            const file = this.files[0];
+            const previewFotoImg = document.getElementById('previewFotoAnak');
+            const previewFotoPlaceholder = document.getElementById('previewFotoPlaceholder');
+            const namaFileTerpilih = document.getElementById('namaFileTerpilih');
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewFotoImg.src = e.target.result;
+                    previewFotoImg.style.display = 'block';
+                    previewFotoPlaceholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+                if (namaFileTerpilih) namaFileTerpilih.textContent = file.name;
+            }
+        });
+    }
+
+    // ==========================================
     // 4. LOGIKA TOMBOL EDIT PROFIL DIKLIK
     // ==========================================
     if (btnEdit) {
@@ -1139,6 +1184,23 @@
             document.getElementById('edit_nama_panggilan').value = selectedChildData.panggilan || '';
             document.getElementById('edit_sekolah_asal').value = selectedChildData.sekolah || '';
             document.getElementById('edit_tanggal_lahir').value = selectedChildData.tanggallahir || '';
+
+            // Reset input file & isi pratinjau dengan foto anak yang sudah ada
+            const inputFotoEdit = document.getElementById('edit_foto_profil_input');
+            const previewFotoImg = document.getElementById('previewFotoAnak');
+            const previewFotoPlaceholder = document.getElementById('previewFotoPlaceholder');
+            const namaFileTerpilih = document.getElementById('namaFileTerpilih');
+            if (inputFotoEdit) inputFotoEdit.value = '';
+            if (namaFileTerpilih) namaFileTerpilih.textContent = 'Format didukung: JPG, JPEG, PNG. Kosongkan jika tidak ingin mengubah foto.';
+            if (selectedChildData.foto) {
+                previewFotoImg.src = selectedChildData.foto;
+                previewFotoImg.style.display = 'block';
+                previewFotoPlaceholder.style.display = 'none';
+            } else {
+                previewFotoImg.src = '';
+                previewFotoImg.style.display = 'none';
+                previewFotoPlaceholder.style.display = 'block';
+            }
             
             // Set Select Dropdown Kelas
             if (selectedChildData.kelas) {
@@ -1147,14 +1209,17 @@
                 document.getElementById('edit_kelas').value = '';
             }
             
-            // Set Radio Button Jenis Kelamin
+            // Set Radio Button Jenis Kelamin (tampilan saja, tidak bisa diubah)
             if (selectedChildData.jk === 'L' || selectedChildData.jk === 'Laki-laki') {
                 document.getElementById('edit_jk_l').checked = true;
+                document.getElementById('edit_jk_hidden').value = 'L';
             } else if (selectedChildData.jk === 'P' || selectedChildData.jk === 'Perempuan') {
                 document.getElementById('edit_jk_p').checked = true;
+                document.getElementById('edit_jk_hidden').value = 'P';
             } else {
                 document.getElementById('edit_jk_l').checked = false;
                 document.getElementById('edit_jk_p').checked = false;
+                document.getElementById('edit_jk_hidden').value = '';
             }
 
             // Tampilkan Modal Edit
