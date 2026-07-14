@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from db import get_db_connection
+from extensions import send_email
 import uuid, math
 from datetime import datetime, timedelta
 
@@ -1314,6 +1315,28 @@ def setujui_pembayaran(id_pembayaran):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Ambil data yang dibutuhkan untuk notifikasi email SEBELUM di-update,
+        # supaya tetap bisa dipakai meski setelah update baris pembayarannya
+        # tidak lagi berstatus 'Pending'.
+        cursor.execute("""
+            SELECT 
+                u.id_users AS id_orangtua,
+                u.email AS email_orangtua,
+                u.username AS nama_orangtua,
+                u.notif_tagihan,
+                a.nama_lengkap AS nama_anak,
+                k.nama_kelas,
+                pb.jumlah_bayar,
+                pb.kode_pembayaran
+            FROM pembayaran pb
+            JOIN pendaftaran pd ON pd.id_pendaftaran = pb.id_pendaftaran
+            JOIN anak a ON a.id_anak = pd.id_anak
+            JOIN users u ON u.id_users = a.id_orangtua
+            JOIN kelas k ON k.id_kelas = pd.id_kelas
+            WHERE pb.id_pembayaran = %s
+        """, (id_pembayaran,))
+        info = cursor.fetchone()
+
         # Hanya memproses transaksi yang statusnya masih 'Pending' (mencegah proses ganda).
         # Sekalian aktifkan pendaftaran muridnya (status_pendaftaran -> 'Aktif'), karena
         # sebelum ini murid baru berstatus 'Pending' menunggu verifikasi pembayaran.
@@ -1328,6 +1351,25 @@ def setujui_pembayaran(id_pembayaran):
 
         if cursor.rowcount > 0:
             flash('Pembayaran berhasil disetujui dan ditandai Lunas.', 'success')
+
+            # Kirim notifikasi email ke orang tua, kecuali mereka mematikan
+            # notifikasi tagihan di pengaturan akun (notif_tagihan = 0)
+            if info and info.get('email_orangtua') and info.get('notif_tagihan'):
+                try:
+                    send_email(
+                        to=info['email_orangtua'],
+                        subject='Pembayaran Anda Telah Diverifikasi - TEC Portal',
+                        body=(
+                            f"Halo {info['nama_orangtua']},\n\n"
+                            f"Pembayaran Anda untuk kelas \"{info['nama_kelas']}\" atas nama {info['nama_anak']} "
+                            f"(kode: {info.get('kode_pembayaran') or '-'}, jumlah: Rp {info['jumlah_bayar']:,}) "
+                            f"telah diverifikasi dan dinyatakan LUNAS oleh admin.\n\n"
+                            f"{info['nama_anak']} sekarang sudah aktif dan bisa mengikuti kelas.\n\n"
+                            f"Terima kasih,\nTEC Portal"
+                        )
+                    )
+                except Exception as email_err:
+                    print(f"[ERROR] Gagal mengirim email notifikasi setujui pembayaran: {email_err}")
         else:
             flash('Pembayaran tidak ditemukan atau sudah diproses sebelumnya.', 'error')
 
@@ -1355,6 +1397,28 @@ def tolak_pembayaran(id_pembayaran):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Ambil data yang dibutuhkan untuk notifikasi email SEBELUM di-update,
+        # supaya tetap bisa dipakai meski setelah update baris pembayarannya
+        # tidak lagi berstatus 'Pending'.
+        cursor.execute("""
+            SELECT 
+                u.id_users AS id_orangtua,
+                u.email AS email_orangtua,
+                u.username AS nama_orangtua,
+                u.notif_tagihan,
+                a.nama_lengkap AS nama_anak,
+                k.nama_kelas,
+                pb.jumlah_bayar,
+                pb.kode_pembayaran
+            FROM pembayaran pb
+            JOIN pendaftaran pd ON pd.id_pendaftaran = pb.id_pendaftaran
+            JOIN anak a ON a.id_anak = pd.id_anak
+            JOIN users u ON u.id_users = a.id_orangtua
+            JOIN kelas k ON k.id_kelas = pd.id_kelas
+            WHERE pb.id_pembayaran = %s
+        """, (id_pembayaran,))
+        info = cursor.fetchone()
+
         # Sekalian tandai pendaftaran muridnya sebagai 'Ditolak', supaya murid yang
         # pembayarannya ditolak tidak nyangkut selamanya di status 'Pending'
         cursor.execute("""
@@ -1369,6 +1433,26 @@ def tolak_pembayaran(id_pembayaran):
 
         if cursor.rowcount > 0:
             flash('Pembayaran berhasil ditolak.', 'success')
+
+            # Kirim notifikasi email ke orang tua, kecuali mereka mematikan
+            # notifikasi tagihan di pengaturan akun (notif_tagihan = 0)
+            if info and info.get('email_orangtua') and info.get('notif_tagihan'):
+                try:
+                    send_email(
+                        to=info['email_orangtua'],
+                        subject='Pembayaran Anda Ditolak - TEC Portal',
+                        body=(
+                            f"Halo {info['nama_orangtua']},\n\n"
+                            f"Mohon maaf, pembayaran Anda untuk kelas \"{info['nama_kelas']}\" atas nama {info['nama_anak']} "
+                            f"(kode: {info.get('kode_pembayaran') or '-'}, jumlah: Rp {info['jumlah_bayar']:,}) "
+                            f"DITOLAK oleh admin.\n\n"
+                            f"Alasan: {alasan if alasan else 'Tidak disebutkan'}\n\n"
+                            f"Silakan login ke TEC Portal untuk mengunggah ulang bukti pembayaran yang valid.\n\n"
+                            f"Terima kasih,\nTEC Portal"
+                        )
+                    )
+                except Exception as email_err:
+                    print(f"[ERROR] Gagal mengirim email notifikasi tolak pembayaran: {email_err}")
         else:
             flash('Pembayaran tidak ditemukan atau sudah diproses sebelumnya.', 'error')
 

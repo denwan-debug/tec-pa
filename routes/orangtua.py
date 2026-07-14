@@ -181,6 +181,10 @@ def proses_login_orangtua():
         if user.get('status_akun') == 'unverified':
             return jsonify({"message": "Akun belum diverifikasi. Silakan cek email Anda."}), 403
 
+        # Mencegah login jika akun dibekukan (suspended) oleh admin
+        if user.get('status_akun') == 'suspended':
+            return jsonify({"message": "Akun Anda telah dibekukan (suspended). Silakan hubungi admin."}), 403
+
         if user['nama_role'].lower() == 'murid':
             session['id_users'] = user['id_users'] 
             session['username'] = user['username']
@@ -238,7 +242,7 @@ def send_otp():
         """, (user_id,))
         expired_ms = cursor.fetchone()['expired_ms']
 
-        # 4. PROSES PENGIRIMAN EMAIL (via Resend API)
+        # 4. PROSES PENGIRIMAN EMAIL (via SMTP / Flask-Mail)
         try:
             send_email(
                 to=email,
@@ -356,7 +360,7 @@ def resend_otp():
         """, (user_id,))
         expired_ms = cursor.fetchone()['expired_ms']
 
-        # Kirim Ulang Email (via Resend API)
+        # Kirim Ulang Email (via SMTP / Flask-Mail)
         send_email(
             to=email,
             subject='Kode Verifikasi TEC Portal (Baru)',
@@ -418,7 +422,7 @@ def forgot_password():
             """, (user_id, email, otp))
             conn.commit()
             
-            # 3. Kirim email (via Resend API)
+            # 3. Kirim email (via SMTP / Flask-Mail)
             try:
                 send_email(
                     to=email,

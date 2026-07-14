@@ -1,30 +1,29 @@
 import os
-import resend
+from flask_mail import Mail, Message
 
-# API key Resend diambil dari environment variable, JANGAN hardcode di sini.
-# Set di server/hosting kamu: RESEND_API_KEY=re_xxxxxxxx
-resend.api_key = os.environ.get("RESEND_API_KEY")
 
-# Alamat pengirim default. Selama domain sendiri belum diverifikasi di Resend,
-# ini WAJIB "onboarding@resend.dev" dan hanya akan sukses terkirim ke email
-# yang terdaftar di akun Resend kamu sendiri (mode testing/sandbox Resend).
-# Setelah domain diverifikasi, ganti env RESEND_FROM_EMAIL, misal:
-# RESEND_FROM_EMAIL=noreply@domainkamu.com
-DEFAULT_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+MAIL_CONFIG = {
+    "MAIL_SERVER": os.environ.get("MAIL_SERVER", "smtp.gmail.com"),
+    "MAIL_PORT": int(os.environ.get("MAIL_PORT", 587)),
+    "MAIL_USE_TLS": os.environ.get("MAIL_USE_TLS", "true").lower() == "true",
+    "MAIL_USE_SSL": os.environ.get("MAIL_USE_SSL", "false").lower() == "true",
+    "MAIL_USERNAME": os.environ.get("MAIL_USERNAME"),
+    "MAIL_PASSWORD": os.environ.get("MAIL_PASSWORD"),
+    "MAIL_DEFAULT_SENDER": os.environ.get("MAIL_DEFAULT_SENDER", os.environ.get("MAIL_USERNAME")),
+}
+
+mail = Mail()
 
 
 def send_email(to, subject, body):
     """
-    Pengganti mail.send(msg) dari Flask-Mail lama.
-    Dipakai untuk semua pengiriman OTP / notifikasi email di seluruh aplikasi.
+    Pengganti resend.Emails.send() sebelumnya / mail.send(msg) manual.
+    Dipakai untuk semua pengiriman OTP / notifikasi email di seluruh aplikasi,
+    sekarang lewat Flask-Mail (SMTP, library resmi Flask untuk kirim email).
 
     to      : alamat email tujuan (string)
     subject : judul email
     body    : isi email (plain text)
     """
-    resend.Emails.send({
-        "from": DEFAULT_FROM_EMAIL,
-        "to": [to],
-        "subject": subject,
-        "text": body,
-    })
+    msg = Message(subject=subject, recipients=[to], body=body)
+    mail.send(msg)

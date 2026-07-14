@@ -2,12 +2,12 @@ from flask import Flask
 from dotenv import load_dotenv
 import os
 
-# load_dotenv() dipindah ke PALING ATAS, sebelum import extensions/routes.
-# Ini penting karena extensions.py membaca RESEND_API_KEY saat modul itu
-# di-import -- kalau .env belum ke-load duluan, API key-nya akan kosong (None).
+
 load_dotenv()
 
 import cloudinary  # TAMBAHAN: Import library cloudinary
+
+from extensions import mail, MAIL_CONFIG  # Konfigurasi Flask-Mail (SMTP)
 
 # Mengimpor semua blueprint (rute)
 from routes.orangtua import orangtua_bp
@@ -16,6 +16,12 @@ from routes.pengajar import pengajar_bp
 
 app = Flask(__name__)
 app.secret_key = 'kunci_rahasia_bimbel_tec_anda'
+
+# --- KONFIGURASI FLASK-MAIL (TAMBAHAN) ---
+# Mengambil kredensial SMTP dari file .env (lihat extensions.py untuk daftar
+# environment variable yang dipakai: MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, dst)
+app.config.update(MAIL_CONFIG)
+mail.init_app(app)
 
 # --- KONFIGURASI CLOUDINARY (TAMBAHAN) ---
 # Mengambil kredensial dari file .env
