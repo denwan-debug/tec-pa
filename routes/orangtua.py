@@ -894,6 +894,10 @@ def halaman_pendaftaran_kelas():
         if k['jam_selesai']:
             k['jam_selesai'] = str(k['jam_selesai'])[:5]
 
+    # Kelas yang sudah penuh (jumlah_siswa >= kapasitas_maksimal) dipindahkan
+    # ke urutan paling bawah, tanpa mengubah urutan relatif kelas lainnya.
+    daftar_kelas.sort(key=lambda k: k['jumlah_siswa'] >= k['kapasitas_maksimal'])
+
     cursor.close()
     conn.close()
     

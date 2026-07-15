@@ -414,6 +414,10 @@
             cursor: pointer;
             transition: background 0.2s;
             margin-top: 12px;
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            box-sizing: border-box;
         }
 
         .btn-daftar:hover {
@@ -424,6 +428,16 @@
             background-color: #cbd5e1;
             color: #64748b;
             cursor: not-allowed;
+        }
+
+        /* Tombol nonaktif (kuota penuh / profil belum lengkap): tidak bisa
+           diklik/ditekan sama sekali, bukan cuma diberi warna abu-abu */
+        .btn-daftar.btn-disabled {
+            background-color: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+            pointer-events: none;
+            user-select: none;
         }
 
         /* === Modal Settings (Sesuai Index) === */
@@ -571,6 +585,13 @@
                         <option value="SMP">SMP</option>
                         <option value="SMA">SMA</option>
                     </select>
+
+                    <label for="filterStatusSelect">Status:</label>
+                    <select id="filterStatusSelect" onchange="cariKelas()">
+                        <option value="ALL">Semua Status</option>
+                        <option value="tersedia">Tersedia</option>
+                        <option value="penuh">Penuh</option>
+                    </select>
                 </div>
 
                 <div class="class-grid">
@@ -592,7 +613,10 @@
                         {% set data_jenjang = 'LAINNYA' %}
                     {% endif %}
 
-                    <div class="class-card" data-jenjang="{{ data_jenjang }}">
+                    {% set kelas_penuh = kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}
+                    {% set data_status = 'penuh' if kelas_penuh else 'tersedia' %}
+
+                    <div class="class-card" data-jenjang="{{ data_jenjang }}" data-status="{{ data_status }}">
                         <div class="card-image-container">
                             <img src="{{ kelas.gambar_kelas if kelas.gambar_kelas else 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&auto=format&fit=crop&q=80' }}" alt="{{ kelas.nama_kelas }}">
                             <span class="card-badge badge-kelas5">Aktif</span>
@@ -617,24 +641,24 @@
                                 Rp {{ "{:,.0f}".format(kelas.harga).replace(',', '.') }}
                             </div>
 
-                           <!-- Ganti bagian tombol btn-daftar menjadi ini -->
-                            <a href="{% if not profil_lengkap %}#{% else %}{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}{% endif %}" 
-                                class="btn-daftar" 
-                                style="text-align: center; display: block; text-decoration: none; {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal or not profil_lengkap %}background-color: #cbd5e1; color: #64748b;{% endif %}"
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %} 
-                                    style="pointer-events: none;" 
-                                {% elif not profil_lengkap %}
-                                    onclick="alert('Mohon lengkapi Nomor Telepon dan Alamat Anda di menu Pengaturan terlebih dahulu sebelum mendaftar kelas.'); window.location.href='/pengaturan'; return false;"
-                                {% endif %}>
-                                
-                                {% if kelas.jumlah_siswa >= kelas.kapasitas_maksimal %}
-                                    Kuota Penuh
-                                {% elif not profil_lengkap %}
-                                    Lengkapi Profil Dulu
-                                {% else %}
-                                    Daftar Kelas
-                                {% endif %}
+                           <!-- Tombol daftar: dinonaktifkan (tidak bisa diklik) jika kelas penuh atau profil belum lengkap -->
+                            {% if kelas_penuh %}
+                            <span class="btn-daftar btn-disabled" aria-disabled="true">
+                                Kuota Penuh
+                            </span>
+                            {% elif not profil_lengkap %}
+                            <a href="#" 
+                                class="btn-daftar btn-disabled" 
+                                aria-disabled="true"
+                                onclick="alert('Mohon lengkapi Nomor Telepon dan Alamat Anda di menu Pengaturan terlebih dahulu sebelum mendaftar kelas.'); window.location.href='/pengaturan'; return false;">
+                                Lengkapi Profil Dulu
                             </a>
+                            {% else %}
+                            <a href="{{ url_for('orangtua.konfirmasi_pendaftaran', id_kelas=kelas.id_kelas) }}" 
+                                class="btn-daftar">
+                                Daftar Kelas
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
@@ -665,11 +689,13 @@
             modal.classList.add('hidden');
         });
 
-        // Pencarian mata pelajaran/kelas + filter jenjang (SD/SMP/SMA), keduanya
-        // client-side tanpa reload, dan bekerja bersamaan (AND, bukan saling menimpa).
+        // Pencarian mata pelajaran/kelas + filter jenjang (SD/SMP/SMA) + filter
+        // status (tersedia/penuh), semuanya client-side tanpa reload dan bekerja
+        // bersamaan (AND, bukan saling menimpa).
         function cariKelas() {
             const keyword = document.getElementById('searchKelasInput').value.trim().toLowerCase();
             const jenjangDipilih = document.getElementById('filterJenjangSelect').value;
+            const statusDipilih = document.getElementById('filterStatusSelect').value;
             const cards = document.querySelectorAll('.class-grid .class-card');
             let jumlahTampil = 0;
 
@@ -677,7 +703,8 @@
                 const judul = card.querySelector('h3') ? card.querySelector('h3').textContent.toLowerCase() : '';
                 const cocokKeyword = judul.includes(keyword);
                 const cocokJenjang = (jenjangDipilih === 'ALL') || (card.dataset.jenjang === jenjangDipilih);
-                const cocok = cocokKeyword && cocokJenjang;
+                const cocokStatus = (statusDipilih === 'ALL') || (card.dataset.status === statusDipilih);
+                const cocok = cocokKeyword && cocokJenjang && cocokStatus;
 
                 card.style.display = cocok ? '' : 'none';
                 if (cocok) jumlahTampil++;
