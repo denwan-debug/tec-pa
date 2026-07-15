@@ -34,6 +34,30 @@ def _wajib_login_pengajar():
         return redirect(url_for('pengajar.login_pengajar'))
     return None
 
+
+def _ambil_identitas_pengajar(cursor, pengajar_id):
+    """
+    Ambil nama & foto profil pengajar langsung dari tabel users, supaya topbar
+    di semua halaman selalu mencerminkan data terbaru di database (bukan
+    sekadar cache di session).
+
+    Return: tuple (nama, foto) -- foto bisa None kalau belum ada/masih default.
+    """
+    nama = session.get('username', 'Pengajar')
+    foto = None
+
+    cursor.execute("""
+        SELECT username, nama_lengkap, foto_profil
+        FROM users
+        WHERE id_users = %s
+    """, (pengajar_id,))
+    data = cursor.fetchone()
+    if data:
+        nama = data.get('nama_lengkap') or data.get('username') or nama
+        foto = data.get('foto_profil')
+
+    return nama, foto
+
 @pengajar_bp.route('/login_pengajar_action', methods=['POST'])
 def login_pengajar_action():
     data = request.get_json(force=True)
@@ -605,8 +629,11 @@ def manajemen_jadwal():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     daftar_jadwal = []
+    pengajar_nama, pengajar_foto = session.get('username', 'Pengajar'), None
 
     try:
+        pengajar_nama, pengajar_foto = _ambil_identitas_pengajar(cursor, pengajar_id)
+
         # 1. Ambil semua kelas milik pengajar ini beserta jumlah siswa aktifnya
         query_kelas = """
             SELECT
@@ -723,7 +750,12 @@ def manajemen_jadwal():
         cursor.close()
         conn.close()
 
-    return render_template('pengajar/manajemen_jadwal.html', daftar_jadwal=daftar_jadwal)
+    return render_template(
+        'pengajar/manajemen_jadwal.html',
+        daftar_jadwal=daftar_jadwal,
+        pengajar_nama=pengajar_nama,
+        pengajar_foto=pengajar_foto
+    )
 
 @pengajar_bp.route('/laporan_pengajar')
 def laporan_pengajar():
@@ -736,20 +768,8 @@ def laporan_pengajar():
     cursor = conn.cursor(dictionary=True)
 
     daftar_pendaftaran = []
-    pengajar_nama = session.get('username', 'Pengajar')
-    pengajar_foto = None
     try:
-        # Ambil nama & foto profil langsung dari tabel users, supaya topbar selalu
-        # mencerminkan data terbaru di database (bukan sekadar cache di session).
-        cursor.execute("""
-            SELECT username, nama_lengkap, foto_profil
-            FROM users
-            WHERE id_users = %s
-        """, (pengajar_id,))
-        data_pengajar = cursor.fetchone()
-        if data_pengajar:
-            pengajar_nama = data_pengajar.get('nama_lengkap') or data_pengajar.get('username') or pengajar_nama
-            pengajar_foto = data_pengajar.get('foto_profil')
+        pengajar_nama, pengajar_foto = _ambil_identitas_pengajar(cursor, pengajar_id)
 
         # Ambil semua siswa aktif yang terdaftar di kelas-kelas milik pengajar ini,
         # berikut nama anak, kelas/tingkat sekolahnya, dan mata pelajaran (kelas) yang diikuti.

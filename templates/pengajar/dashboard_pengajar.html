@@ -398,7 +398,7 @@
             letter-spacing: 0.5px;
         }
 
-        .btn-mulai {
+        .btn-detail {
             background-color: var(--primary-pink);
             color: white;
             border: none;
@@ -408,9 +408,11 @@
             font-size: 14px;
             cursor: pointer;
             transition: opacity 0.2s;
+            text-decoration: none;
+            display: inline-block;
         }
 
-        .btn-mulai:hover {
+        .btn-detail:hover {
             opacity: 0.9;
         }
 
@@ -635,7 +637,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button class="btn-mulai">Mulai Kelas</button>
+                                    <a href="{{ url_for('pengajar.detail_kelas', id_kelas=kelas.id_kelas) }}" class="btn-detail">Detail Kelas</a>
                                 </td>
                             </tr>
                             {% endfor %}
