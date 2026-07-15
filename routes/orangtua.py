@@ -5,11 +5,6 @@ from datetime import datetime, timedelta, date
 import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
 from extensions import send_email
-from google_calendar import (
-    get_authorization_url, exchange_code_for_credentials, save_credentials,
-    is_connected, disconnect, sync_jadwal_to_calendar,
-    GoogleCalendarNotConfigured, GoogleCalendarNotConnected,
-)
 
 orangtua_bp = Blueprint('orangtua', __name__,)
 
@@ -1505,9 +1500,7 @@ def _format_jam(jam):
 
 def _ambil_daftar_jadwal(cursor, id_anak, nama_anak=None):
     """
-    Ambil semua kelas yang diikuti seorang anak beserta sesi_kelas-nya
-    (dipakai bersama oleh halaman Jadwal Belajar dan sinkronisasi Google
-    Calendar, supaya logikanya tidak dobel).
+    Ambil semua kelas yang diikuti seorang anak beserta sesi_kelas-nya.
 
     `nama_anak` opsional -- kalau diisi, setiap item jadwal akan ditandai
     milik anak yang mana (dipakai saat menampilkan jadwal gabungan "Semua Anak").
@@ -1702,8 +1695,7 @@ def jadwal_belajar():
                                mode_semua=mode_semua,
                                foto_profil=foto_profil_user,
                                daftar_jadwal=daftar_jadwal,
-                               daftar_mapel=daftar_mapel,
-                               google_calendar_connected=is_connected(id_orangtua))
+                               daftar_mapel=daftar_mapel)
 
     except Exception as e:
         print(f"Error memuat jadwal belajar: {e}")
@@ -1889,100 +1881,6 @@ def detail_sesi(id_sesi):
         cursor.close()
         conn.close()
 
-
-@orangtua_bp.route('/google_calendar/connect')
-def google_calendar_connect():
-    """Mulai alur OAuth: redirect orang tua ke consent screen Google."""
-    if 'id_users' not in session or session.get('role') != 'murid':
-        return redirect(url_for('orangtua.halaman_portal_orangtua'))
-
-    try:
-        auth_url, state = get_authorization_url()
-    except GoogleCalendarNotConfigured as e:
-        flash(str(e), 'error')
-        return redirect(url_for('orangtua.jadwal_belajar'))
-
-    session['gcal_oauth_state'] = state
-    session['gcal_return_to'] = request.args.get('next') or url_for('orangtua.jadwal_belajar')
-    return redirect(auth_url)
-
-
-@orangtua_bp.route('/google_calendar/oauth2callback')
-def google_calendar_callback():
-    """Google redirect ke sini setelah orang tua menyetujui/menolak akses."""
-    if 'id_users' not in session or session.get('role') != 'murid':
-        return redirect(url_for('orangtua.halaman_portal_orangtua'))
-
-    return_to = session.pop('gcal_return_to', None) or url_for('orangtua.jadwal_belajar')
-    state = session.pop('gcal_oauth_state', None)
-
-    if request.args.get('error'):
-        flash('Menghubungkan Google Calendar dibatalkan.', 'error')
-        return redirect(return_to)
-
-    try:
-        creds = exchange_code_for_credentials(state, request.url)
-        save_credentials(session['id_users'], creds)
-        flash('Google Calendar berhasil terhubung.', 'success')
-    except Exception as e:
-        print(f"Gagal menghubungkan Google Calendar: {e}")
-        flash('Gagal menghubungkan Google Calendar. Silakan coba lagi.', 'error')
-
-    return redirect(return_to)
-
-
-@orangtua_bp.route('/google_calendar/disconnect', methods=['POST'])
-def google_calendar_disconnect():
-    if 'id_users' not in session or session.get('role') != 'murid':
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-
-    disconnect(session['id_users'])
-    return jsonify({'success': True})
-
-
-@orangtua_bp.route('/google_calendar/sync', methods=['POST'])
-def google_calendar_sync():
-    """Dipanggil oleh tombol 'Sinkronisasi Kalender' di halaman Jadwal Belajar."""
-    if 'id_users' not in session or session.get('role') != 'murid':
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-
-    id_orangtua = session['id_users']
-    selected_anak_id = request.args.get('anak_id')
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute(
-            "SELECT id_anak, nama_lengkap, nama_panggilan FROM anak WHERE id_orangtua = %s AND status_anak = 'Active' ORDER BY created_at DESC",
-            (id_orangtua,)
-        )
-        daftar_anak = cursor.fetchall()
-        if not daftar_anak:
-            return jsonify({'success': False, 'message': 'Belum ada data anak terdaftar.'}), 400
-
-        anak_aktif = next(
-            (a for a in daftar_anak if str(a['id_anak']) == str(selected_anak_id)),
-            daftar_anak[0]
-        )
-
-        daftar_jadwal = _ambil_daftar_jadwal(cursor, anak_aktif['id_anak'])
-
-        hasil = sync_jadwal_to_calendar(
-            id_orangtua, daftar_jadwal,
-            nama_anak=anak_aktif['nama_panggilan'] or anak_aktif['nama_lengkap']
-        )
-        return jsonify({'success': True, **hasil})
-
-    except GoogleCalendarNotConnected:
-        return jsonify({'success': False, 'code': 'NOT_CONNECTED', 'message': 'Belum terhubung ke Google Calendar.'}), 409
-    except GoogleCalendarNotConfigured as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-    except Exception as e:
-        print(f"Error sinkronisasi Google Calendar: {e}")
-        return jsonify({'success': False, 'message': 'Terjadi kesalahan pada server.'}), 500
-    finally:
-        cursor.close()
-        conn.close()
 
 @orangtua_bp.route('/presensi')
 def presensi():

@@ -127,14 +127,6 @@
         .header-title h1 { font-size: 1.8rem; color: #1e293b; font-weight: 600; margin-bottom: 5px; }
         .header-title p { color: #64748b; font-size: 0.95rem; }
 
-        .btn-sync-calendar {
-            background-color: var(--primary-accent); color: white; border: none;
-            padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
-            cursor: pointer; display: flex; align-items: center; gap: 8px;
-            box-shadow: 0 4px 6px rgba(180, 43, 81, 0.15); transition: background 0.2s;
-        }
-        .btn-sync-calendar:hover { background-color: #922040; }
-
         /* === View Toggle (Kalender / Daftar) === */
         .header-actions { display: flex; align-items: center; gap: 12px; }
         .view-toggle {
@@ -514,12 +506,6 @@
                         <button type="button" id="btnViewDaftar" onclick="switchView('daftar')">DAFTAR</button>
                     </div>
                     {% endif %}
-                    <button class="btn-sync-calendar" id="btnSyncCalendar" type="button">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        <span id="btnSyncCalendarLabel">{{ 'Sinkronisasi Kalender' if google_calendar_connected else 'Hubungkan Google Calendar' }}</span>
-                    </button>
                 </div>
             </div>
 
@@ -649,8 +635,7 @@
     <script>
         /* =========================================================
            DATA JADWAL (dikirim langsung dari Flask, dari tabel
-           pendaftaran + kelas + sesi_kelas -- bukan Google Calendar API,
-           jadi tidak perlu login akun Google).
+           pendaftaran + kelas + sesi_kelas).
         ========================================================= */
         const JADWAL_DATA = {{ daftar_jadwal | tojson }};
         const MODE_SEMUA = {{ 'true' if mode_semua else 'false' }};
@@ -936,50 +921,6 @@
         window.addEventListener('resize', updateCalendarHeight);
         window.addEventListener('load', updateCalendarHeight);
         updateCalendarHeight();
-
-        /* =========================================================
-           Sinkronisasi Google Calendar
-        ========================================================= */
-        const GCAL_CONNECTED = {{ 'true' if google_calendar_connected else 'false' }};
-        const CURRENT_ANAK_ID = {{ (anak_aktif.id_anak | tojson) if anak_aktif else 'null' }};
-
-        const btnSync = document.getElementById('btnSyncCalendar');
-        if (btnSync) {
-            btnSync.addEventListener('click', async () => {
-                if (!GCAL_CONNECTED) {
-                    const nextUrl = window.location.pathname + window.location.search;
-                    window.location.href = '/google_calendar/connect?next=' + encodeURIComponent(nextUrl);
-                    return;
-                }
-
-                const label = document.getElementById('btnSyncCalendarLabel');
-                const originalLabel = label.textContent;
-                btnSync.disabled = true;
-                label.textContent = 'Menyinkronkan...';
-
-                try {
-                    const params = new URLSearchParams();
-                    if (CURRENT_ANAK_ID) params.set('anak_id', CURRENT_ANAK_ID);
-
-                    const res = await fetch('/google_calendar/sync?' + params.toString(), { method: 'POST' });
-                    const data = await res.json();
-
-                    if (data.success) {
-                        alert(`Sinkronisasi selesai.\n${data.created} sesi baru ditambahkan, ${data.updated} sesi diperbarui, ${data.skipped} jadwal rutin dilewati (belum ada tanggal pasti).`);
-                    } else if (data.code === 'NOT_CONNECTED') {
-                        const nextUrl = window.location.pathname + window.location.search;
-                        window.location.href = '/google_calendar/connect?next=' + encodeURIComponent(nextUrl);
-                    } else {
-                        alert('Gagal sinkronisasi: ' + (data.message || 'Terjadi kesalahan.'));
-                    }
-                } catch (e) {
-                    alert('Gagal terhubung ke server.');
-                } finally {
-                    btnSync.disabled = false;
-                    label.textContent = originalLabel;
-                }
-            });
-        }
 
         // Filter kartu jadwal berdasarkan status (Akan Datang / Sedang Berlangsung / Selesai)
         function filterJadwalByStatus(status) {
