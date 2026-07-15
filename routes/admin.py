@@ -1,9 +1,12 @@
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash, Response
 from db import get_db_connection
 from extensions import send_email
-import uuid, math
+import uuid, math, io
 from datetime import datetime, timedelta
 import cloudinary.uploader
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -1333,6 +1336,198 @@ def validasi_pembayaran_admin():
             antrean_pembayaran=[], semua_transaksi=[], search=search, status_filter=status_filter,
             page=1, total_pages=1, total_data=0
         )
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@admin_bp.route('/validasi_pembayaran_admin/download_laporan')
+def download_laporan_pembayaran():
+    # Proteksi Sesi Admin (Kepala)
+    cek_akses = _wajib_login_admin()
+    if cek_akses:
+        return cek_akses
+
+    # Mengikuti filter pencarian & status yang sedang aktif di halaman,
+    # tapi TANPA pagination, supaya laporan berisi seluruh data yang sesuai filter.
+    search = request.args.get('search', '')
+    status_filter = request.args.get('status', '')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        base_query = """
+            FROM pembayaran p
+            JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+            JOIN anak a ON pd.id_anak = a.id_anak
+            JOIN kelas k ON pd.id_kelas = k.id_kelas
+            JOIN users u ON a.id_orangtua = u.id_users
+            WHERE (a.nama_lengkap LIKE %s OR u.username LIKE %s OR k.nama_kelas LIKE %s)
+        """
+        search_param = f"%{search}%"
+        params = [search_param, search_param, search_param]
+
+        if status_filter in ('Pending', 'Lunas', 'Ditolak'):
+            base_query += " AND p.status_pembayaran = %s"
+            params.append(status_filter)
+
+        cursor.execute(f"""
+            SELECT
+                CONCAT('TXN-', LPAD(p.id_pembayaran, 5, '0')) AS kode_transaksi,
+                a.nama_lengkap AS nama_anak,
+                u.username AS nama_orangtua,
+                k.nama_kelas,
+                p.tanggal_bayar,
+                p.jumlah_bayar,
+                p.status_pembayaran,
+                p.keterangan
+            {base_query}
+            ORDER BY p.tanggal_bayar DESC
+        """, params)
+        rows = cursor.fetchall()
+
+        # --- Membuat file Excel (.xlsx) yang rapi di memory, langsung dikirim
+        # sebagai file download tanpa perlu disimpan fisik di server ---
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Laporan Pembayaran"
+
+        WARNA_UTAMA = "A22754"
+        font_umum = "Calibri"
+
+        headers = [
+            'Kode Transaksi', 'Nama Siswa', 'Nama Orang Tua', 'Kelas',
+            'Tanggal Bayar', 'Jumlah Bayar (Rp)', 'Status', 'Keterangan'
+        ]
+
+        # --- Judul laporan di baris paling atas ---
+        ws.merge_cells(f'A1:{get_column_letter(len(headers))}1')
+        judul_cell = ws['A1']
+        judul_cell.value = "LAPORAN PEMBAYARAN - TEC ENGLISH COURSE"
+        judul_cell.font = Font(name=font_umum, size=14, bold=True, color=WARNA_UTAMA)
+        judul_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 26
+
+        ws.merge_cells(f'A2:{get_column_letter(len(headers))}2')
+        sub_cell = ws['A2']
+        filter_info = []
+        if search:
+            filter_info.append(f"Pencarian: \"{search}\"")
+        if status_filter:
+            filter_info.append(f"Status: {status_filter}")
+        keterangan_filter = " | ".join(filter_info) if filter_info else "Semua Data"
+        sub_cell.value = f"Dicetak: {datetime.now().strftime('%d %B %Y, %H:%M')} WIB   |   {keterangan_filter}   |   Total: {len(rows)} transaksi"
+        sub_cell.font = Font(name=font_umum, size=9, italic=True, color="808080")
+        sub_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[2].height = 18
+
+        # --- Baris header tabel (baris ke-4) ---
+        header_row = 4
+        thin_border = Border(
+            left=Side(style='thin', color='D9D9D9'), right=Side(style='thin', color='D9D9D9'),
+            top=Side(style='thin', color='D9D9D9'), bottom=Side(style='thin', color='D9D9D9')
+        )
+        for col_idx, judul in enumerate(headers, start=1):
+            cell = ws.cell(row=header_row, column=col_idx, value=judul)
+            cell.font = Font(name=font_umum, size=10, bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color=WARNA_UTAMA, end_color=WARNA_UTAMA, fill_type="solid")
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = thin_border
+        ws.row_dimensions[header_row].height = 22
+
+        # --- Isi data ---
+        status_fill_map = {
+            'Lunas':   PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid"),
+            'Pending': PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid"),
+            'Ditolak': PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid"),
+        }
+        status_font_map = {
+            'Lunas':   Font(name=font_umum, size=10, bold=True, color="16A34A"),
+            'Pending': Font(name=font_umum, size=10, bold=True, color="D97706"),
+            'Ditolak': Font(name=font_umum, size=10, bold=True, color="DC2626"),
+        }
+
+        for i, r in enumerate(rows):
+            row_num = header_row + 1 + i
+            nilai_baris = [
+                r['kode_transaksi'],
+                r['nama_anak'],
+                r['nama_orangtua'],
+                r['nama_kelas'],
+                format_tanggal_indo(r['tanggal_bayar']),
+                r['jumlah_bayar'],
+                r['status_pembayaran'],
+                r['keterangan'] or '-'
+            ]
+            zebra_fill = PatternFill(start_color="FFF9FA", end_color="FFF9FA", fill_type="solid") if i % 2 else None
+
+            for col_idx, nilai in enumerate(nilai_baris, start=1):
+                cell = ws.cell(row=row_num, column=col_idx, value=nilai)
+                cell.font = Font(name=font_umum, size=10)
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical='center', wrap_text=(col_idx == 8))
+
+                if col_idx == 6:  # kolom Jumlah Bayar -> format rupiah
+                    cell.number_format = '#,##0'
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
+                elif col_idx == 7:  # kolom Status -> highlight warna
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                    if nilai in status_fill_map:
+                        cell.fill = status_fill_map[nilai]
+                        cell.font = status_font_map[nilai]
+                    continue  # jangan ditimpa zebra_fill di bawah
+                elif col_idx == 1:
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+
+                if zebra_fill and col_idx != 7:
+                    cell.fill = zebra_fill
+
+        # --- Baris total di akhir tabel ---
+        total_row = header_row + 1 + len(rows)
+        ws.merge_cells(f'A{total_row}:E{total_row}')
+        total_label = ws.cell(row=total_row, column=1, value="TOTAL")
+        total_label.font = Font(name=font_umum, size=10, bold=True)
+        total_label.alignment = Alignment(horizontal='right', vertical='center')
+        total_label.border = thin_border
+        for col in range(2, 6):
+            ws.cell(row=total_row, column=col).border = thin_border
+
+        total_nominal_cell = ws.cell(row=total_row, column=6, value=sum(r['jumlah_bayar'] for r in rows))
+        total_nominal_cell.font = Font(name=font_umum, size=10, bold=True, color=WARNA_UTAMA)
+        total_nominal_cell.number_format = '#,##0'
+        total_nominal_cell.alignment = Alignment(horizontal='right', vertical='center')
+        total_nominal_cell.fill = PatternFill(start_color="FFF0F3", end_color="FFF0F3", fill_type="solid")
+        total_nominal_cell.border = thin_border
+        for col in (7, 8):
+            c = ws.cell(row=total_row, column=col)
+            c.border = thin_border
+            c.fill = PatternFill(start_color="FFF0F3", end_color="FFF0F3", fill_type="solid")
+
+        # --- Lebar kolom & pengaturan lain ---
+        lebar_kolom = [16, 22, 20, 22, 20, 18, 12, 28]
+        for i, lebar in enumerate(lebar_kolom, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = lebar
+
+        ws.freeze_panes = f"A{header_row + 1}"
+        ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(headers))}{header_row}"
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        nama_file = f"laporan_pembayaran_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+        return Response(
+            output.getvalue(),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename={nama_file}'}
+        )
+
+    except Exception as e:
+        print(f"\n[ERROR DOWNLOAD LAPORAN PEMBAYARAN]: {e}\n")
+        flash('Gagal membuat laporan pembayaran.', 'error')
+        return redirect(url_for('admin.validasi_pembayaran_admin'))
     finally:
         cursor.close()
         conn.close()

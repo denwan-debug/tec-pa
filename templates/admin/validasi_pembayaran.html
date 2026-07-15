@@ -121,6 +121,42 @@
 
                 <!-- PESAN FLASH NOTIFIKASI (TOAST) -->
                 <div class="toast-container" id="toastContainer"></div>
+                <script>
+                    // Didefinisikan di luar blok flash message supaya selalu tersedia,
+                    // termasuk untuk toast yang dipicu dari JS lain (mis. setelah unduh laporan).
+                    function showToast(message, type = 'success') {
+                        const container = document.getElementById('toastContainer');
+                        if (!container) return;
+
+                        const toast = document.createElement('div');
+                        toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+
+                        const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
+
+                        toast.innerHTML = `
+                            <div class="toast-icon">
+                                <i class="fa-solid ${iconClass}"></i>
+                            </div>
+                            <span class="toast-message">${message}</span>
+                            <button type="button" class="toast-close">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        `;
+
+                        toast.querySelector('.toast-close').addEventListener('click', function () {
+                            this.parentElement.remove();
+                        });
+
+                        container.appendChild(toast);
+
+                        setTimeout(() => toast.classList.add('show'), 10);
+
+                        setTimeout(() => {
+                            toast.classList.remove('show');
+                            setTimeout(() => toast.remove(), 350);
+                        }, 4000);
+                    }
+                </script>
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                     <script>
@@ -134,39 +170,6 @@
                                 showToast(item.message, item.category === 'error' ? 'error' : 'success');
                             });
                         });
-
-                        function showToast(message, type = 'success') {
-                            const container = document.getElementById('toastContainer');
-                            if (!container) return;
-
-                            const toast = document.createElement('div');
-                            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-
-                            const iconClass = type === 'error' ? 'fa-circle-xmark' : 'fa-circle-check';
-
-                            toast.innerHTML = `
-                                <div class="toast-icon">
-                                    <i class="fa-solid ${iconClass}"></i>
-                                </div>
-                                <span class="toast-message">${message}</span>
-                                <button type="button" class="toast-close">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            `;
-
-                            toast.querySelector('.toast-close').addEventListener('click', function () {
-                                this.parentElement.remove();
-                            });
-
-                            container.appendChild(toast);
-
-                            setTimeout(() => toast.classList.add('show'), 10);
-
-                            setTimeout(() => {
-                                toast.classList.remove('show');
-                                setTimeout(() => toast.remove(), 350);
-                            }, 4000);
-                        }
                     </script>
                     {% endif %}
                 {% endwith %}
@@ -299,7 +302,14 @@
                 <div id="riwayat-transaksi" class="bg-white rounded-3xl border border-rose-50 card-shadow p-8">
                     <div class="flex items-center justify-between mb-6">
                         <h3 class="text-lg font-bold text-gray-800">Riwayat Semua Transaksi</h3>
-                        <p class="text-xs text-gray-400 font-semibold">{{ total_data }} transaksi ditemukan</p>
+                        <div class="flex items-center gap-4">
+                            <p class="text-xs text-gray-400 font-semibold">{{ total_data }} transaksi ditemukan</p>
+                            <button id="btnDownloadLaporan" type="button" onclick="unduhLaporanPembayaran()"
+                               class="flex items-center gap-2 bg-[#A22754] hover:bg-[#8E1F47] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition whitespace-nowrap disabled:opacity-60">
+                                <i class="fa-solid fa-file-arrow-down" id="btnDownloadLaporanIcon"></i>
+                                <span id="btnDownloadLaporanLabel">Download Laporan</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -546,6 +556,54 @@
             } finally {
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
+            }
+        }
+
+
+        // Mengunduh laporan pembayaran (tombol "Download Laporan").
+        // Dibuat lewat fetch + blob (bukan <a href> langsung) supaya kita benar-benar
+        // tahu unduhannya berhasil sebelum menampilkan toast -- bukan cuma asumsi.
+        async function unduhLaporanPembayaran() {
+            const url = "{{ url_for('admin.download_laporan_pembayaran', search=search, status=status_filter) }}";
+            const btn = document.getElementById('btnDownloadLaporan');
+            const icon = document.getElementById('btnDownloadLaporanIcon');
+            const label = document.getElementById('btnDownloadLaporanLabel');
+            const originalLabel = label.textContent;
+
+            btn.disabled = true;
+            icon.className = 'fa-solid fa-spinner fa-spin';
+            label.textContent = 'Mengunduh...';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Respon server tidak OK');
+                const blob = await response.blob();
+
+                // Coba ambil nama file asli dari header Content-Disposition yang dikirim server.
+                let namaFile = 'laporan-pembayaran.xlsx';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition) {
+                    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+                    if (match && match[1]) namaFile = decodeURIComponent(match[1]);
+                }
+
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = namaFile;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(blobUrl);
+
+                showToast('Laporan berhasil diunduh!', 'success');
+            } catch (err) {
+                console.error('Gagal mengunduh laporan:', err);
+                showToast('Gagal mengunduh laporan. Silakan coba lagi.', 'error');
+            } finally {
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-file-arrow-down';
+                label.textContent = originalLabel;
             }
         }
 
