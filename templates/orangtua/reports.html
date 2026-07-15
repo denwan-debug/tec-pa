@@ -150,6 +150,17 @@
             border: 2px solid #edf2f7;
         }
 
+        .student-avatar.avatar-initial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fce7f3;
+            color: var(--primary-accent);
+            font-size: 1.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
         .status-dot {
             position: absolute;
             top: -4px;
@@ -313,7 +324,11 @@
                         {% for anak in daftar_anak %}
                         <div class="student-card">
                             <div class="student-avatar-container">
-                                <div class="student-avatar" style="background-image: url('{{ anak.foto_profil or 'https://via.placeholder.com/150?text=' + anak.nama_lengkap[0]|upper }}'); background-size: cover; background-position: center;"></div>
+                                {% if anak.foto_profil and 'http' in anak.foto_profil %}
+                                <div class="student-avatar" style="background-image: url('{{ anak.foto_profil }}'); background-size: cover; background-position: center;"></div>
+                                {% else %}
+                                <div class="student-avatar avatar-initial">{{ (anak.nama_panggilan or anak.nama_lengkap)[0] }}</div>
+                                {% endif %}
                                 <div class="status-dot"></div>
                             </div>
                             <div class="student-details">
