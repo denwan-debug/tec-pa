@@ -2187,6 +2187,86 @@ def reports():
         cursor.close()
         conn.close()
 
+@orangtua_bp.route('/reports/detail/<int:child_id>')
+def reports_detail(child_id):
+    if 'id_users' not in session or session.get('role') != 'murid':
+        return redirect(url_for('orangtua.halaman_portal_orangtua'))
+
+    id_orangtua = session['id_users']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Pastikan anak ini memang milik orang tua yang sedang login
+        cursor.execute("""
+            SELECT id_anak, nama_lengkap, nama_panggilan, kelas, foto_profil, status_anak
+            FROM anak
+            WHERE id_anak = %s AND id_orangtua = %s
+        """, (child_id, id_orangtua))
+        anak = cursor.fetchone()
+
+        if not anak:
+            flash('Data anak tidak ditemukan.', 'error')
+            return redirect(url_for('orangtua.reports'))
+
+        # Foto profil user (untuk topbar), sama seperti route reports lainnya
+        cursor.execute("SELECT foto_profil FROM users WHERE id_users = %s", (id_orangtua,))
+        user_row = cursor.fetchone()
+        foto_profil_user = user_row['foto_profil'] if user_row and user_row['foto_profil'] else None
+
+        # Jumlah kelas aktif anak ini, dipakai di ringkasan header
+        cursor.execute("""
+            SELECT COUNT(*) AS jumlah FROM pendaftaran
+            WHERE id_anak = %s AND status_pendaftaran = 'Aktif'
+        """, (child_id,))
+        anak['kelas_aktif'] = cursor.fetchone()['jumlah']
+
+        # Semua catatan evaluasi/laporan yang sudah diisi pengajar untuk anak ini,
+        # lintas semua kelas yang pernah/sedang diikuti.
+        cursor.execute("""
+            SELECT l.id_laporan, l.skor_akademis, l.deskripsi, l.created_at, l.updated_at,
+                   k.nama_kelas, u.username AS nama_pengajar, u.foto_profil AS foto_pengajar
+            FROM laporan l
+            JOIN pendaftaran p ON l.id_pendaftaran = p.id_pendaftaran
+            JOIN kelas k ON p.id_kelas = k.id_kelas
+            JOIN users u ON l.id_pengajar = u.id_users
+            WHERE p.id_anak = %s
+            ORDER BY l.updated_at DESC
+        """, (child_id,))
+        daftar_evaluasi = cursor.fetchall()
+
+        for e in daftar_evaluasi:
+            # Badge Positif/Perlu Perbaikan didasarkan pada skor akademis yang diisi pengajar
+            if e['skor_akademis'] is None:
+                e['kategori'] = 'netral'
+                e['label_kategori'] = 'Belum Dinilai'
+            elif float(e['skor_akademis']) >= 75:
+                e['kategori'] = 'positive'
+                e['label_kategori'] = 'Positif'
+            else:
+                e['kategori'] = 'improvement'
+                e['label_kategori'] = 'Perlu Perbaikan'
+
+            tanggal_tampil = e['updated_at'] or e['created_at']
+            e['tanggal_tampil'] = tanggal_tampil.strftime('%d-%m-%Y') if tanggal_tampil else '-'
+
+        return render_template(
+            'orangtua/reports_detail.html',
+            anak=anak,
+            daftar_evaluasi=daftar_evaluasi,
+            username=session.get('username'),
+            foto_profil=foto_profil_user
+        )
+
+    except Exception as e:
+        print(f"Error pada halaman reports_detail: {e}")
+        flash('Terjadi kesalahan saat memuat detail laporan.', 'error')
+        return redirect(url_for('orangtua.reports'))
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @orangtua_bp.route('/pengaturan')
 def pengaturan():
     # Pastikan user sudah login

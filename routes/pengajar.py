@@ -600,7 +600,130 @@ def manajemen_jadwal():
     cek_akses = _wajib_login_pengajar()
     if cek_akses:
         return cek_akses
-    return render_template('pengajar/manajemen_jadwal.html')
+
+    pengajar_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    daftar_jadwal = []
+
+    try:
+        # 1. Ambil semua kelas milik pengajar ini beserta jumlah siswa aktifnya
+        query_kelas = """
+            SELECT
+                k.id_kelas,
+                k.nama_kelas,
+                k.hari_jadwal,
+                k.jam_mulai,
+                k.jam_selesai,
+                k.kapasitas_maksimal,
+                k.status_kelas,
+                k.tanggal_mulai,
+                k.tanggal_berakhir,
+                (SELECT COUNT(*) FROM pendaftaran p WHERE p.id_kelas = k.id_kelas AND p.status_pendaftaran = 'Aktif') AS jumlah_siswa
+            FROM kelas k
+            WHERE k.id_pengajar = %s
+        """
+        cursor.execute(query_kelas, (pengajar_id,))
+        daftar_kelas = cursor.fetchall()
+
+        # 2. Ambil sesi_kelas (tanggal pasti) untuk semua kelas tersebut, jika ada
+        daftar_sesi = []
+        if daftar_kelas:
+            id_kelas_list = [k['id_kelas'] for k in daftar_kelas]
+            format_strings = ','.join(['%s'] * len(id_kelas_list))
+            cursor.execute(
+                f"""
+                SELECT id_sesi, id_kelas, sesi_ke, tanggal, topik_pembahasan
+                FROM sesi_kelas
+                WHERE id_kelas IN ({format_strings})
+                ORDER BY tanggal ASC
+                """,
+                tuple(id_kelas_list)
+            )
+            daftar_sesi = cursor.fetchall()
+
+        peta_kelas = {k['id_kelas']: k for k in daftar_kelas}
+        hari_ini = date.today()
+        HARI_DARI_INDEKS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+
+        def waktu_ke_string(waktu):
+            if waktu and hasattr(waktu, 'total_seconds'):
+                total_sec = int(waktu.total_seconds())
+                return f"{total_sec // 3600:02d}:{(total_sec % 3600) // 60:02d}"
+            return None
+
+        def jenis_dari_kapasitas(kapasitas):
+            return 'private' if (kapasitas or 0) <= 1 else 'group'
+
+        # 3a. Sesi dengan tanggal pasti (sudah ada baris di sesi_kelas)
+        hari_sesi_terpakai = set()
+        for sesi in daftar_sesi:
+            kelas = peta_kelas.get(sesi['id_kelas'])
+            if not kelas or not sesi['tanggal']:
+                continue
+
+            tanggal_sesi = sesi['tanggal']
+            if tanggal_sesi < hari_ini:
+                status_sesi = 'Selesai'
+            elif tanggal_sesi == hari_ini:
+                status_sesi = 'Sedang Berlangsung'
+            else:
+                status_sesi = 'Akan Datang'
+
+            nama_hari = HARI_DARI_INDEKS[tanggal_sesi.weekday()]
+            daftar_jadwal.append({
+                'id_kelas': kelas['id_kelas'],
+                'nama_kelas': kelas['nama_kelas'],
+                'jenis_kelas': jenis_dari_kapasitas(kelas['kapasitas_maksimal']),
+                'jam_mulai': waktu_ke_string(kelas['jam_mulai']),
+                'jam_selesai': waktu_ke_string(kelas['jam_selesai']),
+                'tanggal_iso': tanggal_sesi.isoformat(),
+                'hari': nama_hari,
+                'status_sesi': status_sesi,
+                'status_kelas': kelas['status_kelas'],
+                'jumlah_siswa': kelas['jumlah_siswa'],
+                'kapasitas_maksimal': kelas['kapasitas_maksimal'],
+                'topik': sesi['topik_pembahasan'],
+                'tanggal_daftar_iso': None,
+                'tanggal_berakhir_iso': None,
+            })
+            hari_sesi_terpakai.add((kelas['id_kelas'], nama_hari))
+
+        # 3b. Kelas rutin mingguan (belum ada sesi_kelas spesifik untuk hari itu)
+        #     Ditampilkan berulang setiap minggu selama kelas masih aktif dan
+        #     berada dalam rentang tanggal_mulai - tanggal_berakhir kelas.
+        for kelas in daftar_kelas:
+            if kelas['status_kelas'] == 'Selesai' or not kelas['hari_jadwal']:
+                continue
+            daftar_hari = [h.strip() for h in kelas['hari_jadwal'].split(',') if h.strip()]
+            for hari in daftar_hari:
+                if (kelas['id_kelas'], hari) in hari_sesi_terpakai:
+                    continue
+                daftar_jadwal.append({
+                    'id_kelas': kelas['id_kelas'],
+                    'nama_kelas': kelas['nama_kelas'],
+                    'jenis_kelas': jenis_dari_kapasitas(kelas['kapasitas_maksimal']),
+                    'jam_mulai': waktu_ke_string(kelas['jam_mulai']),
+                    'jam_selesai': waktu_ke_string(kelas['jam_selesai']),
+                    'tanggal_iso': None,
+                    'hari': hari,
+                    'status_sesi': 'Terjadwal Rutin',
+                    'status_kelas': kelas['status_kelas'],
+                    'jumlah_siswa': kelas['jumlah_siswa'],
+                    'kapasitas_maksimal': kelas['kapasitas_maksimal'],
+                    'topik': None,
+                    'tanggal_daftar_iso': kelas['tanggal_mulai'].isoformat() if kelas['tanggal_mulai'] else None,
+                    'tanggal_berakhir_iso': kelas['tanggal_berakhir'].isoformat() if kelas['tanggal_berakhir'] else None,
+                })
+
+    except Exception as e:
+        print(f"Error pada manajemen jadwal pengajar: {e}")
+        daftar_jadwal = []
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('pengajar/manajemen_jadwal.html', daftar_jadwal=daftar_jadwal)
 
 @pengajar_bp.route('/laporan_pengajar')
 def laporan_pengajar():
@@ -613,7 +736,21 @@ def laporan_pengajar():
     cursor = conn.cursor(dictionary=True)
 
     daftar_pendaftaran = []
+    pengajar_nama = session.get('username', 'Pengajar')
+    pengajar_foto = None
     try:
+        # Ambil nama & foto profil langsung dari tabel users, supaya topbar selalu
+        # mencerminkan data terbaru di database (bukan sekadar cache di session).
+        cursor.execute("""
+            SELECT username, nama_lengkap, foto_profil
+            FROM users
+            WHERE id_users = %s
+        """, (pengajar_id,))
+        data_pengajar = cursor.fetchone()
+        if data_pengajar:
+            pengajar_nama = data_pengajar.get('nama_lengkap') or data_pengajar.get('username') or pengajar_nama
+            pengajar_foto = data_pengajar.get('foto_profil')
+
         # Ambil semua siswa aktif yang terdaftar di kelas-kelas milik pengajar ini,
         # berikut nama anak, kelas/tingkat sekolahnya, dan mata pelajaran (kelas) yang diikuti.
         query = """
@@ -651,8 +788,82 @@ def laporan_pengajar():
     return render_template(
         'pengajar/manajemen_laporan.html',
         daftar_siswa=daftar_siswa,
-        daftar_pendaftaran=daftar_pendaftaran
+        daftar_pendaftaran=daftar_pendaftaran,
+        pengajar_nama=pengajar_nama,
+        pengajar_foto=pengajar_foto
     )
+
+
+@pengajar_bp.route('/laporan_pengajar/data/<int:id_pendaftaran>')
+def data_laporan_pengajar(id_pendaftaran):
+    """
+    Mengambil data riil untuk Langkah 1 & 2 yang sudah dipilih:
+    - Persentase kehadiran & jumlah sesi (dihitung dari tabel sesi_kelas + presensi)
+    - Laporan/evaluasi yang sudah pernah diisi sebelumnya (kalau ada), supaya form
+      ter-prefill dan pengajar bisa mengedit alih-alih menimpa dari kosong.
+    """
+    cek_akses = _wajib_login_pengajar()
+    if cek_akses:
+        return cek_akses
+
+    pengajar_id = session['user_id']
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Pastikan pendaftaran ini memang milik kelas pengajar yang sedang login
+        cursor.execute("""
+            SELECT p.id_pendaftaran, p.id_kelas
+            FROM pendaftaran p
+            JOIN kelas k ON p.id_kelas = k.id_kelas
+            WHERE p.id_pendaftaran = %s AND k.id_pengajar = %s
+        """, (id_pendaftaran, pengajar_id))
+        pendaftaran = cursor.fetchone()
+
+        if not pendaftaran:
+            return jsonify({"message": "Data siswa/kelas tidak valid untuk akun Anda."}), 403
+
+        # Hitung kehadiran riil: total sesi yang sudah berjalan untuk kelas ini,
+        # dibandingkan dengan berapa kali status_kehadiran = 'Hadir' untuk siswa ini.
+        cursor.execute("""
+            SELECT COUNT(*) AS total_sesi
+            FROM sesi_kelas
+            WHERE id_kelas = %s
+        """, (pendaftaran['id_kelas'],))
+        total_sesi = cursor.fetchone()['total_sesi'] or 0
+
+        cursor.execute("""
+            SELECT COUNT(*) AS hadir
+            FROM presensi
+            WHERE id_pendaftaran = %s AND status_kehadiran = 'Hadir'
+        """, (id_pendaftaran,))
+        hadir_sesi = cursor.fetchone()['hadir'] or 0
+
+        persen_kehadiran = round((hadir_sesi / total_sesi) * 100) if total_sesi > 0 else 0
+
+        # Ambil laporan/evaluasi terakhir untuk pendaftaran ini (kalau sudah pernah diisi)
+        cursor.execute("""
+            SELECT skor_akademis, deskripsi, updated_at
+            FROM laporan
+            WHERE id_pendaftaran = %s
+        """, (id_pendaftaran,))
+        laporan_ada = cursor.fetchone()
+
+        return jsonify({
+            "total_sesi": total_sesi,
+            "hadir_sesi": hadir_sesi,
+            "persen_kehadiran": persen_kehadiran,
+            "skor_akademis": float(laporan_ada['skor_akademis']) if laporan_ada and laporan_ada['skor_akademis'] is not None else None,
+            "deskripsi": laporan_ada['deskripsi'] if laporan_ada else None,
+            "updated_at": laporan_ada['updated_at'].strftime('%d-%m-%Y %H:%M') if laporan_ada and laporan_ada['updated_at'] else None
+        }), 200
+
+    except Exception as e:
+        print(f"Error saat mengambil data laporan pengajar: {e}")
+        return jsonify({"message": "Terjadi kesalahan pada server saat memuat data."}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @pengajar_bp.route('/simpan_laporan_pengajar', methods=['POST'])
@@ -666,11 +877,22 @@ def simpan_laporan_pengajar():
 
     id_pendaftaran = data.get('id_pendaftaran')
     deskripsi = (data.get('deskripsi') or '').strip()
+    skor_akademis_raw = data.get('skor_akademis')
 
     if not id_pendaftaran:
         return jsonify({"message": "Siswa dan kelas wajib dipilih!"}), 400
     if not deskripsi:
         return jsonify({"message": "Catatan evaluasi tidak boleh kosong!"}), 400
+
+    # Skor akademis bersifat opsional, tapi kalau diisi harus berupa angka 0-100
+    skor_akademis = None
+    if skor_akademis_raw not in (None, ''):
+        try:
+            skor_akademis = float(skor_akademis_raw)
+        except (TypeError, ValueError):
+            return jsonify({"message": "Skor akademis harus berupa angka."}), 400
+        if skor_akademis < 0 or skor_akademis > 100:
+            return jsonify({"message": "Skor akademis harus di antara 0 - 100."}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -688,15 +910,19 @@ def simpan_laporan_pengajar():
         if not valid:
             return jsonify({"message": "Data siswa/kelas tidak valid untuk akun Anda."}), 403
 
-        # NOTE: sesuaikan nama tabel & kolom di bawah ini dengan skema tabel
-        # laporan/evaluasi yang sudah ada di database Anda.
+        # Satu pendaftaran hanya punya satu laporan (lihat UNIQUE KEY di tabel laporan).
+        # Kalau pengajar mengisi ulang untuk siswa/kelas yang sama, laporan lama diperbarui.
         cursor.execute("""
-            INSERT INTO laporan (id_pendaftaran, id_pengajar, deskripsi, created_at)
-            VALUES (%s, %s, %s, NOW())
-        """, (id_pendaftaran, pengajar_id, deskripsi))
+            INSERT INTO laporan (id_pendaftaran, id_pengajar, skor_akademis, deskripsi, created_at)
+            VALUES (%s, %s, %s, %s, NOW())
+            ON DUPLICATE KEY UPDATE
+                id_pengajar = VALUES(id_pengajar),
+                skor_akademis = VALUES(skor_akademis),
+                deskripsi = VALUES(deskripsi)
+        """, (id_pendaftaran, pengajar_id, skor_akademis, deskripsi))
         conn.commit()
 
-        return jsonify({"message": "Laporan evaluasi berhasil dikirim!"}), 200
+        return jsonify({"message": "Laporan evaluasi berhasil disimpan!"}), 200
 
     except Exception as e:
         print(f"Error saat menyimpan laporan pengajar: {e}")

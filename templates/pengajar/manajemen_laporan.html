@@ -137,12 +137,6 @@
             gap: 24px;
         }
 
-        .notification {
-            color: var(--text-gray);
-            font-size: 20px;
-            cursor: pointer;
-        }
-
         .profile-info {
             display: flex;
             align-items: center;
@@ -530,17 +524,15 @@
                 <h1>Manajemen Laporan</h1>
                 
                 <div class="user-area">
-                    <div class="notification">
-                        <i class="fa-regular fa-bell"></i>
-                    </div>
                     <div class="profile-info">
                         <div class="profile-info">
                         <!-- Membuat variabel untuk memudahkan pemanggilan -->
-                        {% set foto = session.get('foto_profil') %}
-                        {% set nama = session.get('username', 'Pengajar') %}
-                        
-                        <!-- Cek ketat: pastikan foto ada, bukan teks kosong, dan bukan teks 'None' -->
-                        {% if foto and foto | trim != '' and foto != 'None' %}
+                        {% set foto = pengajar_foto %}
+                        {% set nama = pengajar_nama or 'Pengajar' %}
+
+                        <!-- Foto hanya ditampilkan kalau memang berupa URL foto asli (hasil upload).
+                             Kalau kosong/NULL atau masih foto default bawaan, tampilkan inisial saja. -->
+                        {% if foto and foto.startswith('http') %}
                             <img src="{{ foto }}" alt="Foto {{ nama }}">
                         {% else %}
                             <!-- Menggunakan urlencode agar spasi pada nama tidak merusak link -->
@@ -590,7 +582,14 @@
                     </div>
                     <div class="stat-info">
                         <span class="stat-label">SKOR AKADEMIS</span>
-                        <span class="stat-value text-pink">92%</span>
+                        <div style="display:flex; align-items:baseline; gap:0;">
+                            <input type="number" id="inputSkorAkademis" min="0" max="100" step="0.01"
+                                   placeholder="--" class="stat-value text-pink"
+                                   style="border:none; outline:none; background:transparent; width:2.5ch; padding:0; text-align:right;"
+                                   oninput="if(this.value!==''){ if(Number(this.value)>100) this.value=100; if(Number(this.value)<0) this.value=0; } aturLebarSkor();">
+                            <span class="stat-value text-pink">%</span>
+                        </div>
+                        <span class="stat-subtext">Diisi pengajar, tersimpan bersama laporan</span>
                     </div>
                 </div>
                 <div class="report-stat-card">
@@ -599,8 +598,8 @@
                     </div>
                     <div class="stat-info">
                         <span class="stat-label">KEHADIRAN</span>
-                        <span class="stat-value text-pink">95%</span>
-                        <span class="stat-subtext">20/21 Sesi</span>
+                        <span id="statKehadiranPersen" class="stat-value text-pink">--%</span>
+                        <span id="statKehadiranSubtext" class="stat-subtext">Pilih siswa &amp; kelas dahulu</span>
                     </div>
                 </div>
             </div>
@@ -608,17 +607,10 @@
             <div class="evaluation-card">
                 <div class="evaluation-header">
                     <h2>Catatan Evaluasi Pengajar</h2>
-                    <span class="auto-save">Draf disimpan otomatis pada pukul 10:45</span>
+                    <span id="autoSaveInfo" class="auto-save"></span>
                 </div>
                 
                 <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button title="Bold"><i class="fa-solid fa-bold"></i></button>
-                        <button title="Italic"><i class="fa-solid fa-italic"></i></button>
-                        <button title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                        <button title="Insert Link"><i class="fa-solid fa-link"></i></button>
-                        <button title="Text Color"><i class="fa-solid fa-font"></i></button>
-                    </div>
                     <textarea id="deskripsiEvaluasi" class="editor-content" placeholder="Tulis catatan evaluasi untuk siswa ini..."></textarea>
                 </div>
 
@@ -687,6 +679,16 @@
     const btnKirim = document.getElementById('btnKirimLaporan');
     const deskripsiEl = document.getElementById('deskripsiEvaluasi');
     const statusEl = document.getElementById('kirimStatus');
+    const inputSkor = document.getElementById('inputSkorAkademis');
+
+    // Menyesuaikan lebar input skor supaya tanda "%" selalu pas di belakang angka
+    function aturLebarSkor() {
+        const panjang = inputSkor.value ? inputSkor.value.length : 1;
+        inputSkor.style.width = (panjang + 0.75) + 'ch';
+    }
+    const statKehadiranPersen = document.getElementById('statKehadiranPersen');
+    const statKehadiranSubtext = document.getElementById('statKehadiranSubtext');
+    const autoSaveInfo = document.getElementById('autoSaveInfo');
 
     // Isi Langkah 2 (Mata Pelajaran) berdasarkan siswa yang dipilih di Langkah 1
     function perbaruiPilihanKelas() {
@@ -700,6 +702,7 @@
         if (kelasUntukSiswaIni.length === 0) {
             selectKelas.innerHTML = '<option value="">Belum ada kelas</option>';
             selectKelas.disabled = true;
+            kosongkanDataLaporan();
             return;
         }
 
@@ -710,6 +713,54 @@
             opt.textContent = p.nama_kelas;
             selectKelas.appendChild(opt);
         });
+
+        // Langsung muat data riil untuk kelas pertama yang otomatis terpilih
+        muatDataLaporan();
+    }
+
+    function kosongkanDataLaporan() {
+        statKehadiranPersen.textContent = '--%';
+        statKehadiranSubtext.textContent = 'Pilih siswa & kelas dahulu';
+        inputSkor.value = '';
+        aturLebarSkor();
+        deskripsiEl.value = '';
+        autoSaveInfo.textContent = '';
+    }
+
+    // Ambil data riil (kehadiran & laporan yang sudah pernah diisi) dari server
+    // berdasarkan siswa + kelas (id_pendaftaran) yang sedang dipilih.
+    async function muatDataLaporan() {
+        const idPendaftaran = selectKelas ? selectKelas.value : null;
+        if (!idPendaftaran) {
+            kosongkanDataLaporan();
+            return;
+        }
+
+        statKehadiranPersen.textContent = '...';
+        statKehadiranSubtext.textContent = 'Memuat data...';
+
+        try {
+            const res = await fetch(`/laporan_pengajar/data/${idPendaftaran}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                statKehadiranPersen.textContent = '--%';
+                statKehadiranSubtext.textContent = data.message || 'Gagal memuat data.';
+                return;
+            }
+
+            statKehadiranPersen.textContent = `${data.persen_kehadiran}%`;
+            statKehadiranSubtext.textContent = `${data.hadir_sesi}/${data.total_sesi} Sesi`;
+
+            // Prefill form dengan laporan yang sudah pernah diisi sebelumnya (kalau ada)
+            inputSkor.value = (data.skor_akademis !== null && data.skor_akademis !== undefined) ? data.skor_akademis : '';
+            aturLebarSkor();
+            deskripsiEl.value = data.deskripsi || '';
+            autoSaveInfo.textContent = data.updated_at ? `Laporan terakhir disimpan pada ${data.updated_at}` : 'Belum ada laporan untuk siswa & kelas ini';
+        } catch (err) {
+            statKehadiranPersen.textContent = '--%';
+            statKehadiranSubtext.textContent = 'Terjadi kesalahan koneksi.';
+        }
     }
 
     if (selectSiswa) {
@@ -717,11 +768,16 @@
         perbaruiPilihanKelas(); // Panggil sekali saat halaman dimuat
     }
 
+    if (selectKelas) {
+        selectKelas.addEventListener('change', muatDataLaporan);
+    }
+
     // Kirim laporan evaluasi ke server
     if (btnKirim) {
         btnKirim.addEventListener('click', async () => {
             const idPendaftaran = selectKelas ? selectKelas.value : null;
             const deskripsi = deskripsiEl ? deskripsiEl.value.trim() : '';
+            const skorRaw = inputSkor ? inputSkor.value.trim() : '';
 
             statusEl.textContent = '';
             statusEl.className = 'kirim-status';
@@ -736,6 +792,11 @@
                 statusEl.classList.add('error');
                 return;
             }
+            if (skorRaw !== '' && (isNaN(skorRaw) || Number(skorRaw) < 0 || Number(skorRaw) > 100)) {
+                statusEl.textContent = 'Skor akademis harus berupa angka 0-100.';
+                statusEl.classList.add('error');
+                return;
+            }
 
             btnKirim.disabled = true;
             btnKirim.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
@@ -746,7 +807,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         id_pendaftaran: idPendaftaran,
-                        deskripsi: deskripsi
+                        deskripsi: deskripsi,
+                        skor_akademis: skorRaw !== '' ? Number(skorRaw) : null
                     })
                 });
                 const data = await res.json();
@@ -754,6 +816,7 @@
                 if (res.ok) {
                     statusEl.textContent = data.message || 'Laporan berhasil dikirim!';
                     statusEl.classList.add('success');
+                    autoSaveInfo.textContent = 'Laporan terakhir disimpan barusan';
                 } else {
                     statusEl.textContent = data.message || 'Gagal mengirim laporan.';
                     statusEl.classList.add('error');

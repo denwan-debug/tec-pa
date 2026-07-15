@@ -180,5 +180,20 @@ ALTER TABLE `kelas`
 
 ALTER TABLE `kelas` ADD COLUMN `gambar_kelas` VARCHAR(255) DEFAULT NULL AFTER `deskripsi`;
 
+CREATE TABLE IF NOT EXISTS `laporan` (
+  `id_laporan` int NOT NULL AUTO_INCREMENT,
+  `id_pendaftaran` int NOT NULL,
+  `id_pengajar` varchar(10) NOT NULL,
+  `skor_akademis` decimal(5,2) DEFAULT NULL,
+  `deskripsi` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_laporan`),
+  UNIQUE KEY `uniq_laporan_pendaftaran` (`id_pendaftaran`),
+  KEY `fk_laporan_pengajar` (`id_pengajar`),
+  CONSTRAINT `fk_laporan_pendaftaran` FOREIGN KEY (`id_pendaftaran`) REFERENCES `pendaftaran` (`id_pendaftaran`) ON DELETE CASCADE,
+  CONSTRAINT `fk_laporan_pengajar` FOREIGN KEY (`id_pengajar`) REFERENCES `users` (`id_users`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- Mengaktifkan kembali pengecekan Foreign Key
 SET FOREIGN_KEY_CHECKS = 1;

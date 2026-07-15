@@ -5,57 +5,24 @@ import uuid, math
 from datetime import datetime, timedelta
 import cloudinary.uploader
 
-# Membuat blueprint untuk admin
 admin_bp = Blueprint('admin', __name__)
 
-
 def _wajib_login_admin():
-    """
-    Pastikan yang mengakses route ini benar-benar sudah login SEBAGAI ADMIN
-    (role 'Kepala').
-
-    Kalau belum login sama sekali, ATAU sudah login tapi rolenya bukan
-    Kepala (misalnya Pengajar/Orang Tua yang session-nya kebetulan masih
-    aktif dan mencoba membuka halaman Admin), user akan langsung ditendang
-    balik ke halaman login Admin.
-
-    Catatan: perbandingan role dibuat case-insensitive (.lower()) karena di
-    tabel `role` nilainya tersimpan huruf kecil ('kepala'), supaya admin asli
-    tidak ikut tertendang gara-gara perbedaan besar/kecil huruf.
-
-    Return:
-        - None kalau lolos validasi (boleh lanjut memproses route).
-        - Response redirect kalau harus ditolak -- WAJIB langsung di-`return`
-          oleh route pemanggil, contoh:
-
-              cek_akses = _wajib_login_admin()
-              if cek_akses:
-                  return cek_akses
-    """
     if 'user_id' not in session or (session.get('role') or '').lower() != 'kepala':
         session.clear()
         return redirect(url_for('admin.login_admin'))
     return None
 
-
 def _ke_menit(t):
-    """
-    Konversi nilai waktu (kolom TIME dari database biasanya balik sebagai
-    datetime.timedelta lewat mysql-connector, atau bisa juga datetime.time
-    kalau hasil dari datetime.strptime(...).time()) jadi total menit sejak
-    00:00. Dipakai supaya perbandingan bentrok jadwal gampang & konsisten,
-    tanpa peduli tipe aslinya timedelta atau time.
-    """
     if t is None:
         return None
-    if hasattr(t, 'total_seconds'):  # timedelta (TIME dari database)
+    if hasattr(t, 'total_seconds'): 
         return int(t.total_seconds() // 60)
-    if hasattr(t, 'hour'):  # datetime.time / datetime.datetime
+    if hasattr(t, 'hour'):  
         return t.hour * 60 + t.minute
     return None
 
 
-# --- FILTER JINJA2: Format angka menjadi Rupiah (Rp450.000) ---
 @admin_bp.app_template_filter('rupiah')
 def format_rupiah(value):
     try:

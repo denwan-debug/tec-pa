@@ -801,9 +801,6 @@
                         <button class="toggle-btn active" id="btnViewMinggu" onclick="switchCalendarView('minggu')">MINGGU</button>
                         <button class="toggle-btn" id="btnViewBulan" onclick="switchCalendarView('bulan')">BULAN</button>
                     </div>
-                    <button class="btn-primary">
-                        <i class="fa-solid fa-plus"></i> TAMBAHKAN SESI
-                    </button>
                 </div>
             </div>
 
@@ -824,11 +821,11 @@
 
                     <div class="selected-slot-card">
                         <div class="slot-header">
-                            <div class="slot-title" id="slotTitle">Belum ada sesi</div>
+                            <div class="slot-title" id="slotTitle">Belum ada sesi dipilih</div>
                             <span class="badge-blue" id="slotBadge">SLOT TERPILIH</span>
                         </div>
                         <div class="slot-time">
-                            <i class="fa-regular fa-clock"></i> <span id="slotTime">-</span>
+                            <i class="fa-regular fa-clock"></i> <span id="slotTime">Klik salah satu sesi pada kalender</span>
                         </div>
                         
                         <div class="slot-students">
@@ -843,71 +840,26 @@
 
                 <div class="weekly-calendar">
                     <div class="week-header-top">
-                        <div class="week-title">Minggu 2 Sep - 8 Sep</div>
+                        <div class="week-title-row">
+                            <i class="fa-solid fa-chevron-left week-nav-btn" id="calPrevBtn" onclick="calPrev()"></i>
+                            <div class="week-title" id="calRangeTitle">-</div>
+                            <i class="fa-solid fa-chevron-right week-nav-btn" id="calNextBtn" onclick="calNext()"></i>
+                        </div>
                         <div class="week-legend">
-                            <div class="legend-item"><span class="dot pink"></span> Group kelas</div>
+                            <div class="legend-item"><span class="dot pink"></span> Group Kelas</div>
                             <div class="legend-item"><span class="dot blue"></span> Les Private</div>
                         </div>
                     </div>
 
-                    <div class="week-grid">
-                        <div class="grid-header-cell" style="border-top: none;">
-                            </div>
-                        <div class="grid-header-cell current-day">
-                            <div class="day-name">Senin</div>
-                            <div class="day-number">2</div>
-                        </div>
-                        <div class="grid-header-cell">
-                            <div class="day-name">Selasa</div>
-                            <div class="day-number">3</div>
-                        </div>
-                        <div class="grid-header-cell">
-                            <div class="day-name">Rabu</div>
-                            <div class="day-number">4</div>
-                        </div>
-                        <div class="grid-header-cell">
-                            <div class="day-name">Kamis</div>
-                            <div class="day-number">5</div>
-                        </div>
-                        <div class="grid-header-cell">
-                            <div class="day-name">Jumat</div>
-                            <div class="day-number">6</div>
-                        </div>
-                        <div class="grid-header-cell">
-                            <div class="day-name highlight">Sabtu</div>
-                            <div class="day-number highlight">7</div>
-                        </div>
+                    <!-- Tampilan Minggu -->
+                    <div id="weekViewBody">
+                        <div class="week-grid" id="weekGrid"></div>
+                    </div>
 
-                        <div class="time-col">
-                            <div class="time-cell">08:00</div>
-                            <div class="time-cell">09:00</div>
-                            <div class="time-cell">10:00</div>
-                            <div class="time-cell">11:00</div>
-                        </div>
-
-                        <div class="day-col current-day">
-                            <div class="event-card" style="top: 80px; height: 60px; background: transparent; color: var(--primary-pink); text-align: center; border: none; box-shadow: none;">
-                                Minggu<br>8
-                            </div>
-                        </div>
-                        <div class="day-col">
-                            <div class="event-card event-pink" style="top: 120px; height: 60px;">
-                                <div class="event-title">Grammar</div>
-                            </div>
-                        </div>
-                        <div class="day-col">
-                            <div class="event-card event-blue" style="top: 80px; height: 80px;">
-                                <div class="event-title">James<br>(IELTS)</div>
-                                <div class="event-time">09:00 - 10:00</div>
-                            </div>
-                        </div>
-                        <div class="day-col">
-                            </div>
-                        <div class="day-col">
-                            </div>
-                        <div class="day-col">
-                            </div>
-
+                    <!-- Tampilan Bulan -->
+                    <div id="monthViewBody" style="display:none;">
+                        <div class="month-grid" id="monthDayNames"></div>
+                        <div class="month-grid" id="monthGrid"></div>
                     </div>
                 </div>
 
@@ -930,6 +882,347 @@
         </div>
     </div>
 </div>
+
+<!-- Script Kalender: Manajemen Jadwal -->
+<script>
+    /* =========================================================
+       DATA JADWAL (dikirim dari Flask, dari tabel kelas + sesi_kelas
+       milik pengajar yang sedang login).
+    ========================================================= */
+    const JADWAL_DATA = {{ daftar_jadwal | tojson }};
+
+    const DETAIL_KELAS_BASE_URL = "{{ url_for('pengajar.detail_kelas', id_kelas='__ID_KELAS__') }}";
+    function urlDetailKelas(idKelas) {
+        return DETAIL_KELAS_BASE_URL.replace('__ID_KELAS__', encodeURIComponent(idKelas));
+    }
+
+    const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const HARI_ID_MON_FIRST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const BULAN_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const START_HOUR = 8, END_HOUR = 20, ROW_H = 80;
+
+    function isoOf(d) {
+        const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${dd}`;
+    }
+    function timeToMinutes(t) { const [h,m] = (t || '00:00').split(':').map(Number); return h*60+m; }
+    function mondayOf(d) {
+        const nd = new Date(d);
+        const day = (nd.getDay() + 6) % 7; // 0 = Senin
+        nd.setDate(nd.getDate() - day);
+        nd.setHours(0,0,0,0);
+        return nd;
+    }
+
+    // ---- State ----
+    let currentView = 'minggu'; // 'minggu' | 'bulan'
+    let miniCalMonth = new Date(); miniCalMonth.setDate(1);
+    let selectedDate = new Date();
+    let weekStart = mondayOf(new Date());
+    let selectedSlotKey = null; // gabungan id_kelas + tanggal/hari agar tahu event mana yg lagi dipilih
+
+    // Kelas "Terjadwal Rutin" (belum ada baris sesi_kelas utk tanggal tsb) hanya
+    // ditampilkan berulang setiap minggu selama kelas masih aktif dan berada
+    // dalam rentang tanggal_daftar_iso - tanggal_berakhir_iso (kalau ada).
+    function isRutinAktifPadaTanggal(j, iso, hariNama) {
+        if (j.tanggal_iso) return false;
+        if (j.status_sesi !== 'Terjadwal Rutin' || j.hari !== hariNama) return false;
+        if (j.status_kelas === 'Selesai') return false;
+        if (j.tanggal_daftar_iso && iso < j.tanggal_daftar_iso) return false;
+        if (j.tanggal_berakhir_iso && iso > j.tanggal_berakhir_iso) return false;
+        return true;
+    }
+
+    function eventsForDate(iso, hariNama) {
+        return JADWAL_DATA.filter(j => {
+            if (j.tanggal_iso) return j.tanggal_iso === iso;
+            return isRutinAktifPadaTanggal(j, iso, hariNama);
+        }).sort((a,b) => timeToMinutes(a.jam_mulai) - timeToMinutes(b.jam_mulai));
+    }
+
+    function datesWithSessions() {
+        const set = new Set();
+        JADWAL_DATA.forEach(j => { if (j.tanggal_iso) set.add(j.tanggal_iso); });
+        return set;
+    }
+
+    function hariRutinAktifPadaTanggal(iso, hariNama) {
+        return JADWAL_DATA.some(j => isRutinAktifPadaTanggal(j, iso, hariNama));
+    }
+
+    function slotKeyOf(j) {
+        return j.id_kelas + '|' + (j.tanggal_iso || j.hari) + '|' + j.jam_mulai;
+    }
+
+    // ---- Kartu "Slot Terpilih" di panel kiri ----
+    function selectSlot(j, tanggalTampil) {
+        selectedSlotKey = slotKeyOf(j);
+
+        document.getElementById('slotTitle').textContent = j.nama_kelas;
+
+        const badge = document.getElementById('slotBadge');
+        badge.textContent = j.jenis_kelas === 'private' ? 'LES PRIVATE' : 'GROUP KELAS';
+        badge.style.color = j.jenis_kelas === 'private' ? '#60869a' : 'var(--primary-pink)';
+        badge.style.backgroundColor = j.jenis_kelas === 'private' ? '#e2eff6' : 'var(--primary-light)';
+
+        const tanggalLabel = tanggalTampil ? tanggalTampil + ' &bull; ' : 'Setiap ';
+        document.getElementById('slotTime').innerHTML =
+            (tanggalTampil ? tanggalTampil : 'Setiap ' + j.hari) + ' &bull; ' + j.jam_mulai + ' - ' + j.jam_selesai + ' WIB';
+
+        document.getElementById('slotStudents').textContent =
+            (j.jumlah_siswa || 0) + (j.kapasitas_maksimal ? ' / ' + j.kapasitas_maksimal : '') + ' siswa';
+
+        document.getElementById('slotDetailLink').innerHTML =
+            `<a href="${urlDetailKelas(j.id_kelas)}" class="btn-primary" style="text-decoration:none; display:inline-flex; width:100%; justify-content:center;">
+                LIHAT DETAIL KELAS
+            </a>`;
+
+        renderWeekGrid();
+        renderMonthGrid();
+    }
+
+    // ---- Toggle Minggu / Bulan ----
+    function switchCalendarView(view) {
+        currentView = view;
+        document.getElementById('btnViewMinggu').classList.toggle('active', view === 'minggu');
+        document.getElementById('btnViewBulan').classList.toggle('active', view === 'bulan');
+        document.getElementById('weekViewBody').style.display = view === 'minggu' ? '' : 'none';
+        document.getElementById('monthViewBody').style.display = view === 'bulan' ? '' : 'none';
+        renderCalendarHeader();
+        if (view === 'minggu') renderWeekGrid(); else renderMonthGrid();
+    }
+
+    function calPrev() { if (currentView === 'minggu') weekPrev(); else miniCalPrevMonth(); }
+    function calNext() { if (currentView === 'minggu') weekNext(); else miniCalNextMonth(); }
+
+    function renderCalendarHeader() {
+        const title = document.getElementById('calRangeTitle');
+        if (currentView === 'minggu') {
+            const last = new Date(weekStart); last.setDate(last.getDate() + 5); // Senin - Sabtu
+            title.textContent = `Minggu ${weekStart.getDate()} ${BULAN_ID[weekStart.getMonth()].slice(0,3)} - ${last.getDate()} ${BULAN_ID[last.getMonth()].slice(0,3)}`;
+        } else {
+            title.textContent = `${BULAN_ID[miniCalMonth.getMonth()]} ${miniCalMonth.getFullYear()}`;
+        }
+    }
+
+    // ---- Mini month calendar (panel kiri) ----
+    function miniCalPrevMonth() {
+        miniCalMonth.setMonth(miniCalMonth.getMonth()-1);
+        renderMiniCal();
+        if (currentView === 'bulan') { renderCalendarHeader(); renderMonthGrid(); }
+    }
+    function miniCalNextMonth() {
+        miniCalMonth.setMonth(miniCalMonth.getMonth()+1);
+        renderMiniCal();
+        if (currentView === 'bulan') { renderCalendarHeader(); renderMonthGrid(); }
+    }
+
+    function renderMiniCal() {
+        document.getElementById('miniCalTitle').textContent = `${BULAN_ID[miniCalMonth.getMonth()]} ${miniCalMonth.getFullYear()}`;
+
+        const grid = document.getElementById('miniCalGrid');
+        grid.innerHTML = '';
+        HARI_ID_MON_FIRST.forEach(h => {
+            const el = document.createElement('div');
+            el.className = 'cal-day-name';
+            el.textContent = h[0];
+            grid.appendChild(el);
+        });
+
+        const firstOfMonth = new Date(miniCalMonth.getFullYear(), miniCalMonth.getMonth(), 1);
+        const startOffset = (firstOfMonth.getDay() + 6) % 7; // 0 = Senin
+        const gridStart = new Date(firstOfMonth);
+        gridStart.setDate(gridStart.getDate() - startOffset);
+
+        const sessionDates = datesWithSessions();
+        const todayIso = isoOf(new Date());
+        const selectedIso = isoOf(selectedDate);
+
+        for (let i = 0; i < 42; i++) {
+            const d = new Date(gridStart);
+            d.setDate(d.getDate() + i);
+            const iso = isoOf(d);
+            const el = document.createElement('div');
+            el.className = 'cal-date';
+            if (d.getMonth() !== miniCalMonth.getMonth()) el.classList.add('muted');
+            if (iso === todayIso) el.classList.add('outlined');
+            if (iso === selectedIso) el.classList.add('active');
+            if (sessionDates.has(iso) || hariRutinAktifPadaTanggal(iso, HARI_ID[d.getDay()])) {
+                el.classList.add('has-event');
+            }
+            el.textContent = d.getDate();
+            el.addEventListener('click', () => {
+                selectedDate = d;
+                weekStart = mondayOf(d);
+                if (d.getMonth() !== miniCalMonth.getMonth()) { miniCalMonth = new Date(d.getFullYear(), d.getMonth(), 1); }
+                renderMiniCal();
+                renderCalendarHeader();
+                if (currentView === 'minggu') renderWeekGrid(); else renderMonthGrid();
+            });
+            grid.appendChild(el);
+        }
+    }
+
+    // ---- Tampilan Minggu (Senin - Sabtu) ----
+    function weekPrev() { weekStart.setDate(weekStart.getDate()-7); renderCalendarHeader(); renderWeekGrid(); }
+    function weekNext() { weekStart.setDate(weekStart.getDate()+7); renderCalendarHeader(); renderWeekGrid(); }
+
+    function renderWeekGrid() {
+        const weekDates = [];
+        for (let i = 0; i < 6; i++) { // Senin - Sabtu
+            const d = new Date(weekStart);
+            d.setDate(d.getDate() + i);
+            weekDates.push(d);
+        }
+        const todayIso = isoOf(new Date());
+
+        const grid = document.getElementById('weekGrid');
+        grid.innerHTML = '';
+
+        // Header baris pertama
+        const corner = document.createElement('div');
+        corner.className = 'grid-header-cell';
+        corner.style.borderTop = 'none';
+        grid.appendChild(corner);
+
+        weekDates.forEach((d, idx) => {
+            const iso = isoOf(d);
+            const h = document.createElement('div');
+            h.className = 'grid-header-cell' + (iso === todayIso ? ' current-day' : '');
+            const isSabtu = idx === 5;
+            h.innerHTML = `<div class="day-name${isSabtu ? ' highlight' : ''}">${HARI_ID_MON_FIRST[idx]}</div>
+                           <div class="day-number${isSabtu ? ' highlight' : ''}">${d.getDate()}</div>`;
+            grid.appendChild(h);
+        });
+
+        // Kolom jam
+        const timeCol = document.createElement('div');
+        timeCol.className = 'time-col';
+        for (let h = START_HOUR; h < END_HOUR; h++) {
+            const cell = document.createElement('div');
+            cell.className = 'time-cell';
+            cell.textContent = `${String(h).padStart(2,'0')}:00`;
+            timeCol.appendChild(cell);
+        }
+        grid.appendChild(timeCol);
+
+        let adaSesi = false;
+
+        // Kolom setiap hari
+        weekDates.forEach(d => {
+            const iso = isoOf(d);
+            const hariNama = HARI_ID[d.getDay()];
+            const col = document.createElement('div');
+            col.className = 'day-col' + (iso === todayIso ? ' current-day' : '');
+            col.style.height = ((END_HOUR - START_HOUR) * ROW_H) + 'px';
+
+            const events = eventsForDate(iso, hariNama);
+            events.forEach(j => {
+                adaSesi = true;
+                const startMin = timeToMinutes(j.jam_mulai);
+                const endMin = timeToMinutes(j.jam_selesai);
+                const top = Math.max(0, (startMin - START_HOUR*60) / 60 * ROW_H);
+                const height = Math.max(36, (endMin - startMin) / 60 * ROW_H - 4);
+
+                const tanggalTampil = j.tanggal_iso ? `${hariNama}, ${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}` : null;
+
+                const ev = document.createElement('div');
+                ev.className = 'event-card ' + (j.jenis_kelas === 'private' ? 'event-blue' : 'event-pink');
+                if (j.status_sesi === 'Selesai') ev.classList.add('event-selesai');
+                if (slotKeyOf(j) === selectedSlotKey) ev.classList.add('event-selected');
+                ev.style.top = top + 'px';
+                ev.style.height = height + 'px';
+                ev.innerHTML = `<div class="event-title">${j.nama_kelas}</div><div class="event-time">${j.jam_mulai} - ${j.jam_selesai}</div>`;
+                ev.addEventListener('click', () => selectSlot(j, tanggalTampil));
+                col.appendChild(ev);
+            });
+
+            grid.appendChild(col);
+        });
+
+        if (!adaSesi) {
+            const note = document.createElement('div');
+            note.className = 'empty-week-note';
+            note.textContent = 'Tidak ada sesi kelas pada minggu ini.';
+            grid.appendChild(note);
+        }
+    }
+
+    // ---- Tampilan Bulan ----
+    function renderMonthGrid() {
+        const dayNamesEl = document.getElementById('monthDayNames');
+        dayNamesEl.innerHTML = '';
+        HARI_ID.forEach(h => {
+            const el = document.createElement('div');
+            el.className = 'month-day-name';
+            el.textContent = h.slice(0,3);
+            dayNamesEl.appendChild(el);
+        });
+
+        const grid = document.getElementById('monthGrid');
+        grid.innerHTML = '';
+
+        const firstOfMonth = new Date(miniCalMonth.getFullYear(), miniCalMonth.getMonth(), 1);
+        const startOffset = firstOfMonth.getDay(); // 0 = Minggu (kalender bulan mulai dari Minggu)
+        const gridStart = new Date(firstOfMonth);
+        gridStart.setDate(gridStart.getDate() - startOffset);
+
+        const todayIso = isoOf(new Date());
+
+        for (let i = 0; i < 42; i++) {
+            const d = new Date(gridStart);
+            d.setDate(d.getDate() + i);
+            const iso = isoOf(d);
+            const hariNama = HARI_ID[d.getDay()];
+
+            const cell = document.createElement('div');
+            cell.className = 'month-cell';
+            if (d.getMonth() !== miniCalMonth.getMonth()) cell.classList.add('other-month');
+            if (iso === todayIso) cell.classList.add('is-today');
+
+            const dateEl = document.createElement('div');
+            dateEl.className = 'month-cell-date';
+            dateEl.textContent = d.getDate();
+            cell.appendChild(dateEl);
+
+            const events = eventsForDate(iso, hariNama);
+            events.slice(0, 2).forEach(j => {
+                const pill = document.createElement('div');
+                pill.className = 'month-event-pill ' + (j.jenis_kelas === 'private' ? 'blue' : 'pink');
+                pill.textContent = `${j.jam_mulai} ${j.nama_kelas}`;
+                pill.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const tanggalTampil = j.tanggal_iso ? `${hariNama}, ${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}` : null;
+                    selectSlot(j, tanggalTampil);
+                });
+                cell.appendChild(pill);
+            });
+            if (events.length > 2) {
+                const more = document.createElement('div');
+                more.className = 'month-more';
+                more.textContent = `+${events.length - 2} lainnya`;
+                cell.appendChild(more);
+            }
+
+            cell.addEventListener('click', () => {
+                selectedDate = d;
+                weekStart = mondayOf(d);
+                renderMiniCal();
+            });
+
+            grid.appendChild(cell);
+        }
+    }
+
+    // ---- Inisialisasi ----
+    function initManajemenJadwal() {
+        renderMiniCal();
+        renderCalendarHeader();
+        renderWeekGrid();
+        renderMonthGrid();
+    }
+    initManajemenJadwal();
+</script>
 
 <!-- Script untuk mengontrol Modal -->
 <script>

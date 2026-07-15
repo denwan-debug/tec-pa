@@ -166,6 +166,9 @@
         .eval-item.improvement {
             border-left: 4px solid var(--primary-accent);
         }
+        .eval-item.netral {
+            border-left: 4px solid #cbd5e1;
+        }
 
         .eval-header {
             display: flex;
@@ -213,6 +216,10 @@
         .badge.badge-improvement {
             background-color: #fce8ee;
             color: var(--primary-accent);
+        }
+        .badge.badge-netral {
+            background-color: #eef2f6;
+            color: #64748b;
         }
 
         .eval-body {
@@ -297,15 +304,15 @@
                     </div>
                     <div class="user-profile-info">
                         <div class="profile-text">
-                            <h4>Sarah Thompson</h4>
+                            <h4>{{ username or 'Wali Murid' }}</h4>
                             <p>Wali Murid</p>
                         </div>
-                        <img src="https://i.pravatar.cc/100?img=47" alt="Foto Profil" class="profile-avatar">
+                        <img src="{{ foto_profil or 'https://i.pravatar.cc/100?img=47' }}" alt="Foto Profil" class="profile-avatar">
                     </div>
                 </div>
             </div>
 
-            <a href="#" class="back-link">&larr; Kembali</a>
+            <a href="{{ url_for('orangtua.reports') }}" class="back-link">&larr; Kembali</a>
 
             <div class="content-header">
                 <div class="header-title">
@@ -313,7 +320,7 @@
                         Prestasi Akademik
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     </h1>
-                    <p>Ringkasan Detail Semester Leo Thompson &bull; Semester Musim Semi 2024</p>
+                    <p>Ringkasan Catatan Evaluasi {{ anak.nama_panggilan or anak.nama_lengkap }} &bull; {{ anak.kelas_aktif }} Kelas Aktif</p>
                 </div>
             </div>
 
@@ -322,39 +329,27 @@
                 <div class="card">
                     <h2 class="card-title">Catatan Evaluasi</h2>
 
-                    <!-- Evaluasi 1 (Positif) -->
-                    <div class="eval-item positive">
-                        <div class="eval-header">
-                            <img src="https://i.pravatar.cc/150?img=11" alt="Mr. David Henderson">
-                            <div class="eval-meta">
-                                <span class="teacher-name">Mr. David Henderson</span>
-                                <span class="date">Juni 12, 2024</span>
+                    {% if daftar_evaluasi %}
+                        {% for e in daftar_evaluasi %}
+                        <div class="eval-item {{ e.kategori }}">
+                            <div class="eval-header">
+                                <img src="{{ e.foto_pengajar if e.foto_pengajar and e.foto_pengajar.startswith('http') else 'https://ui-avatars.com/api/?name=' + (e.nama_pengajar | urlencode) + '&background=b42b51&color=fff&bold=true' }}" alt="{{ e.nama_pengajar }}">
+                                <div class="eval-meta">
+                                    <span class="teacher-name">{{ e.nama_pengajar }}</span>
+                                    <span class="date">{{ e.nama_kelas }} &bull; {{ e.tanggal_tampil }}{% if e.skor_akademis is not none %} &bull; Skor {{ e.skor_akademis }}{% endif %}</span>
+                                </div>
+                                <div class="badge badge-{{ e.kategori }}">
+                                    {{ e.label_kategori }}
+                                </div>
                             </div>
-                            <div class="badge badge-positive">
-                                Positif
-                            </div>
-                        </div>
-                        <div class="eval-body">
-                            Leo telah menunjukkan kemajuan yang luar biasa dalam keterampilan komunikasi lisan bulan ini. Dia sekarang memulai percakapan dalam bahasa Inggris dan menggunakan struktur kalimat yang kompleks dengan lebih percaya diri.
-                        </div>
-                    </div>
-
-                    <!-- Evaluasi 2 (Perlu Perbaikan) -->
-                    <div class="eval-item improvement">
-                        <div class="eval-header">
-                            <img src="https://i.pravatar.cc/150?img=32" alt="Ms. Emily Clarke">
-                            <div class="eval-meta">
-                                <span class="teacher-name">Ms. Emily Clarke</span>
-                                <span class="date">Mei 28, 2024</span>
-                            </div>
-                            <div class="badge badge-improvement">
-                                Perlu Perbaikan
+                            <div class="eval-body">
+                                {{ e.deskripsi }}
                             </div>
                         </div>
-                        <div class="eval-body">
-                            Kami lebih fokus pada ketepatan ejaan dan tata bahasa dalam menulis. Meskipun idenya kreatif, ia sebaiknya berlatih menggunakan bentuk past tense lebih konsisten dalam esainya.
-                        </div>
-                    </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: var(--text-muted);">Belum ada catatan evaluasi dari pengajar untuk anak ini.</p>
+                    {% endif %}
 
                 </div>
             </div>

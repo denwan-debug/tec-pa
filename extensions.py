@@ -1,4 +1,4 @@
-import os
+import os=
 from flask_mail import Mail, Message
 
 
@@ -16,14 +16,5 @@ mail = Mail()
 
 
 def send_email(to, subject, body):
-    """
-    Pengganti resend.Emails.send() sebelumnya / mail.send(msg) manual.
-    Dipakai untuk semua pengiriman OTP / notifikasi email di seluruh aplikasi,
-    sekarang lewat Flask-Mail (SMTP, library resmi Flask untuk kirim email).
-
-    to      : alamat email tujuan (string)
-    subject : judul email
-    body    : isi email (plain text)
-    """
     msg = Message(subject=subject, recipients=[to], body=body)
     mail.send(msg)

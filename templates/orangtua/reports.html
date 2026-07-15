@@ -354,7 +354,7 @@
                                 </div>
                             </div>
                             <div class="badge-active">{{ anak.status_anak }}</div>
-                            <a href="{{ url_for('orangtua.reports', child_id=anak.id_anak) }}" class="btn-lihat">Lihat Detail &rarr;</a>
+                            <a href="{{ url_for('orangtua.reports_detail', child_id=anak.id_anak) }}" class="btn-lihat">Lihat Detail &rarr;</a>
                         </div>
                         {% endfor %}
                     {% else %}
