@@ -14,7 +14,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.environ.get(
-    'GOOGLE_REDIRECT_URI', 'http://localhost:5000/google_calendar/oauth2callback'
+    'GOOGLE_REDIRECT_URI', 'https://tec-pa.vercel.app/google_calendar/oauth2callback'
 )
 
 
