@@ -338,16 +338,6 @@
             color: var(--primary-pink);
         }
 
-        .badge-blue {
-            background-color: #e2eff6;
-            color: #60869a;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 4px;
-            letter-spacing: 0.5px;
-        }
-
         .slot-time {
             font-size: 13px;
             color: var(--text-gray);
@@ -793,7 +783,6 @@
                     <div class="selected-slot-card">
                         <div class="slot-header">
                             <div class="slot-title" id="slotTitle">Belum ada sesi dipilih</div>
-                            <span class="badge-blue" id="slotBadge">SLOT TERPILIH</span>
                         </div>
                         <div class="slot-time">
                             <i class="fa-regular fa-clock"></i> <span id="slotTime">Klik salah satu sesi pada kalender</span>
@@ -930,11 +919,6 @@
         selectedSlotKey = slotKeyOf(j);
 
         document.getElementById('slotTitle').textContent = j.nama_kelas;
-
-        const badge = document.getElementById('slotBadge');
-        badge.textContent = j.jenis_kelas === 'private' ? 'LES PRIVATE' : 'GROUP KELAS';
-        badge.style.color = j.jenis_kelas === 'private' ? '#60869a' : 'var(--primary-pink)';
-        badge.style.backgroundColor = j.jenis_kelas === 'private' ? '#e2eff6' : 'var(--primary-light)';
 
         const tanggalLabel = tanggalTampil ? tanggalTampil + ' &bull; ' : 'Setiap ';
         document.getElementById('slotTime').innerHTML =
