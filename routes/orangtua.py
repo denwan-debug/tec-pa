@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import uuid, random, re, os, logging, cloudinary.uploader
 from db import get_db_connection
 from extensions import send_email
@@ -11,6 +11,27 @@ orangtua_bp = Blueprint('orangtua', __name__,)
 # Folder penyimpanan file bukti pembayaran yang diupload orang tua
 UPLOAD_FOLDER_BUKTI_BAYAR = os.path.join('static', 'uploads', 'bukti_bayar')
 EKSTENSI_DIIZINKAN = {'png', 'jpg', 'jpeg', 'pdf'}
+
+# WIB = UTC+7, sepanjang tahun (Indonesia tidak pakai daylight saving), jadi
+# offset tetap ini selalu benar tanpa perlu database tzdata/pytz tambahan.
+WIB = timezone(timedelta(hours=7))
+
+
+def waktu_sekarang_wib():
+    """
+    Waktu 'sekarang' yang dijamin akurat sesuai WIB, TIDAK peduli timezone
+    server tempat aplikasi/database di-hosting (Vercel, database managed, dll,
+    yang defaultnya sering UTC atau timezone lain -- BUKAN otomatis WIB).
+
+    Tanpa ini, `datetime.now()` polos mengikuti jam sistem server tempat kode
+    Python-nya jalan, yang kalau bukan WIB akan membuat waktu pendaftaran yang
+    tersimpan/ditampilkan meleset dari jam asli di perangkat pengguna.
+
+    Dikembalikan sebagai naive datetime (tanpa info timezone) supaya langsung
+    cocok disimpan ke kolom DATETIME MySQL dan dibandingkan dengan nilai lain
+    yang di seluruh aplikasi ini juga diperlakukan sebagai WIB apa adanya.
+    """
+    return datetime.now(timezone.utc).astimezone(WIB).replace(tzinfo=None)
 
 
 def ekstensi_valid(nama_file):
@@ -26,8 +47,62 @@ def generate_kode_pembayaran(id_pembayaran, tanggal_bayar=None):
     unik) sehingga TIDAK memerlukan kolom baru di tabel `pembayaran` dan akan
     selalu sama tiap kali dipanggil untuk id_pembayaran yang sama.
     """
-    tanggal_bayar = tanggal_bayar or datetime.now()
+    tanggal_bayar = tanggal_bayar or waktu_sekarang_wib()
     return f"PAY-{tanggal_bayar.strftime('%Y%m%d')}-{id_pembayaran:06d}"
+
+
+BATAS_WAKTU_PEMBAYARAN_JAM = 24  # 1x24 jam
+
+
+def _batalkan_pendaftaran_kedaluwarsa(cursor, conn):
+    """
+    Batalkan otomatis pendaftaran & tagihan yang masih berstatus 'Pending' TAPI
+    belum diunggah bukti bayarnya sama sekali dalam 1x24 jam sejak tagihan
+    dibuat (`tanggal_bayar`). Sekali bukti bayar sudah diupload, ini TIDAK
+    berlaku lagi -- itu urusan validasi admin, bukan batas waktu bayar.
+
+    Dipanggil di awal route-route yang menampilkan kelas/status pembayaran,
+    supaya kursi yang "terkunci" oleh orang yang klik Daftar tapi tidak pernah
+    benar-benar bayar otomatis terbuka lagi untuk pendaftar lain -- konsisten
+    dengan pengecekan kuota di halaman_pendaftaran_kelas() & route /pembayaran.
+    """
+    try:
+        batas_waktu = waktu_sekarang_wib() - timedelta(hours=BATAS_WAKTU_PEMBAYARAN_JAM)
+        cursor.execute("""
+            SELECT p.id_pembayaran, p.id_pendaftaran
+            FROM pembayaran p
+            WHERE p.status_pembayaran = 'Pending'
+              AND (p.bukti_bayar IS NULL OR p.bukti_bayar = '')
+              AND p.tanggal_bayar <= %s
+        """, (batas_waktu,))
+        kedaluwarsa = cursor.fetchall()
+
+        if not kedaluwarsa:
+            return
+
+        id_pembayaran_list = [row['id_pembayaran'] for row in kedaluwarsa]
+        id_pendaftaran_list = [row['id_pendaftaran'] for row in kedaluwarsa]
+
+        placeholder_bayar = ','.join(['%s'] * len(id_pembayaran_list))
+        cursor.execute(
+            f"""UPDATE pembayaran
+                SET status_pembayaran = 'Ditolak',
+                    keterangan = 'Dibatalkan otomatis oleh sistem karena tidak ada pembayaran yang dikonfirmasi dalam 1x24 jam sejak pendaftaran dibuat.'
+                WHERE id_pembayaran IN ({placeholder_bayar})""",
+            id_pembayaran_list
+        )
+
+        placeholder_daftar = ','.join(['%s'] * len(id_pendaftaran_list))
+        cursor.execute(
+            f"UPDATE pendaftaran SET status_pendaftaran = 'Ditolak' WHERE id_pendaftaran IN ({placeholder_daftar})",
+            id_pendaftaran_list
+        )
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saat membatalkan pendaftaran kedaluwarsa: {e}")
+
 
 @orangtua_bp.route('/')
 @orangtua_bp.route('/index')
@@ -884,16 +959,22 @@ def halaman_pendaftaran_kelas():
     
     user_id = session['id_users']
 
+    # Bersihkan dulu pendaftaran yang sudah kedaluwarsa (belum bayar 1x24 jam)
+    # supaya kuota yang ditampilkan di bawah ini akurat.
+    _batalkan_pendaftaran_kedaluwarsa(cursor, conn)
+
     # ... (Biarkan query daftar_kelas tetap seperti aslinya) ...
+    # PENTING: pendaftaran berstatus 'Pending' (masih menunggu validasi admin)
+    # ikut dihitung sebagai kuota terisi/terkunci -- bukan cuma yang sudah 'Aktif'.
+    # Ini supaya begitu orang tua mulai bayar, kuotanya langsung terkunci untuk
+    # dia, dan tidak bisa "kebobolan" direbut orang lain sebelum admin validasi.
     query = """
         SELECT k.*, u.username AS nama_tutor,
         (
             SELECT COUNT(*)
             FROM pendaftaran p
-            JOIN pembayaran pay ON pay.id_pendaftaran = p.id_pendaftaran
             WHERE p.id_kelas = k.id_kelas
-              AND p.status_pendaftaran = 'Aktif'
-              AND pay.status_pembayaran = 'Lunas'
+              AND p.status_pendaftaran IN ('Aktif', 'Pending')
         ) AS jumlah_siswa
         FROM kelas k
         LEFT JOIN users u ON k.id_pengajar = u.id_users
@@ -1092,6 +1173,10 @@ def pembayaran():
         cursor = conn.cursor(dictionary=True)
         
         try:
+            # Bersihkan dulu pendaftaran kedaluwarsa (termasuk mungkin punya anak
+            # ini sendiri di kelas lain) supaya kuota yang dicek nanti akurat.
+            _batalkan_pendaftaran_kedaluwarsa(cursor, conn)
+
             # Ambil data anak
             cursor.execute("SELECT * FROM anak WHERE id_anak = %s AND id_orangtua = %s", (id_anak, session['id_users']))
             detail_anak = cursor.fetchone()
@@ -1178,11 +1263,53 @@ def pembayaran():
                     flash(f"{nama_anak_display} sudah terdaftar di kelas \"{kelas_detail['nama_kelas']}\". Tidak bisa mendaftarkan anak yang sama pada kelas ini lagi.", 'error')
                 return redirect(url_for('orangtua.konfirmasi_kelas', id_kelas=id_kelas))
 
+            # --- KUNCI BARIS KELAS INI supaya pengecekan kuota + pembuatan
+            # pendaftaran di bawah bersifat ATOMIK terhadap pendaftar lain yang
+            # kebetulan mendaftar ke kelas yang SAMA di saat bersamaan.
+            #
+            # Tanpa lock ini: kalau sisa kuota tinggal 2 dan ada 3 orang klik
+            # daftar hampir bersamaan, ketiganya bisa saja lolos pengecekan kuota
+            # di waktu yang sama (karena masing-masing membaca angka kuota SEBELUM
+            # yang lain sempat menambah data) -- hasilnya kelas kelebihan pendaftar.
+            #
+            # Dengan SELECT ... FOR UPDATE, request kedua & ketiga yang menyasar
+            # id_kelas yang sama akan DITAHAN oleh MySQL sampai request pertama
+            # selesai commit/rollback. Jadi pengecekan kuota di bawah selalu
+            # membaca angka TERBARU -- cuma pendaftar yang paling cepat sampai
+            # baris ini (sesuai urutan antrean) yang akan lolos.
+            cursor.execute("SELECT kapasitas_maksimal FROM kelas WHERE id_kelas = %s FOR UPDATE", (id_kelas,))
+            kelas_lock = cursor.fetchone()
+            kapasitas_maksimal = kelas_lock['kapasitas_maksimal'] if kelas_lock else kelas_detail['kapasitas_maksimal']
+
+            # Baris ini butuh insert/reaktivasi pendaftaran baru (bukan sekadar
+            # melanjutkan tagihan Pending yang sudah ada) -- jadi perlu jatah kuota.
+            perlu_kuota_baru = (not pendaftaran) or (pendaftaran['status_pendaftaran'] in ('Ditolak', 'Berhenti'))
+
+            if perlu_kuota_baru:
+                cursor.execute("""
+                    SELECT COUNT(*) AS terisi FROM pendaftaran
+                    WHERE id_kelas = %s AND status_pendaftaran IN ('Aktif', 'Pending')
+                """, (id_kelas,))
+                kuota_terisi = cursor.fetchone()['terisi']
+
+                if kuota_terisi >= kapasitas_maksimal:
+                    conn.rollback()  # lepas lock kelas
+                    nama_anak_display = detail_anak.get('nama_panggilan') or detail_anak.get('nama_lengkap')
+                    flash(
+                        f"Mohon maaf, kuota kelas \"{kelas_detail['nama_kelas']}\" baru saja penuh -- "
+                        f"{nama_anak_display} tidak bisa didaftarkan. Silakan pilih kelas lain.",
+                        'error'
+                    )
+                    return redirect(url_for('orangtua.konfirmasi_kelas', id_kelas=id_kelas))
+
             if not pendaftaran:
                 # Jika belum ada, buat pendaftaran baru dengan status Pending --
                 # baru menjadi 'Aktif' setelah admin memverifikasi pembayarannya
                 # (lihat setujui_pembayaran / tolak_pembayaran di admin.py)
-                cursor.execute("INSERT INTO pendaftaran (id_kelas, id_anak, status_pendaftaran) VALUES (%s, %s, 'Pending')", (id_kelas, id_anak))
+                cursor.execute(
+                    "INSERT INTO pendaftaran (id_kelas, id_anak, status_pendaftaran, tanggal_daftar) VALUES (%s, %s, 'Pending', %s)",
+                    (id_kelas, id_anak, waktu_sekarang_wib())
+                )
                 id_pendaftaran = cursor.lastrowid  # Ambil ID Auto Increment
             else:
                 id_pendaftaran = pendaftaran['id_pendaftaran']
@@ -1200,14 +1327,18 @@ def pembayaran():
             pembayaran_pending = cursor.fetchone()
             
             if not pembayaran_pending:
-                # Jika belum ada tagihan Pending, buat tagihan baru
+                # Jika belum ada tagihan Pending, buat tagihan baru.
+                # `tanggal_bayar` diisi EKSPLISIT dari sisi Python (bukan
+                # mengandalkan DEFAULT CURRENT_TIMESTAMP bawaan MySQL) supaya
+                # waktu yang tersimpan dijamin sesuai WIB asli, terlepas dari
+                # timezone server database-nya di-set apa.
                 jumlah_bayar = kelas_detail['harga']
+                tanggal_bayar = waktu_sekarang_wib()
                 cursor.execute(
-                    "INSERT INTO pembayaran (id_pendaftaran, jumlah_bayar, status_pembayaran) VALUES (%s, %s, 'Pending')",
-                    (id_pendaftaran, jumlah_bayar)
+                    "INSERT INTO pembayaran (id_pendaftaran, jumlah_bayar, status_pembayaran, tanggal_bayar) VALUES (%s, %s, 'Pending', %s)",
+                    (id_pendaftaran, jumlah_bayar, tanggal_bayar)
                 )
                 id_pembayaran_db = cursor.lastrowid  # Ambil ID Auto Increment
-                tanggal_bayar = datetime.now()
             else:
                 id_pembayaran_db = pembayaran_pending['id_pembayaran']
                 tanggal_bayar = pembayaran_pending['tanggal_bayar']
@@ -1267,6 +1398,10 @@ def riwayat_pembayaran():
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Bersihkan dulu pendaftaran yang sudah kedaluwarsa, supaya status yang
+        # ditampilkan di riwayat transaksi ini sudah yang paling terbaru.
+        _batalkan_pendaftaran_kedaluwarsa(cursor, conn)
+
         # 1b. Ambil daftar anak & foto profil orang tua untuk topbar (konsisten dengan index.html)
         cursor.execute("SELECT id_anak, nama_lengkap, nama_panggilan, kelas FROM anak WHERE id_orangtua = %s ORDER BY created_at DESC", (user_id,))
         daftar_anak = cursor.fetchall()
@@ -1312,7 +1447,7 @@ def riwayat_pembayaran():
         pending_count = 0
         jumlah_sukses = 0
 
-        tahun_sekarang = datetime.now().year
+        tahun_sekarang = waktu_sekarang_wib().year
 
         for row in rows:
             status_db = row.get('status_pembayaran') or 'Pending'
@@ -1384,6 +1519,11 @@ def detail_pembayaran(id_pembayaran):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Bersihkan dulu pendaftaran yang sudah kedaluwarsa -- termasuk mungkin
+        # transaksi yang sedang dibuka ini sendiri, supaya statusnya akurat
+        # sebelum ditentukan status_kategori-nya di bawah.
+        _batalkan_pendaftaran_kedaluwarsa(cursor, conn)
+
         # 2. Ambil detail transaksi, PASTIKAN transaksi ini memang milik anak dari
         #    orang tua yang sedang login (supaya tidak bisa lihat/upload punya orang lain)
         query = """
@@ -1559,7 +1699,7 @@ def _ambil_daftar_jadwal(cursor, id_anak, nama_anak=None):
     hari_map = {0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis', 4: 'Jumat', 5: 'Sabtu', 6: 'Minggu'}
     bulan_map = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun',
                  7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des'}
-    sekarang = datetime.now()
+    sekarang = waktu_sekarang_wib()
 
     daftar_jadwal = []
     for row in rows:

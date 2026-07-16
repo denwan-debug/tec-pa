@@ -2,13 +2,29 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from db import get_db_connection
 from extensions import send_email
 import uuid, math, io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import cloudinary.uploader
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 admin_bp = Blueprint('admin', __name__)
+
+# WIB = UTC+7 sepanjang tahun (Indonesia tidak pakai daylight saving), jadi
+# offset tetap ini selalu benar tanpa perlu tzdata/pytz tambahan.
+WIB = timezone(timedelta(hours=7))
+
+
+def waktu_sekarang_wib():
+    """
+    Waktu 'sekarang' yang dijamin akurat sesuai WIB, TIDAK ikut timezone server
+    hosting (Vercel dkk, yang defaultnya sering UTC, bukan otomatis WIB).
+    Dikembalikan sebagai naive datetime supaya cocok dibandingkan dengan
+    kolom DATETIME di database (yang juga disimpan sebagai WIB apa adanya,
+    lihat waktu_sekarang_wib() di orangtua.py).
+    """
+    return datetime.now(timezone.utc).astimezone(WIB).replace(tzinfo=None)
+
 
 def _wajib_login_admin():
     if 'user_id' not in session or (session.get('role') or '').lower() != 'kepala':
@@ -800,6 +816,7 @@ def manajemen_pengajar_admin():
                 u.username, 
                 u.email, 
                 u.status_akun,
+                u.foto_profil,
                 (SELECT COUNT(*) FROM kelas k WHERE k.id_pengajar = u.id_users) AS total_kelas,
                 (SELECT COUNT(DISTINCT p.id_anak) FROM pendaftaran p JOIN kelas k ON p.id_kelas = k.id_kelas WHERE k.id_pengajar = u.id_users) AS total_siswa
             FROM users u
@@ -1216,31 +1233,42 @@ def validasi_pembayaran_admin():
 
     try:
         # --- KELOMPOK STATISTIK KARTU ATAS ---
-        # A. Tugas yang tertunda (menunggu persetujuan)
-        cursor.execute("SELECT COUNT(*) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
-        tugas_tertunda = cursor.fetchone()['total'] or 0
-
-        # B. Divalidasi hari ini (disetujui/ditolak hari ini)
-        cursor.execute("""
-            SELECT COUNT(*) as total FROM pembayaran 
-            WHERE status_pembayaran IN ('Lunas', 'Ditolak') AND DATE(tanggal_bayar) = CURDATE()
-        """)
-        divalidasi_hari_ini = cursor.fetchone()['total'] or 0
-
-        # C. Total nominal yang sedang menunggu validasi
-        cursor.execute("SELECT COALESCE(SUM(jumlah_bayar), 0) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
-        total_nominal_pending = cursor.fetchone()['total'] or 0
-
-        # D. Perlu perhatian: pengajuan pending TANPA bukti bayar, atau sudah
-        # menunggu (belum diurus) selama 1 hari lebih sejak diajukan.
+        # A. Tugas yang tertunda (menunggu persetujuan admin).
+        # HANYA yang sudah mengunggah bukti bayar -- kalau orang tua belum bayar/
+        # belum upload bukti sama sekali, itu bukan tugas admin untuk divalidasi,
+        # jadi tidak dihitung (dan tidak ditampilkan di antrean di bawah).
         cursor.execute("""
             SELECT COUNT(*) as total FROM pembayaran
-            WHERE status_pembayaran = 'Pending'
-              AND (bukti_bayar IS NULL OR bukti_bayar = '' OR tanggal_bayar < (NOW() - INTERVAL 1 DAY))
+            WHERE status_pembayaran = 'Pending' AND bukti_bayar IS NOT NULL AND bukti_bayar != ''
         """)
-        perlu_perhatian = cursor.fetchone()['total'] or 0
+        tugas_tertunda = cursor.fetchone()['total'] or 0
+
+        # B. Divalidasi hari ini (disetujui/ditolak hari ini).
+        # Batas "hari ini" dihitung di Python pakai waktu WIB yang akurat
+        # (bukan CURDATE() milik MySQL, yang timezone server DB-nya belum
+        # tentu WIB) supaya konsisten dengan jam asli pengguna.
+        awal_hari_ini_wib = waktu_sekarang_wib().replace(hour=0, minute=0, second=0, microsecond=0)
+        akhir_hari_ini_wib = awal_hari_ini_wib + timedelta(days=1)
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM pembayaran 
+            WHERE status_pembayaran IN ('Lunas', 'Ditolak')
+              AND tanggal_bayar >= %s AND tanggal_bayar < %s
+        """, (awal_hari_ini_wib, akhir_hari_ini_wib))
+        divalidasi_hari_ini = cursor.fetchone()['total'] or 0
+
+        # C. Total nominal yang sedang menunggu validasi (sama seperti A, hanya
+        # yang sudah ada bukti bayarnya -- itu yang benar-benar "menunggu validasi")
+        cursor.execute("""
+            SELECT COALESCE(SUM(jumlah_bayar), 0) as total FROM pembayaran
+            WHERE status_pembayaran = 'Pending' AND bukti_bayar IS NOT NULL AND bukti_bayar != ''
+        """)
+        total_nominal_pending = cursor.fetchone()['total'] or 0
 
         # --- ANTREAN: MENUNGGU PERSETUJUAN (ditampilkan di bagian atas halaman) ---
+        # HANYA transaksi Pending yang SUDAH ada bukti bayarnya. Pendaftaran yang
+        # belum bayar/belum upload bukti sama sekali tidak masuk sini -- tidak ada
+        # yang bisa divalidasi admin untuk kasus itu, dan otomatis akan dibatalkan
+        # sendiri kalau lewat 1x24 jam (lihat _batalkan_pendaftaran_kedaluwarsa di orangtua.py).
         cursor.execute("""
             SELECT 
                 p.id_pembayaran,
@@ -1259,18 +1287,36 @@ def validasi_pembayaran_admin():
             JOIN kelas k ON pd.id_kelas = k.id_kelas
             JOIN users u ON a.id_orangtua = u.id_users
             WHERE p.status_pembayaran = 'Pending'
+              AND p.bukti_bayar IS NOT NULL AND p.bukti_bayar != ''
             ORDER BY p.tanggal_bayar ASC
         """)
         antrean_pembayaran = cursor.fetchall()
-        batas_perlu_perhatian = datetime.now() - timedelta(days=1)
+        batas_perlu_perhatian = waktu_sekarang_wib() - timedelta(days=1)
         for item in antrean_pembayaran:
             item['tanggal_bayar_fmt'] = format_tanggal_indo(item['tanggal_bayar'])
-            # Tandai item yang "perlu perhatian": belum ada bukti bayar, atau
-            # sudah menunggu (belum diurus/divalidasi) selama 1 hari lebih.
-            item['perlu_perhatian'] = (
-                not item.get('bukti_bayar')
-                or (item.get('tanggal_bayar') and item['tanggal_bayar'] < batas_perlu_perhatian)
+            # Semua item di sini sudah pasti ada bukti bayarnya (lihat filter query
+            # di atas), jadi "perlu perhatian" di sini murni soal sudah lama
+            # menunggu (belum diurus admin) lebih dari 1 hari.
+            item['perlu_perhatian'] = bool(
+                item.get('tanggal_bayar') and item['tanggal_bayar'] < batas_perlu_perhatian
             )
+
+        # D. Perlu perhatian: pengajuan yang SUDAH ada bukti bayarnya tapi belum
+        # diurus/divalidasi selama 1 hari lebih.
+        #
+        # SENGAJA dihitung dari `antrean_pembayaran` yang SUDAH ada di atas
+        # (bukan query SQL terpisah dengan NOW() sendiri) supaya angka di kartu
+        # statistik ini DIJAMIN selalu sinkron dengan badge "Perlu Perhatian" yang
+        # tampil di tiap card antrean -- keduanya jadi berasal dari perhitungan
+        # yang sama persis, di waktu yang sama persis.
+        #
+        # (Sebelumnya ini pakai query terpisah `WHERE ... tanggal_bayar < (NOW() -
+        # INTERVAL 1 DAY)` di sisi MySQL, sementara badge per-card dihitung pakai
+        # `datetime.now()` di sisi Python. Kalau timezone/jam server MySQL dan
+        # server aplikasi Python tidak persis sama, dua perhitungan "sudah lewat
+        # 24 jam" itu bisa saling beda -- itu penyebab kartu sempat menunjukkan
+        # angka 1 padahal ada 2 card yang ditandai "Perlu Perhatian".)
+        perlu_perhatian = sum(1 for item in antrean_pembayaran if item['perlu_perhatian'])
 
         # --- TABEL RIWAYAT SEMUA TRANSAKSI (dengan pencarian, filter status & pagination) ---
         base_query = """
@@ -1382,7 +1428,7 @@ def download_laporan_pembayaran():
             'bulan_ini': 'Bulan Ini',
         }
         if periode in PERIODE_LABEL:
-            sekarang = datetime.now()
+            sekarang = waktu_sekarang_wib()
             awal_hari_ini = sekarang.replace(hour=0, minute=0, second=0, microsecond=0)
             batas_akhir = awal_hari_ini + timedelta(days=1)  # eksklusif, mencakup s.d. akhir hari ini
 
@@ -1445,7 +1491,7 @@ def download_laporan_pembayaran():
         if status_filter:
             filter_info.append(f"Status: {status_filter}")
         keterangan_filter = " | ".join(filter_info) if filter_info else "Semua Data"
-        sub_cell.value = f"Dicetak: {datetime.now().strftime('%d %B %Y, %H:%M')} WIB   |   {keterangan_filter}   |   Total: {len(rows)} transaksi"
+        sub_cell.value = f"Dicetak: {waktu_sekarang_wib().strftime('%d %B %Y, %H:%M')} WIB   |   {keterangan_filter}   |   Total: {len(rows)} transaksi"
         sub_cell.font = Font(name=font_umum, size=9, italic=True, color="808080")
         sub_cell.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[2].height = 18
@@ -1545,7 +1591,7 @@ def download_laporan_pembayaran():
         output.seek(0)
 
         suffix_periode = f"_{periode}" if periode in PERIODE_LABEL else ""
-        nama_file = f"laporan_pembayaran{suffix_periode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        nama_file = f"laporan_pembayaran{suffix_periode}_{waktu_sekarang_wib().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
         return Response(
             output.getvalue(),

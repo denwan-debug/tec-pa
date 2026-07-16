@@ -667,6 +667,12 @@
 
                 {% if status_kategori == 'menunggu' %}
                 <!-- 1. MENUNGGU PEMBAYARAN: info rekening tujuan + form upload bukti bayar -->
+                <div class="card-box" style="margin-bottom: 20px; border-left: 4px solid #f59e0b; background-color: #fffbeb;">
+                    <p style="margin: 0; color: #92400e; font-size: 0.9rem;">
+                        <strong>Batas waktu pembayaran: 1x24 jam</strong> sejak pendaftaran ini dibuat. Jika bukti pembayaran belum diunggah dalam waktu tersebut, pendaftaran akan <strong>dibatalkan otomatis</strong> dan kuota kelas dibuka kembali untuk pendaftar lain.
+                    </p>
+                </div>
+
                 <div class="card-box" style="margin-bottom: 20px;">
                     <h2>Transfer ke Rekening Berikut</h2>
                     <p>Lakukan pembayaran sejumlah <strong>Rp {{ "{:,.0f}".format(trx.jumlah_bayar).replace(',', '.') }}</strong> ke rekening di bawah ini, lalu unggah bukti transfernya.</p>
@@ -680,7 +686,7 @@
                             </div>
                         </div>
                         <div class="rekening-nomor-row">
-                            <span id="nomorRekening" class="rekening-nomor">1234 5678 9012</span>
+                            <span id="nomorRekening" class="rekening-nomor">6840497010</span>
                             <button type="button" class="btn-copy" onclick="salinRekening()">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                                 <span id="copyLabel">Salin</span>
@@ -766,10 +772,13 @@
                 </div>
 
                 {% else %}
-                <!-- 4. GAGAL: tampilkan alasan penolakan -->
+                <!-- 4. GAGAL: transaksi ditolak admin ATAU dibatalkan otomatis oleh
+                     sistem karena tidak dibayar dalam 1x24 jam -- keduanya sama-sama
+                     berstatus 'Ditolak' di database, jadi teks di bawah dibuat netral
+                     dan mengandalkan `trx.keterangan` untuk menjelaskan alasan sebenarnya. -->
                 <div class="card-box">
                     <h2>Transaksi Dibatalkan</h2>
-                    <p>Mohon maaf, pembayaran untuk transaksi ini tidak dapat diproses. Berikut keterangan dari admin:</p>
+                    <p>Mohon maaf, pembayaran untuk transaksi ini tidak dapat diproses. Berikut keterangannya:</p>
 
                     <div class="reason-box">
                         <p>{{ trx.keterangan }}</p>

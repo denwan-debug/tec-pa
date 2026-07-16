@@ -1,24 +1,25 @@
--- Menonaktifkan pengecekan Foreign Key sementara untuk mempermudah pembuatan tabel
 SET FOREIGN_KEY_CHECKS = 0;
--- 1. Bersihkan dulu kalau sebelumnya sempat setengah jalan
+
 CREATE DATABASE IF NOT EXISTS `tec_english`;
 USE `tec_english`;
 
 -- --------------------------------------------------------
--- Table structure for table `role`
--- --------------------------------------------------------
 -- 1. Table structure for table `role`
-drop database tec_english;
+-- --------------------------------------------------------
 CREATE TABLE `role` (
   `id_role` varchar(10) NOT NULL,
   `nama_role` varchar(50) NOT NULL,
   PRIMARY KEY (`id_role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-INSERT INTO role (id_role, nama_role) VALUES
+
+INSERT INTO `role` (`id_role`, `nama_role`) VALUES
 ('R01', 'murid'),
 ('R02', 'pengajar'),
 ('R03', 'kepala');
+
+-- --------------------------------------------------------
 -- 2. Table structure for table `users`
+-- --------------------------------------------------------
 CREATE TABLE `users` (
   `id_users` varchar(10) NOT NULL,
   `username` varchar(50) NOT NULL,
@@ -32,20 +33,18 @@ CREATE TABLE `users` (
   `role_id_role` varchar(10) NOT NULL,
   `status_akun` varchar(20) DEFAULT 'unverified',
   `tempat_lahir` varchar(50) DEFAULT NULL,
+  `deskripsi` text,
   `reset_token` varchar(255) DEFAULT NULL,
   `reset_token_expired` datetime DEFAULT NULL,
   PRIMARY KEY (`id_users`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-INSERT INTO users (id_users, username, email, password, role_id_role, status_akun)
-VALUES (
-    '80B4304669',
-    'Admin 123',
-    'admin@admin123',
-    'admin123',
-    'R03',
-    'verified'
-);
+
+INSERT INTO `users` (`id_users`, `username`, `email`, `password`, `role_id_role`, `status_akun`) VALUES
+('80B4304669', 'Admin 123', 'admin@admin123', 'admin123', 'R03', 'verified');
+
+-- --------------------------------------------------------
 -- 3. Table structure for table `user_otps`
+-- --------------------------------------------------------
 CREATE TABLE `user_otps` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id_users` varchar(10) NOT NULL,
@@ -59,7 +58,9 @@ CREATE TABLE `user_otps` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 4. Table structure for table `anak`
+-- --------------------------------------------------------
 CREATE TABLE `anak` (
   `id_anak` int NOT NULL AUTO_INCREMENT,
   `id_orangtua` varchar(10) NOT NULL,
@@ -77,7 +78,9 @@ CREATE TABLE `anak` (
   CONSTRAINT `fk_anak_orangtua` FOREIGN KEY (`id_orangtua`) REFERENCES `users` (`id_users`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 5. Table structure for table `kelas`
+-- --------------------------------------------------------
 CREATE TABLE `kelas` (
   `id_kelas` varchar(20) NOT NULL,
   `nama_kelas` varchar(100) NOT NULL,
@@ -86,17 +89,23 @@ CREATE TABLE `kelas` (
   `hari_jadwal` varchar(50) NOT NULL,
   `jam_mulai` time NOT NULL,
   `jam_selesai` time NOT NULL,
+  `jumlah_sesi` int DEFAULT NULL,
+  `tanggal_mulai` date DEFAULT NULL,
+  `tanggal_berakhir` date DEFAULT NULL,
   `kapasitas_maksimal` int NOT NULL DEFAULT '15',
   `harga` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `status_kelas` enum('Aktif','Penuh','Selesai') DEFAULT 'Aktif',
+  `status_kelas` enum('Aktif','Nonaktif','Penuh','Selesai') DEFAULT 'Aktif',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `deskripsi` text,
+  `gambar_kelas` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_kelas`),
   KEY `fk_kelas_pengajar` (`id_pengajar`),
   CONSTRAINT `fk_kelas_pengajar` FOREIGN KEY (`id_pengajar`) REFERENCES `users` (`id_users`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 6. Table structure for table `sesi_kelas`
+-- --------------------------------------------------------
 CREATE TABLE `sesi_kelas` (
   `id_sesi` int NOT NULL AUTO_INCREMENT,
   `id_kelas` varchar(20) NOT NULL,
@@ -109,7 +118,9 @@ CREATE TABLE `sesi_kelas` (
   CONSTRAINT `fk_sesi_kelas` FOREIGN KEY (`id_kelas`) REFERENCES `kelas` (`id_kelas`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 7. Table structure for table `materi_belajar`
+-- --------------------------------------------------------
 CREATE TABLE `materi_belajar` (
   `id_materi` int NOT NULL AUTO_INCREMENT,
   `id_sesi` int NOT NULL,
@@ -122,13 +133,15 @@ CREATE TABLE `materi_belajar` (
   CONSTRAINT `fk_materi_sesi` FOREIGN KEY (`id_sesi`) REFERENCES `sesi_kelas` (`id_sesi`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 8. Table structure for table `pendaftaran`
+-- --------------------------------------------------------
 CREATE TABLE `pendaftaran` (
   `id_pendaftaran` int NOT NULL AUTO_INCREMENT,
   `id_kelas` varchar(20) NOT NULL,
   `id_anak` int NOT NULL,
   `tanggal_daftar` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `status_pendaftaran` enum('Aktif','Lulus','Berhenti') NOT NULL DEFAULT 'Aktif',
+  `status_pendaftaran` enum('Pending','Aktif','Lulus','Berhenti','Ditolak') NOT NULL DEFAULT 'Pending',
   PRIMARY KEY (`id_pendaftaran`),
   KEY `fk_pendaftaran_kelas` (`id_kelas`),
   KEY `fk_pendaftaran_anak` (`id_anak`),
@@ -136,7 +149,9 @@ CREATE TABLE `pendaftaran` (
   CONSTRAINT `fk_pendaftaran_kelas` FOREIGN KEY (`id_kelas`) REFERENCES `kelas` (`id_kelas`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 9. Table structure for table `pembayaran`
+-- --------------------------------------------------------
 CREATE TABLE `pembayaran` (
   `id_pembayaran` bigint NOT NULL AUTO_INCREMENT,
   `kode_pembayaran` varchar(30) DEFAULT NULL,
@@ -152,7 +167,9 @@ CREATE TABLE `pembayaran` (
   CONSTRAINT `fk_pembayaran_pendaftaran` FOREIGN KEY (`id_pendaftaran`) REFERENCES `pendaftaran` (`id_pendaftaran`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
 -- 10. Table structure for table `presensi`
+-- --------------------------------------------------------
 CREATE TABLE `presensi` (
   `id_presensi` int NOT NULL AUTO_INCREMENT,
   `id_sesi` int NOT NULL,
@@ -166,21 +183,10 @@ CREATE TABLE `presensi` (
   CONSTRAINT `fk_presensi_sesi` FOREIGN KEY (`id_sesi`) REFERENCES `sesi_kelas` (`id_sesi`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-ALTER TABLE users ADD COLUMN deskripsi TEXT DEFAULT NULL AFTER tempat_lahir;
-
-ALTER TABLE pendaftaran
-    MODIFY COLUMN status_pendaftaran enum('Pending','Aktif','Lulus','Berhenti','Ditolak') NOT NULL DEFAULT 'Pending';
-
-ALTER TABLE `kelas` ADD COLUMN `jumlah_sesi` INT DEFAULT NULL AFTER `jam_selesai`;
-ALTER TABLE `kelas`    ADD COLUMN `tanggal_mulai` DATE DEFAULT NULL AFTER `jumlah_sesi`;
-ALTER TABLE `kelas`    ADD COLUMN `tanggal_berakhir` DATE DEFAULT NULL AFTER `tanggal_mulai`;i;
-
-ALTER TABLE `kelas`
-    MODIFY COLUMN `status_kelas` enum('Aktif','Nonaktif','Penuh','Selesai') DEFAULT 'Aktif';
-
-ALTER TABLE `kelas` ADD COLUMN `gambar_kelas` VARCHAR(255) DEFAULT NULL AFTER `deskripsi`;
-
-CREATE TABLE IF NOT EXISTS `laporan` (
+-- --------------------------------------------------------
+-- 11. Table structure for table `laporan`
+-- --------------------------------------------------------
+CREATE TABLE `laporan` (
   `id_laporan` int NOT NULL AUTO_INCREMENT,
   `id_pendaftaran` int NOT NULL,
   `id_pengajar` varchar(10) NOT NULL,
@@ -195,5 +201,4 @@ CREATE TABLE IF NOT EXISTS `laporan` (
   CONSTRAINT `fk_laporan_pengajar` FOREIGN KEY (`id_pengajar`) REFERENCES `users` (`id_users`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Mengaktifkan kembali pengecekan Foreign Key
 SET FOREIGN_KEY_CHECKS = 1;
