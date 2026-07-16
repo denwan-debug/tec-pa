@@ -523,7 +523,7 @@
                         </div>
     
     <!-- Tag img ini sudah otomatis mengecek foto di database atau menampilkan avatar default -->
-    <img src="{{ url_for('static', filename='img/' ~ session.get('foto_profil')) if session.get('foto_profil') and 'default' not in session.get('foto_profil') else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff' }}" alt="Avatar">
+    <img src="{{ session.get('foto_profil') if session.get('foto_profil') and session.get('foto_profil').startswith('http') else (url_for('static', filename='img/' ~ session.get('foto_profil')) if session.get('foto_profil') and 'default' not in session.get('foto_profil') else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff') }}" alt="Avatar">
 </div>
                 </div>
             </header>

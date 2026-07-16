@@ -41,6 +41,9 @@ def _ambil_identitas_pengajar(cursor, pengajar_id):
     di semua halaman selalu mencerminkan data terbaru di database (bukan
     sekadar cache di session).
 
+    Nama yang ditampilkan di topbar memakai `username` (akun login), bukan
+    `nama_lengkap`.
+
     Return: tuple (nama, foto) -- foto bisa None kalau belum ada/masih default.
     """
     nama = session.get('username', 'Pengajar')
@@ -53,7 +56,7 @@ def _ambil_identitas_pengajar(cursor, pengajar_id):
     """, (pengajar_id,))
     data = cursor.fetchone()
     if data:
-        nama = data.get('nama_lengkap') or data.get('username') or nama
+        nama = data.get('username') or data.get('nama_lengkap') or nama
         foto = data.get('foto_profil')
 
     return nama, foto

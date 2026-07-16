@@ -379,7 +379,7 @@
 
                         <div class="photo-area">
     <!-- Tambahkan id="preview-img" agar bisa dipanggil oleh JavaScript -->
-                            <img id="preview-img" src="{{ url_for('static', filename='img/' ~ user.foto_profil) if user and user.foto_profil and 'default' not in user.foto_profil else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff' }}" alt="Foto Profil" class="photo-preview">
+                            <img id="preview-img" src="{{ user.foto_profil if user and user.foto_profil and user.foto_profil.startswith('http') else (url_for('static', filename='img/' ~ user.foto_profil) if user and user.foto_profil and 'default' not in user.foto_profil else 'https://ui-avatars.com/api/?name=' ~ session.get('username', 'Pengajar') ~ '&background=d84b7a&color=fff') }}" alt="Foto Profil" class="photo-preview">
                             
                             <!-- Tombol Custom -->
                             <label for="foto_profil" class="custom-file-upload">

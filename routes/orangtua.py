@@ -2198,7 +2198,8 @@ def reports():
             return render_template('orangtua/reports.html', daftar_anak=[], anak_terpilih=None, jadwal=[],
                                    username=session.get('username'), foto_profil=foto_profil_user)
 
-        # 2b. Lengkapi setiap anak dengan jumlah kelas aktif & predikat (dari persentase kehadiran)
+        # 2b. Lengkapi setiap anak dengan jumlah kelas aktif & predikat (dari rata-rata
+        # skor_akademis yang diinput guru di tabel `laporan`)
         for anak in daftar_anak:
             # Jumlah kelas yang sedang diikuti (pendaftaran berstatus Aktif)
             cursor.execute("""
@@ -2208,31 +2209,35 @@ def reports():
             """, (anak['id_anak'],))
             anak['kelas_aktif'] = cursor.fetchone()['jumlah']
 
-            # Persentase kehadiran -> dipakai sebagai dasar predikat
+            # Rata-rata skor akademis dari semua laporan yang sudah diisi guru
+            # untuk anak ini (lintas semua kelas yang pernah/sedang diikuti).
+            # Laporan yang skor_akademis-nya masih NULL (belum dinilai) diabaikan
+            # dari perhitungan rata-rata.
             cursor.execute("""
-                SELECT pr.status_kehadiran, COUNT(*) AS jumlah
-                FROM presensi pr
-                JOIN pendaftaran pd ON pr.id_pendaftaran = pd.id_pendaftaran
-                WHERE pd.id_anak = %s
-                GROUP BY pr.status_kehadiran
+                SELECT AVG(l.skor_akademis) AS rata_rata, COUNT(l.skor_akademis) AS jumlah_dinilai
+                FROM laporan l
+                JOIN pendaftaran pd ON l.id_pendaftaran = pd.id_pendaftaran
+                WHERE pd.id_anak = %s AND l.skor_akademis IS NOT NULL
             """, (anak['id_anak'],))
-            presensi_rows = cursor.fetchall()
-            hadir = sum(r['jumlah'] for r in presensi_rows if r['status_kehadiran'] == 'Hadir')
-            total = sum(r['jumlah'] for r in presensi_rows)
-            persentase = round((hadir / total) * 100) if total > 0 else 0
+            hasil_skor = cursor.fetchone()
+            rata_rata = hasil_skor['rata_rata']
+            jumlah_dinilai = hasil_skor['jumlah_dinilai']
 
-            if total == 0:
+            if not jumlah_dinilai or rata_rata is None:
                 predikat = 'Belum Ada Data'
-            elif persentase >= 90:
-                predikat = 'Excellent'
-            elif persentase >= 75:
-                predikat = 'Good'
-            elif persentase >= 50:
-                predikat = 'Cukup'
+                rata_rata = 0
             else:
-                predikat = 'Perlu Perhatian'
+                rata_rata = round(float(rata_rata), 1)
+                if rata_rata >= 90:
+                    predikat = 'Excellent'
+                elif rata_rata >= 75:
+                    predikat = 'Good'
+                elif rata_rata >= 50:
+                    predikat = 'Cukup'
+                else:
+                    predikat = 'Perlu Perhatian'
 
-            anak['persentase_kehadiran'] = persentase
+            anak['rata_rata_skor'] = rata_rata
             anak['predikat'] = predikat
 
         # 3. Tentukan anak mana yang sedang dipilih/aktif dilihat
