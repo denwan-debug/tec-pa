@@ -391,7 +391,7 @@
 
                     <div class="form-options">
                         <label class="remember-me">
-                            <input type="checkbox"> Ingat Saya
+                            <input type="checkbox" id="rememberCheckbox"> Ingat Saya
                         </label>
                         <a href="{{ url_for('orangtua.forgot_password') }}" class="forgot-password">Lupa Password?</a>
                     </div>
@@ -472,6 +472,7 @@
             // 2. Mengambil nilai dari inputan
             const emailValue = document.getElementById('emailInput').value;
             const passwordValue = document.getElementById('passwordInput').value;
+            const rememberValue = document.getElementById('rememberCheckbox').checked;
             // REFERENSI KE ALERTBOX LAMA DIHAPUS
             const btn = document.getElementById('loginBtn');
 
@@ -489,7 +490,8 @@
                     // Catatan: frontend mengirim 'email' sebagai 'username' ke backend
                     body: JSON.stringify({ 
                         email: emailValue, 
-                        password: passwordValue 
+                        password: passwordValue,
+                        remember: rememberValue
                     })
                 });
 

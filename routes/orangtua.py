@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, date, timezone
@@ -229,6 +229,7 @@ def proses_login_orangtua():
     data = request.json
     email = data.get('email') 
     password = data.get('password')
+    ingat_saya = data.get('remember', False)
 
     if not email or not password:
         return jsonify({"message": "Email dan password harus diisi!"}), 400
@@ -257,6 +258,17 @@ def proses_login_orangtua():
             return jsonify({"message": "Akun Anda telah dibekukan (suspended). Silakan hubungi admin."}), 403
 
         if user['nama_role'].lower() == 'murid':
+            if ingat_saya:
+                # "Ingat Saya" dicentang -> cookie session dibuat permanen (tidak
+                # otomatis hilang saat browser ditutup) dan berlaku selama 30 hari,
+                # jadi user tidak perlu login ulang setiap kali membuka aplikasi.
+                session.permanent = True
+                current_app.permanent_session_lifetime = timedelta(days=30)
+            else:
+                # Tidak dicentang -> perilaku default Flask: cookie session hanya
+                # berlaku selama browser masih terbuka (hilang saat browser ditutup).
+                session.permanent = False
+
             session['id_users'] = user['id_users'] 
             session['username'] = user['username']
             session['role'] = 'murid'

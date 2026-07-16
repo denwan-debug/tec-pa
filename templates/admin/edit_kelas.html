@@ -221,31 +221,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- STATUS KELAS -->
-                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                        <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
-                            <i class="fa-solid fa-toggle-on text-lg"></i>
-                            <span>Status Kelas</span>
-                        </div>
-
-                        <div class="max-w-xs space-y-1.5">
-                            <label class="text-sm font-medium text-gray-600">Status</label>
-                            <div class="relative">
-                                <select name="status_kelas" id="status_kelas" data-status-awal="{{ kelas.status_kelas }}" required class="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 appearance-none transition">
-                                    <option value="Aktif" {{ 'selected' if kelas.status_kelas == 'Aktif' }}>Aktif (kelas berjalan, bisa menerima siswa)</option>
-                                    <option value="Nonaktif" {{ 'selected' if kelas.status_kelas == 'Nonaktif' }}>Nonaktif (disembunyikan/diliburkan sementara)</option>
-                                    <option value="Selesai" {{ 'selected' if kelas.status_kelas == 'Selesai' }}>Selesai (seluruh sesi sudah habis)</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-                            </div>
-                        </div>
-
-                        <div id="statusWarning" class="locked-note mt-4 hidden">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            <span id="statusWarningText"></span>
-                        </div>
-                    </div>
-
                     <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                         <div class="flex items-center gap-2 text-[#8E1F47] font-semibold border-b border-gray-100 pb-3 mb-5">
                             <i class="fa-regular fa-circle-info text-lg"></i>
@@ -489,11 +464,6 @@
                 Periksa kembali seluruh perubahan sebelum menyimpan. Perubahan akan langsung berlaku setelah dikonfirmasi.
             </p>
 
-            <div id="konfirmasiPeringatanWrap" class="locked-note w-full text-left mb-5 hidden">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span id="konfirmasiPeringatanText"></span>
-            </div>
-
             <p id="konfirmasiCountdownText" class="text-xs font-bold text-gray-400 mb-4">Mohon tunggu 5 detik...</p>
 
             <div class="flex gap-4 w-full">
@@ -691,37 +661,12 @@
             });
             confirmHapus.addEventListener('click', () => formHapus.submit());
         }
-    <script>
-        // ===== Peringatan saat status kelas diganti ke Nonaktif/Selesai
-        // padahal kelas SEKARANG masih berjalan (Aktif) =====
-        const statusSelect = document.getElementById('status_kelas');
-        const statusWarning = document.getElementById('statusWarning');
-        const statusWarningText = document.getElementById('statusWarningText');
-        const statusAwal = statusSelect.getAttribute('data-status-awal');
-
-        function cekPeringatanStatus() {
-            const statusBaru = statusSelect.value;
-            if (statusAwal === 'Aktif' && (statusBaru === 'Nonaktif' || statusBaru === 'Selesai')) {
-                const label = statusBaru === 'Nonaktif' ? 'Nonaktif' : 'Selesai';
-                const dampak = statusBaru === 'Nonaktif'
-                    ? 'kelas akan disembunyikan dan tidak bisa menerima siswa baru'
-                    : 'kelas akan dianggap seluruh sesinya sudah habis';
-                statusWarningText.innerText =
-                    `Kelas ini masih berjalan (Aktif), tapi Anda mengganti status menjadi "${label}" -- ${dampak}. Pastikan ini memang sudah sesuai sebelum menyimpan.`;
-                statusWarning.classList.remove('hidden');
-            } else {
-                statusWarning.classList.add('hidden');
-            }
-        }
-
-        statusSelect.addEventListener('change', cekPeringatanStatus);
-        cekPeringatanStatus(); // cek juga saat halaman baru dimuat
     </script>
 
     <script>
         // ===== Modal konfirmasi sebelum "Perbarui Kelas" -- tombol konfirmasi
         // baru bisa diklik setelah hitung mundur 5 detik, supaya admin benar-benar
-        // membaca ringkasan perubahan (terutama kalau status kelas berubah) =====
+        // membaca ringkasan perubahan =====
         const formUpdate = document.querySelector('form[action*="update_kelas"]');
         const btnSubmitUpdate = formUpdate.querySelector('button[type="submit"]');
         const modalKonfirmasi = document.getElementById('modalKonfirmasiUpdate');
@@ -729,20 +674,10 @@
         const btnBatalKonfirmasi = document.getElementById('batalKonfirmasiUpdate');
         const btnYaKonfirmasi = document.getElementById('yaKonfirmasiUpdate');
         const konfirmasiCountdownText = document.getElementById('konfirmasiCountdownText');
-        const konfirmasiPeringatanWrap = document.getElementById('konfirmasiPeringatanWrap');
-        const konfirmasiPeringatanText = document.getElementById('konfirmasiPeringatanText');
 
         let countdownTimer = null;
 
         function bukaModalKonfirmasi() {
-            // Tampilkan juga ringkasan peringatan status di dalam modal, kalau ada
-            if (!statusWarning.classList.contains('hidden')) {
-                konfirmasiPeringatanText.innerText = statusWarningText.innerText;
-                konfirmasiPeringatanWrap.classList.remove('hidden');
-            } else {
-                konfirmasiPeringatanWrap.classList.add('hidden');
-            }
-
             modalKonfirmasi.classList.remove('hidden');
             setTimeout(() => {
                 modalKonfirmasi.classList.remove('opacity-0');

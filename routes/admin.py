@@ -594,14 +594,14 @@ def update_kelas(id_kelas):
         id_pengajar = request.form.get('id_pengajar')
         deskripsi = request.form.get('deskripsi')
         kapasitas_maksimal = request.form.get('kapasitas_maksimal')
-        status_kelas = request.form.get('status_kelas')
+        # Status kelas TIDAK lagi bisa diubah manual lewat form edit ini --
+        # selalu dipaksa 'Aktif'. Manajemen nonaktif/selesai kelas ditunda
+        # sampai ada mekanisme yang lebih matang (perlu validasi jumlah sesi
+        # yang sudah berjalan, notifikasi ke siswa & pengajar terdampak, dsb).
+        status_kelas = 'Aktif'
 
-        if not all([nama_kelas, id_pengajar, deskripsi, kapasitas_maksimal, status_kelas]):
-            flash('Nama kelas, pengajar, deskripsi, kapasitas, dan status wajib diisi!', 'error')
-            return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
-
-        if status_kelas not in ('Aktif', 'Nonaktif', 'Selesai', 'Penuh'):
-            flash('Status kelas tidak valid.', 'error')
+        if not all([nama_kelas, id_pengajar, deskripsi, kapasitas_maksimal]):
+            flash('Nama kelas, pengajar, deskripsi, dan kapasitas wajib diisi!', 'error')
             return redirect(url_for('admin.edit_kelas', id_kelas=id_kelas))
 
         try:
