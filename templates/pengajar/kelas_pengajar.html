@@ -556,23 +556,30 @@
                 {% if daftar_kelas %}
                     {% for kelas in daftar_kelas %}
                     
-                    {# Logika Pengelompokan Kategori Otomatis berdasarkan String Nama Kelas #}
-                    {% set nama_lower = kelas.nama_kelas | lower %}
-                    {% if 'sd' in nama_lower or 'kids' in nama_lower or 'primary' in nama_lower or 'phonics' in nama_lower %}
+                    {# Kategori jenjang diambil dari data asli (kelas.tingkat) yang diisi
+                       admin saat membuat kelas -- bukan ditebak dari nama kelas. #}
+                    {% set jenjang = (kelas.tingkat or '') | upper | trim %}
+                    {% if jenjang == 'SD' %}
                         {% set kategori = 'sd' %}
                         {% set tag_class = 'tag-sd' %}
                         {% set icon_theme = 'icon-blue' %}
                         {% set label_tag = 'SD' %}
-                    {% elif 'smp' in nama_lower or 'junior' in nama_lower %}
+                    {% elif jenjang == 'SMP' %}
                         {% set kategori = 'smp' %}
                         {% set tag_class = 'tag-smp' %}
                         {% set icon_theme = 'icon-orange' %}
                         {% set label_tag = 'SMP' %}
-                    {% else %}
+                    {% elif jenjang == 'SMA' %}
                         {% set kategori = 'sma' %}
                         {% set tag_class = 'tag-sma' %}
                         {% set icon_theme = 'icon-pink' %}
                         {% set label_tag = 'SMA' %}
+                    {% else %}
+                        {# Fallback jaga-jaga kalau kolom tingkat kosong/format tak dikenal #}
+                        {% set kategori = 'lainnya' %}
+                        {% set tag_class = 'tag-sd' %}
+                        {% set icon_theme = 'icon-blue' %}
+                        {% set label_tag = kelas.tingkat or '-' %}
                     {% endif %}
 
                     <div class="class-card" data-category="{{ kategori }}">

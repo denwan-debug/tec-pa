@@ -89,13 +89,9 @@ def dashboard_admin():
         cursor.execute("SELECT COUNT(*) as total FROM kelas WHERE status_kelas = 'Aktif'")
         kelas_aktif = cursor.fetchone()['total'] or 0 
         
-        # 4. Hitung Total Orang Tua/Keluarga yang masih 'unverified' (Pending)
-        cursor.execute("""
-            SELECT COUNT(*) as total 
-            FROM users u
-            JOIN role r ON u.role_id_role = r.id_role
-            WHERE r.nama_role = 'Murid' AND u.status_akun = 'unverified'
-        """)
+        # 4. Hitung Pembayaran Tertunda: transaksi yang statusnya masih 'Pending'
+        # (menunggu persetujuan admin di halaman Validasi Pembayaran).
+        cursor.execute("SELECT COUNT(*) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
         pending = cursor.fetchone()['total'] or 0 
 
         # 5. Kelas Favorit: kelas dengan jumlah murid aktif terbanyak

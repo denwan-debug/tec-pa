@@ -228,6 +228,7 @@ def kelas_pengajar():
             SELECT 
                 k.id_kelas,
                 k.nama_kelas,
+                k.tingkat,
                 k.hari_jadwal,
                 k.jam_mulai,
                 k.jam_selesai,
