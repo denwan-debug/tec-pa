@@ -181,7 +181,7 @@
 
             <div class="max-w-6xl mx-auto space-y-6">
                 
-                <!-- PROFIL ORANG TUA & TOMBOL SUSPEND -->
+                <!-- PROFIL ORANG TUA -->
                 <div class="bg-white rounded-2xl border border-rose-100 p-6 shadow-xs flex items-center gap-6 relative">
                     <div class="relative">
                         {% if orangtua.foto_profil and 'http' in orangtua.foto_profil %}
@@ -213,20 +213,6 @@
                                     <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Dibekukan (Suspended)</span>
                                 {% endif %}
                             </div>
-                            <!-- TOMBOL SUSPEND AKUN -->
-                            <div class="flex items-center gap-2">
-                                {% if orangtua.status_akun == 'verified' %}
-                                    <!-- Tombol ini memicu modal JS hitung mundur -->
-                                    <button type="button" id="btnTriggerSuspend" class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
-                                        <i class="fa-solid fa-ban"></i> Suspend Akun
-                                    </button>
-                                {% else %}
-                                    <!-- Tombol ini memicu modal JS konfirmasi aktivasi -->
-                                    <button type="button" id="btnTriggerActivate" class="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
-                                        <i class="fa-solid fa-check"></i> Aktifkan Akun
-                                    </button>
-                                {% endif %}
-                            </div>                            
                         </div>
                         
                         <div class="flex items-center gap-6 text-xs font-medium text-gray-500">
@@ -387,52 +373,6 @@
         </div>
     </div>
 
-    <!-- Suspend Modal (Dengan Hitung Mundur) -->
-    <div id="suspendModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
-        <div id="suspendModalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
-            
-            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-5 text-red-500 text-4xl">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            
-            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Peringatan Keras!</h3>
-            <p class="text-[14px] text-gray-500 mb-8 font-medium">Anda akan membekukan akun <strong>{{ orangtua.username }}</strong>. Mereka tidak akan bisa mengakses layanan aplikasi ini.</p>
-            
-            <form action="{{ url_for('admin.suspend_akun_orangtua', id_users=orangtua.id_users) }}" method="POST" class="flex gap-4 w-full">
-                <button type="button" id="cancelSuspend" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
-                    Batal
-                </button>
-                <!-- Tombol Confirm akan di-disable secara default lewat class Tailwind 'disabled:...' -->
-                <button type="submit" id="confirmSuspend" disabled class="flex-1 bg-[#EF4444] disabled:bg-red-300 text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px] disabled:cursor-not-allowed">
-                    Tunggu 5s
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Activate Modal (Dengan Hitung Mundur) -->
-    <div id="activateModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
-        <div id="activateModalInner" class="bg-white w-[90%] max-w-[400px] rounded-[24px] p-8 text-center shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col items-center">
-            
-            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5 text-emerald-500 text-4xl">
-                <i class="fa-solid fa-circle-check"></i>
-            </div>
-            
-            <h3 class="text-[22px] font-bold text-gray-900 mb-2">Aktifkan Kembali Akun?</h3>
-            <p class="text-[14px] text-gray-500 mb-8 font-medium">Anda akan mengaktifkan kembali akun <strong>{{ orangtua.username }}</strong>. Mereka akan bisa mengakses layanan aplikasi ini kembali.</p>
-            
-            <form action="{{ url_for('admin.suspend_akun_orangtua', id_users=orangtua.id_users) }}" method="POST" class="flex gap-4 w-full">
-                <button type="button" id="cancelActivate" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-[12px] transition-colors duration-200 text-[15px]">
-                    Batal
-                </button>
-                <!-- Tombol Confirm akan di-disable secara default lewat class Tailwind 'disabled:...' -->
-                <button type="submit" id="confirmActivate" disabled class="flex-1 bg-emerald-500 disabled:bg-emerald-300 text-white font-bold py-3.5 rounded-[12px] transition-colors duration-200 flex items-center justify-center text-[15px] disabled:cursor-not-allowed">
-                    Tunggu 5s
-                </button>
-            </form>
-        </div>
-    </div>
-
     <script>
 const logoutBtn = document.getElementById('btnTriggerLogout');
     const modal = document.getElementById('logoutModal');
@@ -478,131 +418,6 @@ const logoutBtn = document.getElementById('btnTriggerLogout');
         });
     }
 
-        // --- LOGIKA MODAL SUSPEND DENGAN COUNTDOWN 5 DETIK ---
-    const suspendBtn = document.getElementById('btnTriggerSuspend');
-    const suspendModal = document.getElementById('suspendModal');
-    const suspendModalInner = document.getElementById('suspendModalInner');
-    const cancelSuspendBtn = document.getElementById('cancelSuspend');
-    const confirmSuspendBtn = document.getElementById('confirmSuspend');
-    
-    let suspendInterval; // Variabel untuk menyimpan timer
-
-    // Cek apakah tombol suspend ada (hanya muncul jika status verified)
-    if (suspendBtn) {
-        suspendBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            // 1. Buka Modal
-            suspendModal.classList.remove('hidden');
-            setTimeout(() => {
-                suspendModal.classList.remove('opacity-0');
-                suspendModalInner.classList.remove('scale-95');
-                suspendModalInner.classList.add('scale-100');
-            }, 10);
-
-            // 2. Setel ulang tombol & timer ke 5 detik
-            let timeLeft = 5;
-            confirmSuspendBtn.disabled = true; // Nonaktifkan tombol
-            confirmSuspendBtn.innerText = `Tunggu ${timeLeft}s`;
-
-            // 3. Jalankan Interval
-            suspendInterval = setInterval(() => {
-                timeLeft--;
-                if (timeLeft > 0) {
-                    confirmSuspendBtn.innerText = `Tunggu ${timeLeft}s`;
-                } else {
-                    // Waktu habis, aktifkan tombol
-                    clearInterval(suspendInterval);
-                    confirmSuspendBtn.disabled = false;
-                    confirmSuspendBtn.innerText = 'Ya, Bekukan';
-                }
-            }, 1000); // Jalan setiap 1000 milidetik (1 detik)
-        });
-    }
-
-    // Fungsi untuk menutup modal suspend & membatalkan timer jika admin klik "Batal"
-    const closeSuspendModal = () => {
-        clearInterval(suspendInterval); // Hentikan hitung mundur
-        
-        suspendModal.classList.add('opacity-0');
-        suspendModalInner.classList.remove('scale-100');
-        suspendModalInner.classList.add('scale-95');
-        
-        setTimeout(() => {
-            suspendModal.classList.add('hidden');
-        }, 300);
-    };
-
-    if (cancelSuspendBtn) {
-        cancelSuspendBtn.addEventListener('click', closeSuspendModal);
-    }
-
-    // --- LOGIKA MODAL AKTIVASI DENGAN COUNTDOWN 5 DETIK ---
-    const activateBtn = document.getElementById('btnTriggerActivate');
-    const activateModal = document.getElementById('activateModal');
-    const activateModalInner = document.getElementById('activateModalInner');
-    const cancelActivateBtn = document.getElementById('cancelActivate');
-    const confirmActivateBtn = document.getElementById('confirmActivate');
-
-    let activateInterval; // Variabel untuk menyimpan timer
-
-    // Cek apakah tombol aktivasi ada (hanya muncul jika status suspended)
-    if (activateBtn) {
-        activateBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-
-            // 1. Buka Modal
-            activateModal.classList.remove('hidden');
-            setTimeout(() => {
-                activateModal.classList.remove('opacity-0');
-                activateModalInner.classList.remove('scale-95');
-                activateModalInner.classList.add('scale-100');
-            }, 10);
-
-            // 2. Setel ulang tombol & timer ke 5 detik
-            let timeLeft = 5;
-            confirmActivateBtn.disabled = true; // Nonaktifkan tombol
-            confirmActivateBtn.innerText = `Tunggu ${timeLeft}s`;
-
-            // 3. Jalankan Interval
-            activateInterval = setInterval(() => {
-                timeLeft--;
-                if (timeLeft > 0) {
-                    confirmActivateBtn.innerText = `Tunggu ${timeLeft}s`;
-                } else {
-                    // Waktu habis, aktifkan tombol
-                    clearInterval(activateInterval);
-                    confirmActivateBtn.disabled = false;
-                    confirmActivateBtn.innerText = 'Ya, Aktifkan';
-                }
-            }, 1000); // Jalan setiap 1000 milidetik (1 detik)
-        });
-    }
-
-    // Fungsi untuk menutup modal aktivasi & membatalkan timer jika admin klik "Batal"
-    const closeActivateModal = () => {
-        clearInterval(activateInterval); // Hentikan hitung mundur
-
-        activateModal.classList.add('opacity-0');
-        activateModalInner.classList.remove('scale-100');
-        activateModalInner.classList.add('scale-95');
-
-        setTimeout(() => {
-            activateModal.classList.add('hidden');
-        }, 300);
-    };
-
-    if (cancelActivateBtn) {
-        cancelActivateBtn.addEventListener('click', closeActivateModal);
-    }
-
-    if (activateModal) {
-        activateModal.addEventListener('click', (e) => {
-            if (e.target === activateModal) {
-                closeActivateModal();
-            }
-        });
-    }
     </script>
 </body>
 </html>

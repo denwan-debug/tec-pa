@@ -79,17 +79,17 @@
                 <a href="{{ url_for('admin.dashboard_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-border-all w-5"></i> Beranda
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="{{ url_for('admin.manajemen_kelas_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-graduation-cap w-5"></i> Manajemen Kelas
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
+                <a href="{{ url_for('admin.manajemen_orangtua_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
                     <i class="fa-solid fa-users w-5"></i> Orang tua & Siswa
                 </a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 sidebar-active rounded-xl text-sm">
-                    <i class="fa-solid fa-user-tie w-5"></i> Manajemen Pengajar
+                <a href="{{ url_for('admin.manajemen_pengajar_admin') }}" class="flex items-center gap-3 px-4 py-3 bg-rose-50 text-[#8E1F47] rounded-xl font-semibold text-sm">
+                    <i class="fa-solid fa-user-tie w-5 text-slate-600"></i> Manajemen Pengajar
                 </a>
                 <a href="{{ url_for('admin.validasi_pembayaran_admin') }}" class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-rose-50 rounded-xl transition font-medium text-sm">
-                    <i class="fa-solid fa-file-invoice w-5"></i> Validasi Pembayaran
+                    <i class="fa-solid fa-wallet w-5"></i> Validasi Pembayaran
                 </a>
             </nav>
         </div>
@@ -231,9 +231,16 @@
                                 <!-- TOMBOL SUSPEND AKUN PENGAJAR -->
                                 <div class="flex items-center gap-2">
                                     {% if pengajar.status_akun == 'verified' %}
+                                        {% if kelas_aktif_diajar and kelas_aktif_diajar > 0 %}
+                                        <button type="button" disabled title="Tidak bisa dibekukan: pengajar masih memiliki {{ kelas_aktif_diajar }} kelas aktif"
+                                                class="px-4 py-2 bg-gray-50 text-gray-400 border border-gray-200 font-semibold text-xs rounded-lg shadow-sm flex items-center gap-2 cursor-not-allowed">
+                                            <i class="fa-solid fa-ban"></i> Suspend Akun
+                                        </button>
+                                        {% else %}
                                         <button type="button" id="btnTriggerSuspend" class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
                                             <i class="fa-solid fa-ban"></i> Suspend Akun
                                         </button>
+                                        {% endif %}
                                     {% else %}
                                         <button type="button" id="btnTriggerActivate" class="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-600 hover:text-white font-semibold text-xs rounded-lg transition shadow-sm flex items-center gap-2">
                                             <i class="fa-solid fa-check"></i> Aktifkan Akun
@@ -241,6 +248,13 @@
                                     {% endif %}
                                 </div>
                             </div>
+
+                            {% if pengajar.status_akun == 'verified' and kelas_aktif_diajar and kelas_aktif_diajar > 0 %}
+                            <div class="mt-4 flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-4 py-3 rounded-xl">
+                                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                                <span>Akun pengajar ini belum bisa dibekukan karena masih mengajar <strong>{{ kelas_aktif_diajar }} kelas aktif</strong>. Pindahkan pengajar pengganti atau selesaikan kelas tersebut terlebih dahulu sebelum membekukan akun.</span>
+                            </div>
+                            {% endif %}
 
                             <p class="text-sm text-gray-500 leading-relaxed mb-6 mt-4 font-medium">
                                 No. Telepon: {{ pengajar.no_telp or '-' }}<br>
@@ -255,9 +269,6 @@
                     </div>
 
                     <div class="lg:col-span-1 grid grid-cols-2 gap-4">
-                        <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
-                            <div class="text-[#A22754] text-xl mb-2"><i class="fa-regular fa-star"></i></div>
-                        </div>
                         <div class="bg-rose-50/60 p-5 rounded-2xl border border-rose-100/50 flex flex-col justify-between aspect-square">
                             <div class="text-slate-600 text-xl mb-2"><i class="fa-solid fa-user-group"></i></div>
                             <div>

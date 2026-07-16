@@ -870,6 +870,7 @@ def detail_pengajar_admin(id_pengajar):
                 k.kapasitas_maksimal AS kuota, 
                 k.hari_jadwal AS hari, 
                 k.harga,
+                k.status_kelas,
                 COUNT(p.id_pendaftaran) AS jumlah_siswa
             FROM kelas k
             LEFT JOIN pendaftaran p ON k.id_kelas = p.id_kelas AND p.status_pendaftaran = 'Aktif'
@@ -877,6 +878,10 @@ def detail_pengajar_admin(id_pengajar):
             GROUP BY k.id_kelas
         """, (id_pengajar,))
         daftar_kelas = cursor.fetchall()
+
+        # 2b. Hitung jumlah kelas yang masih aktif (masih diajar) -- dipakai untuk
+        # mencegah admin membekukan akun pengajar yang masih punya kelas berjalan
+        kelas_aktif_diajar = sum(1 for k in daftar_kelas if k.get('status_kelas') == 'Aktif')
         
         # 3. Hitung total seluruh siswa unik yang diajar oleh pengajar tersebut
         cursor.execute("""
@@ -913,7 +918,8 @@ def detail_pengajar_admin(id_pengajar):
                            pengajar=pengajar, 
                            daftar_kelas=daftar_kelas, 
                            total_siswa=total_siswa, 
-                           daftar_jadwal=daftar_jadwal)
+                           daftar_jadwal=daftar_jadwal,
+                           kelas_aktif_diajar=kelas_aktif_diajar)
 
 @admin_bp.route('/manajemen_orangtua_admin')
 def manajemen_orangtua_admin():
@@ -1073,40 +1079,6 @@ def detail_orangtua(id_users):
         cursor.close()
         conn.close()
 
-@admin_bp.route('/manajemen_orangtua_admin/suspend/<id_users>', methods=['POST'])
-def suspend_akun_orangtua(id_users):
-    # Route untuk membekukan akun (mengubah status dari verified menjadi suspended)
-    cek_akses = _wajib_login_admin()
-    if cek_akses:
-        return cek_akses
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        # Cek status saat ini
-        cursor.execute("SELECT status_akun FROM users WHERE id_users = %s", (id_users,))
-        current_status = cursor.fetchone()[0]
-        
-        # Toggle Status (Jika verified jadi suspended, jika suspended jadi verified)
-        new_status = 'suspended' if current_status == 'verified' else 'verified'
-        
-        cursor.execute("UPDATE users SET status_akun = %s WHERE id_users = %s", (new_status, id_users))
-        conn.commit()
-        
-        status_msg = 'dibekukan' if new_status == 'suspended' else 'diaktifkan kembali'
-        flash(f'Akun berhasil {status_msg}.', 'success')
-        
-    except Exception as e:
-        conn.rollback()
-        print(f"[ERROR SUSPEND AKUN]: {e}")
-        flash('Gagal mengubah status akun.', 'error')
-    finally:
-        cursor.close()
-        conn.close()
-        
-    return redirect(url_for('admin.detail_orangtua', id_users=id_users))
-
 @admin_bp.route('/manajemen_pengajar_admin/suspend/<id_users>', methods=['POST'])
 def suspend_akun_pengajar(id_users):
     # Route untuk membekukan akun pengajar (mengubah status dari verified menjadi suspended)
@@ -1124,6 +1096,26 @@ def suspend_akun_pengajar(id_users):
 
         # Toggle Status (Jika verified jadi suspended, jika suspended jadi verified)
         new_status = 'suspended' if current_status == 'verified' else 'verified'
+
+        # Kalau yang mau dilakukan adalah MEMBEKUKAN (bukan mengaktifkan kembali),
+        # cek ulang langsung dari database apakah pengajar ini masih punya kelas
+        # berstatus 'Aktif' -- jangan percaya kondisi apapun dari sisi frontend,
+        # karena tombol/modal di halaman bisa saja sudah tidak sinkron.
+        if new_status == 'suspended':
+            cursor.execute(
+                "SELECT COUNT(*) FROM kelas WHERE id_pengajar = %s AND status_kelas = 'Aktif'",
+                (id_users,)
+            )
+            jumlah_kelas_aktif = cursor.fetchone()[0] or 0
+
+            if jumlah_kelas_aktif > 0:
+                flash(
+                    f'Akun tidak bisa dibekukan karena pengajar ini masih memiliki '
+                    f'{jumlah_kelas_aktif} kelas aktif yang sedang diajar. '
+                    f'Pindahkan atau selesaikan kelas tersebut terlebih dahulu.',
+                    'error'
+                )
+                return redirect(url_for('admin.detail_pengajar_admin', id_pengajar=id_users))
 
         cursor.execute("UPDATE users SET status_akun = %s WHERE id_users = %s", (new_status, id_users))
         conn.commit()
@@ -1239,11 +1231,12 @@ def validasi_pembayaran_admin():
         cursor.execute("SELECT COALESCE(SUM(jumlah_bayar), 0) as total FROM pembayaran WHERE status_pembayaran = 'Pending'")
         total_nominal_pending = cursor.fetchone()['total'] or 0
 
-        # D. Perlu perhatian: pengajuan pending TANPA bukti bayar, atau sudah menunggu > 2 hari
+        # D. Perlu perhatian: pengajuan pending TANPA bukti bayar, atau sudah
+        # menunggu (belum diurus) selama 1 hari lebih sejak diajukan.
         cursor.execute("""
             SELECT COUNT(*) as total FROM pembayaran
             WHERE status_pembayaran = 'Pending'
-              AND (bukti_bayar IS NULL OR bukti_bayar = '' OR tanggal_bayar < (NOW() - INTERVAL 2 DAY))
+              AND (bukti_bayar IS NULL OR bukti_bayar = '' OR tanggal_bayar < (NOW() - INTERVAL 1 DAY))
         """)
         perlu_perhatian = cursor.fetchone()['total'] or 0
 
@@ -1269,8 +1262,15 @@ def validasi_pembayaran_admin():
             ORDER BY p.tanggal_bayar ASC
         """)
         antrean_pembayaran = cursor.fetchall()
+        batas_perlu_perhatian = datetime.now() - timedelta(days=1)
         for item in antrean_pembayaran:
             item['tanggal_bayar_fmt'] = format_tanggal_indo(item['tanggal_bayar'])
+            # Tandai item yang "perlu perhatian": belum ada bukti bayar, atau
+            # sudah menunggu (belum diurus/divalidasi) selama 1 hari lebih.
+            item['perlu_perhatian'] = (
+                not item.get('bukti_bayar')
+                or (item.get('tanggal_bayar') and item['tanggal_bayar'] < batas_perlu_perhatian)
+            )
 
         # --- TABEL RIWAYAT SEMUA TRANSAKSI (dengan pencarian, filter status & pagination) ---
         base_query = """
@@ -1352,6 +1352,7 @@ def download_laporan_pembayaran():
     # tapi TANPA pagination, supaya laporan berisi seluruh data yang sesuai filter.
     search = request.args.get('search', '')
     status_filter = request.args.get('status', '')
+    periode = request.args.get('periode', '')  # '', 'hari_ini', '7_hari', '1_bulan'
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -1371,6 +1372,31 @@ def download_laporan_pembayaran():
         if status_filter in ('Pending', 'Lunas', 'Ditolak'):
             base_query += " AND p.status_pembayaran = %s"
             params.append(status_filter)
+
+        # --- Filter rentang tanggal (periode laporan) ---
+        # PENTING: rentang tanggal dihitung di Python (bukan CURDATE()/NOW() milik
+        # MySQL) supaya hasilnya tidak bergantung pada timezone server database.
+        PERIODE_LABEL = {
+            'hari_ini': 'Hari Ini',
+            'minggu_ini': 'Minggu Ini',
+            'bulan_ini': 'Bulan Ini',
+        }
+        if periode in PERIODE_LABEL:
+            sekarang = datetime.now()
+            awal_hari_ini = sekarang.replace(hour=0, minute=0, second=0, microsecond=0)
+            batas_akhir = awal_hari_ini + timedelta(days=1)  # eksklusif, mencakup s.d. akhir hari ini
+
+            if periode == 'hari_ini':
+                batas_awal = awal_hari_ini
+            elif periode == 'minggu_ini':
+                # Senin adalah awal minggu (weekday(): Senin=0 ... Minggu=6)
+                batas_awal = awal_hari_ini - timedelta(days=awal_hari_ini.weekday())
+            elif periode == 'bulan_ini':
+                batas_awal = awal_hari_ini.replace(day=1)
+
+            base_query += " AND p.tanggal_bayar >= %s AND p.tanggal_bayar < %s"
+            params.append(batas_awal)
+            params.append(batas_akhir)
 
         cursor.execute(f"""
             SELECT
@@ -1412,6 +1438,8 @@ def download_laporan_pembayaran():
         ws.merge_cells(f'A2:{get_column_letter(len(headers))}2')
         sub_cell = ws['A2']
         filter_info = []
+        if periode in PERIODE_LABEL:
+            filter_info.append(f"Periode: {PERIODE_LABEL[periode]}")
         if search:
             filter_info.append(f"Pencarian: \"{search}\"")
         if status_filter:
@@ -1516,7 +1544,8 @@ def download_laporan_pembayaran():
         wb.save(output)
         output.seek(0)
 
-        nama_file = f"laporan_pembayaran_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        suffix_periode = f"_{periode}" if periode in PERIODE_LABEL else ""
+        nama_file = f"laporan_pembayaran{suffix_periode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
         return Response(
             output.getvalue(),

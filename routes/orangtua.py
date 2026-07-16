@@ -648,6 +648,37 @@ def toggle_status_anak():
 
         status_baru = 'Inactive' if anak['status_anak'] == 'Active' else 'Active'
 
+        # Validasi tambahan: HANYA berlaku saat mau MENONAKTIFKAN (Active -> Inactive).
+        # Anak tidak boleh dinonaktifkan jika masih ada pembayaran yang belum
+        # selesai diproses (status 'Pending' -- baik yang belum kirim bukti bayar
+        # maupun yang sudah kirim tapi belum divalidasi admin), atau jika anak
+        # masih terdaftar aktif di salah satu kelas (status_pendaftaran = 'Aktif').
+        if status_baru == 'Inactive':
+            cursor.execute("""
+                SELECT COUNT(*) AS jumlah
+                FROM pembayaran p
+                JOIN pendaftaran pd ON p.id_pendaftaran = pd.id_pendaftaran
+                WHERE pd.id_anak = %s AND p.status_pembayaran = 'Pending'
+            """, (id_anak,))
+            ada_pembayaran_pending = cursor.fetchone()['jumlah'] > 0
+
+            cursor.execute("""
+                SELECT COUNT(*) AS jumlah
+                FROM pendaftaran
+                WHERE id_anak = %s AND status_pendaftaran = 'Aktif'
+            """, (id_anak,))
+            ada_kelas_aktif = cursor.fetchone()['jumlah'] > 0
+
+            if ada_pembayaran_pending and ada_kelas_aktif:
+                flash(f'Akun anak "{anak["nama_lengkap"]}" tidak dapat dinonaktifkan karena masih memiliki pembayaran yang sedang diproses dan masih aktif mengikuti kelas.', 'error')
+                return redirect(f'/manajemen_anak?status={redirect_status}')
+            elif ada_pembayaran_pending:
+                flash(f'Akun anak "{anak["nama_lengkap"]}" tidak dapat dinonaktifkan karena masih memiliki pembayaran yang sedang diproses.', 'error')
+                return redirect(f'/manajemen_anak?status={redirect_status}')
+            elif ada_kelas_aktif:
+                flash(f'Akun anak "{anak["nama_lengkap"]}" tidak dapat dinonaktifkan karena masih aktif mengikuti kelas.', 'error')
+                return redirect(f'/manajemen_anak?status={redirect_status}')
+
         cursor.execute("""
             UPDATE anak SET status_anak = %s 
             WHERE id_anak = %s AND id_orangtua = %s
